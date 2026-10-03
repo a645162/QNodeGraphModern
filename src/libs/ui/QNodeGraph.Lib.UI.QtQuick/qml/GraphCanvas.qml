@@ -59,6 +59,14 @@ Rectangle {
         id: graphController
     }
 
+    Connections {
+        target: graphController
+        function onSelectedRowChanged() {
+            if (canvas.selectedIndex !== graphController.selectedRow)
+                canvas.selectedIndex = graphController.selectedRow
+        }
+    }
+
     Canvas {
         id: grid
         anchors.fill: parent
@@ -246,7 +254,10 @@ Rectangle {
 
                 MouseArea {
                     anchors.fill: parent
-                    onClicked: canvas.selectedIndex = nodeItem.index
+                    onClicked: {
+                        canvas.selectedIndex = nodeItem.index
+                        canvas.controller.selectNode(nodeItem.index)
+                    }
                 }
 
                 DragHandler {
@@ -290,6 +301,7 @@ Rectangle {
             canvas.selectionStart = Qt.point(mouse.x, mouse.y)
             canvas.selectionEnd = canvas.selectionStart
             canvas.selectedIndex = -1
+            canvas.controller.selectNode(-1)
         }
         onPositionChanged: function(mouse) {
             if (canvas.selecting)

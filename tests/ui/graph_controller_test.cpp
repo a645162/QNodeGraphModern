@@ -2,6 +2,8 @@
 
 #include <QtTest/QtTest>
 
+#include <algorithm>
+
 class GraphControllerTest final : public QObject {
     Q_OBJECT
 
@@ -12,6 +14,8 @@ private slots:
     void connectsNodesThroughPortInteraction();
     void reportsPortHitTestingResults();
     void exposesAndClearsConnectionPreview();
+    void selectsNodeAndListsProperties();
+    void editsSelectedNodeProperty();
     void movesNodeAndEmitsData();
     void clearsModel();
 };
@@ -94,6 +98,37 @@ void GraphControllerTest::exposesAndClearsConnectionPreview() {
     controller.cancelConnection();
     QVERIFY(!controller.connectionPending());
     QVERIFY(controller.connectionPreview().isEmpty());
+}
+
+void GraphControllerTest::selectsNodeAndListsProperties() {
+    QNodeGraph::UI::GraphController controller;
+    controller.addDemoNode(false);
+
+    QVERIFY(controller.selectNode(0));
+    QCOMPARE(controller.selectedRow(), 0);
+    const auto properties = controller.selectedProperties();
+    QVERIFY(!properties.isEmpty());
+    const auto first = properties.constFirst().toMap();
+    QVERIFY(first.contains(QStringLiteral("name")));
+    QVERIFY(first.contains(QStringLiteral("valueType")));
+}
+
+void GraphControllerTest::editsSelectedNodeProperty() {
+    QNodeGraph::UI::GraphController controller;
+    controller.addDemoNode(false);
+    QVERIFY(controller.selectNode(0));
+
+    QVERIFY(controller.setNodeProperty(0, QStringLiteral("label"),
+                                       QStringLiteral("Edited")));
+    const auto properties = controller.selectedProperties();
+    const auto edited = std::find_if(
+        properties.cbegin(), properties.cend(), [](const QVariant& value) {
+            return value.toMap().value(QStringLiteral("name")).toString() ==
+                   QStringLiteral("label");
+        });
+    QVERIFY(edited != properties.cend());
+    QCOMPARE(edited->toMap().value(QStringLiteral("value")).toString(),
+             QStringLiteral("Edited"));
 }
 
 void GraphControllerTest::movesNodeAndEmitsData() {

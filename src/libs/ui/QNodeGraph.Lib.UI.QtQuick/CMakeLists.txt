@@ -12,6 +12,7 @@ qt_add_qml_module(QNodeGraph.Lib.UI.QtQuick
     VERSION 1.0
     QML_FILES
         qml/GraphCanvas.qml
+        qml/PropertiesBin.qml
 )
 
 target_include_directories(QNodeGraph.Lib.UI.QtQuick

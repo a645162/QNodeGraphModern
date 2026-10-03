@@ -52,6 +52,7 @@
 
 - [ ] Reproduce node title bars, colors, icons, SVG content, disabled state, vertical layout, and embedded controls.
 - [ ] Implement Properties Bin, Nodes Tree, Nodes Palette, Tab Search, context menus, hotkeys, and undo/redo UI.
+  - [x] Reusable Properties Bin with selected-node property listing and type-aware editing.
 - [ ] Implement Group Node, Backdrop Node, subgraph proxy ports, automatic layout, and pipe slicing.
 - [ ] Add screenshot-based visual checkpoints for the canvas and each auxiliary panel.
 

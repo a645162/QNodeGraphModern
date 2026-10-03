@@ -3,6 +3,8 @@
 #include <QNodeGraph/Lib/Core/graph_document.h>
 
 #include <QAbstractListModel>
+#include <QString>
+#include <QVariant>
 
 #include <vector>
 
@@ -14,6 +16,8 @@ class GraphController : public QAbstractListModel {
     Q_PROPERTY(QVariantList connections READ connections NOTIFY connectionsChanged)
     Q_PROPERTY(bool connectionPending READ connectionPending NOTIFY connectionPendingChanged)
     Q_PROPERTY(QVariantMap connectionPreview READ connectionPreview NOTIFY connectionPreviewChanged)
+    Q_PROPERTY(int selectedRow READ selectedRow NOTIFY selectedRowChanged)
+    Q_PROPERTY(QVariantList selectedProperties READ selectedProperties NOTIFY propertiesChanged)
 
 public:
     enum NodeRole {
@@ -38,6 +42,8 @@ public:
     [[nodiscard]] QVariantList connections() const;
     [[nodiscard]] bool connectionPending() const noexcept;
     [[nodiscard]] QVariantMap connectionPreview() const;
+    [[nodiscard]] int selectedRow() const noexcept;
+    [[nodiscard]] QVariantList selectedProperties() const;
 
     Q_INVOKABLE void addDemoNode(bool connectToPrevious = true);
     Q_INVOKABLE void clearGraph();
@@ -47,12 +53,16 @@ public:
     Q_INVOKABLE void updateConnectionPreview(double worldX, double worldY);
     Q_INVOKABLE bool completeConnectionAt(double worldX, double worldY);
     Q_INVOKABLE void cancelConnection();
+    Q_INVOKABLE bool selectNode(int row);
+    Q_INVOKABLE bool setNodeProperty(int row, QString name, QVariant value);
 
 signals:
     void nodeCountChanged();
     void connectionsChanged();
     void connectionPendingChanged();
     void connectionPreviewChanged();
+    void selectedRowChanged();
+    void propertiesChanged();
 
 private:
     [[nodiscard]] Core::PortId portFor(Core::NodeId nodeId,
@@ -64,6 +74,7 @@ private:
     std::vector<Core::NodeId> m_nodeOrder;
     int m_pendingOutputRow = -1;
     Core::Point m_previewPoint;
+    int m_selectedRow = -1;
 };
 
 } // namespace QNodeGraph::UI

@@ -1,10 +1,15 @@
 #include <QNodeGraph/Lib/UI/QtQuick/graph_controller.h>
 
 #include <QHash>
+#include <QMetaType>
 #include <QString>
 #include <QVariantMap>
 
 #include <string>
+#include <cstdint>
+#include <type_traits>
+#include <utility>
+#include <variant>
 
 namespace QNodeGraph::UI {
 
@@ -13,6 +18,39 @@ namespace {
 constexpr double kDemoNodeWidth = 180.0;
 constexpr double kDemoNodeHeight = 108.0;
 constexpr double kPortHitRadius = 12.0;
+
+QVariant propertyVariant(const Core::PropertyValue& value) {
+    return std::visit(
+        [](const auto& typed) -> QVariant {
+            using Value = std::decay_t<decltype(typed)>;
+            if constexpr (std::is_same_v<Value, std::int64_t>) {
+                return QVariant::fromValue<qlonglong>(
+                    static_cast<qlonglong>(typed));
+            } else if constexpr (std::is_same_v<Value, std::string>) {
+                return QString::fromStdString(typed);
+            } else {
+                return QVariant::fromValue(typed);
+            }
+        },
+        value);
+}
+
+QString propertyType(const Core::PropertyValue& value) {
+    return std::visit(
+        [](const auto& typed) {
+            using Value = std::decay_t<decltype(typed)>;
+            if constexpr (std::is_same_v<Value, bool>) {
+                return QStringLiteral("bool");
+            } else if constexpr (std::is_same_v<Value, double>) {
+                return QStringLiteral("double");
+            } else if constexpr (std::is_same_v<Value, std::int64_t>) {
+                return QStringLiteral("int64");
+            } else {
+                return QStringLiteral("string");
+            }
+        },
+        value);
+}
 
 } // namespace
 
@@ -45,6 +83,27 @@ QVariantMap GraphController::connectionPreview() const {
     value.insert(QStringLiteral("inputY"), m_previewPoint.y);
     value.insert(QStringLiteral("outputWidth"), kDemoNodeWidth);
     return value;
+}
+
+int GraphController::selectedRow() const noexcept { return m_selectedRow; }
+
+QVariantList GraphController::selectedProperties() const {
+    QVariantList values;
+    if (m_selectedRow < 0 || m_selectedRow >= nodeCount()) {
+        return values;
+    }
+    const auto* node = m_document.node(
+        m_nodeOrder[static_cast<std::size_t>(m_selectedRow)]);
+    if (node == nullptr) {
+        return values;
+    }
+    for (const auto& [name, value] : node->properties) {
+        values.push_back(QVariantMap{
+            {QStringLiteral("name"), QString::fromStdString(name)},
+            {QStringLiteral("value"), propertyVariant(value)},
+            {QStringLiteral("valueType"), propertyType(value)}});
+    }
+    return values;
 }
 
 QVariantList GraphController::connections() const {
@@ -157,6 +216,9 @@ void GraphController::addDemoNode(bool connectToPrevious) {
         m_document.removeNode(*node);
         return;
     }
+    m_document.setProperty(*node, "enabled", true);
+    m_document.setProperty(*node, "label",
+                           "Demo Node " + std::to_string(row + 1));
     beginInsertRows(QModelIndex(), row, row);
     m_nodeOrder.push_back(*node);
     endInsertRows();
@@ -172,6 +234,11 @@ void GraphController::addDemoNode(bool connectToPrevious) {
 }
 
 void GraphController::clearGraph() {
+    if (m_selectedRow != -1) {
+        m_selectedRow = -1;
+        emit selectedRowChanged();
+        emit propertiesChanged();
+    }
     if (m_nodeOrder.empty()) {
         return;
     }
@@ -286,6 +353,71 @@ void GraphController::cancelConnection() {
     m_pendingOutputRow = -1;
     emit connectionPendingChanged();
     emit connectionPreviewChanged();
+}
+
+bool GraphController::selectNode(int row) {
+    if (row < -1 || row >= nodeCount()) {
+        return false;
+    }
+    if (m_selectedRow == row) {
+        return true;
+    }
+    m_selectedRow = row;
+    emit selectedRowChanged();
+    emit propertiesChanged();
+    return true;
+}
+
+bool GraphController::setNodeProperty(int row, QString name, QVariant value) {
+    if (row < 0 || row >= nodeCount() || name.isEmpty()) {
+        return false;
+    }
+    const auto nodeId = m_nodeOrder[static_cast<std::size_t>(row)];
+    const auto* current = m_document.property(nodeId, name.toStdString());
+    if (current == nullptr) {
+        return false;
+    }
+
+    Core::PropertyValue converted;
+    if (std::holds_alternative<bool>(*current)) {
+        if (value.metaType() == QMetaType::fromType<bool>()) {
+            converted = value.toBool();
+        } else {
+            const auto text = value.toString().trimmed().toLower();
+            if (text == QStringLiteral("true") || text == QStringLiteral("1")) {
+                converted = true;
+            } else if (text == QStringLiteral("false") ||
+                       text == QStringLiteral("0")) {
+                converted = false;
+            } else {
+                return false;
+            }
+        }
+    } else if (std::holds_alternative<double>(*current)) {
+        bool ok = false;
+        const auto number = value.toDouble(&ok);
+        if (!ok) {
+            return false;
+        }
+        converted = number;
+    } else if (std::holds_alternative<std::int64_t>(*current)) {
+        bool ok = false;
+        const auto number = value.toLongLong(&ok);
+        if (!ok) {
+            return false;
+        }
+        converted = static_cast<std::int64_t>(number);
+    } else {
+        converted = value.toString().toStdString();
+    }
+
+    const auto result = m_document.setProperty(nodeId, name.toStdString(),
+                                                std::move(converted));
+    if (!result) {
+        return false;
+    }
+    emit propertiesChanged();
+    return true;
 }
 
 Core::PortId GraphController::portFor(Core::NodeId nodeId,

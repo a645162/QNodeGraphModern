@@ -56,9 +56,21 @@ ApplicationWindow {
         }
     }
 
-    GraphCanvas {
-        id: canvas
+    RowLayout {
         anchors.fill: parent
         anchors.margins: 16
+        spacing: 12
+
+        GraphCanvas {
+            id: canvas
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+        }
+
+        PropertiesBin {
+            Layout.preferredWidth: 260
+            Layout.fillHeight: true
+            controller: canvas.controller
+        }
     }
 }
