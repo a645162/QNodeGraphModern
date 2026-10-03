@@ -10,6 +10,7 @@
 #include <QString>
 #include <QVariant>
 
+#include <map>
 #include <vector>
 
 namespace QNodeGraph::UI {
@@ -49,6 +50,10 @@ public:
         NodeIsGroupRole,
         NodeGroupIdRole,
         NodeSelectedRole,
+        NodePreviewSourceRole,
+        NodePreviewWidthRole,
+        NodePreviewHeightRole,
+        NodePreviewChannelsRole,
     };
     Q_ENUM(NodeRole)
 
@@ -76,6 +81,9 @@ public:
     Q_INVOKABLE bool deleteNode(int row);
     Q_INVOKABLE bool saveGraph(QString filePath);
     Q_INVOKABLE bool loadGraph(QString filePath);
+    Q_INVOKABLE bool setNodePreview(int row, QString source, int width,
+                                    int height, int channels);
+    Q_INVOKABLE bool clearNodePreview(int row);
     Q_INVOKABLE void clearGraph();
     Q_INVOKABLE bool moveNode(int row, double x, double y);
     Q_INVOKABLE bool autoLayout();
@@ -123,6 +131,13 @@ private:
     std::vector<Core::NodeId> m_nodeOrder;
     std::vector<int> m_selectedRows;
     QString m_lastError;
+    struct NodePreview {
+        QString source;
+        int width = 0;
+        int height = 0;
+        int channels = 0;
+    };
+    std::map<Core::NodeId, NodePreview> m_nodePreviews;
     int m_pendingOutputRow = -1;
     Core::Point m_previewPoint;
     int m_selectedRow = -1;

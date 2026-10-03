@@ -5,8 +5,8 @@ import QNodeGraph.UI 1.0
 
 ApplicationWindow {
     visible: true
-    width: 1100
-    height: 700
+    width: 1400
+    height: 900
     title: qsTr("QNodeGraph Image Pipeline Demo")
     color: "#1b2026"
 
@@ -26,9 +26,36 @@ ApplicationWindow {
             color: "#9aa6b2"
         }
 
+        GraphCanvas {
+            id: graphCanvas
+            Layout.fillWidth: true
+            Layout.preferredHeight: 320
+
+            Component.onCompleted: {
+                controller.addNodeType("load_image", false)
+                controller.addNodeType("grayscale")
+                controller.addNodeType("edge_detect")
+                controller.addNodeType("image_preview")
+                controller.addNodeType("save_image")
+                controller.autoLayout()
+            }
+        }
+
+        Connections {
+            target: pipelineController
+            function onPreviewUrlChanged() {
+                if (pipelineController.previewUrl.length > 0)
+                    graphCanvas.controller.setNodePreview(
+                        3, pipelineController.previewUrl,
+                        pipelineController.imageWidth,
+                        pipelineController.imageHeight,
+                        pipelineController.imageChannels)
+            }
+        }
+
         RowLayout {
             Layout.fillWidth: true
-            Layout.fillHeight: true
+            Layout.preferredHeight: 178
             spacing: 18
 
             Repeater {

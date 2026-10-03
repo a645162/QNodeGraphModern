@@ -28,6 +28,9 @@ UI 库注册 `QNodeGraph.UI 1.0`，组件包括 `GraphCanvas`、`PropertiesBin`�
 通过 `ImageExecutionService::submit()` 放到工作线程，并只在主线程更新 QML 属性。
 节点预览可写入 `ImageFrameProvider::setFrame()`，QML 使用
 `image://<provider>/<id>` 读取。
+宿主也可以调用 `GraphController::setNodePreview()` 将该 URL、尺寸和通道数绑定到
+画布节点；`GraphCanvas` 会在节点标题栏下方渲染缩略图，适合把任意图像处理节点的
+结果直接显示在图中。
 
 ## 持久化与资源
 

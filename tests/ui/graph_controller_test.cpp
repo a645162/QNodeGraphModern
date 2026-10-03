@@ -23,6 +23,7 @@ private slots:
     void savesAndLoadsGraphThroughController();
     void movesNodeWithUndoAndRedo();
     void exposesNodeVisualRolesAndDisabledState();
+    void exposesNodeImagePreviewRoles();
     void autoLayoutsConnectedNodes();
     void slicesConnectionsAlongGesture();
     void exposesGroupAndBackdropVisualRoles();
@@ -251,6 +252,30 @@ void GraphControllerTest::exposesNodeVisualRolesAndDisabledState() {
     QVERIFY(controller.setNodeProperty(0, QStringLiteral("enabled"), false));
     QVERIFY(!index.data(QNodeGraph::UI::GraphController::NodeEnabledRole)
                  .toBool());
+}
+
+void GraphControllerTest::exposesNodeImagePreviewRoles() {
+    QNodeGraph::UI::GraphController controller;
+    controller.addNodeType(QStringLiteral("image_preview"), false);
+    QVERIFY(controller.setNodePreview(0, QStringLiteral("image://pipeline/preview"),
+                                      64, 48, 4));
+    const auto index = controller.index(0, 0);
+    QCOMPARE(index.data(QNodeGraph::UI::GraphController::NodePreviewSourceRole)
+                 .toString(),
+             QStringLiteral("image://pipeline/preview"));
+    QCOMPARE(index.data(QNodeGraph::UI::GraphController::NodePreviewWidthRole)
+                 .toInt(),
+             64);
+    QCOMPARE(index.data(QNodeGraph::UI::GraphController::NodePreviewHeightRole)
+                 .toInt(),
+             48);
+    QCOMPARE(index.data(QNodeGraph::UI::GraphController::NodePreviewChannelsRole)
+                 .toInt(),
+             4);
+    QVERIFY(controller.clearNodePreview(0));
+    QVERIFY(index.data(QNodeGraph::UI::GraphController::NodePreviewSourceRole)
+                .toString()
+                .isEmpty());
 }
 
 void GraphControllerTest::autoLayoutsConnectedNodes() {

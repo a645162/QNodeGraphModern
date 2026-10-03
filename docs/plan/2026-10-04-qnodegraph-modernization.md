@@ -66,6 +66,7 @@
   - [x] Expose command-backed node deletion through the node context menu and Delete/Backspace shortcuts.
   - [x] Add multi-node selection roles, Ctrl/Shift toggling, and rubber-band selection.
 - [x] Add an offscreen screenshot smoke checkpoint for the reusable canvas; auxiliary panels remain covered by example startup and model tests.
+  - [x] Verify a node-bound image preview source reaches the rendered canvas.
 
 ## Task 5: Persistence and Node Registry
 
@@ -85,6 +86,7 @@
 - [x] Add cache ownership and lifetime policy for image frames.
 - [x] Define an asynchronous image execution contract with cancellation and request-generation filtering.
 - [x] Expose previews through a reusable `QQuickImageProvider` backed by the bounded frame cache.
+  - [x] Bind provider URLs and image metadata to reusable GraphCanvas node preview roles.
 - [x] Keep the first implementation compatible with `QImage`, while reserving an `ImageSource` interface for tiled/large images.
 
 ## Task 7: Image Pipeline Demo

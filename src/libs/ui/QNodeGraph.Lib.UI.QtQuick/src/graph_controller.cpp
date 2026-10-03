@@ -401,6 +401,26 @@ QVariant GraphController::data(const QModelIndex& index, int role) const {
     case NodeSelectedRole:
         return std::find(m_selectedRows.cbegin(), m_selectedRows.cend(),
                           index.row()) != m_selectedRows.cend();
+    case NodePreviewSourceRole:
+    case NodePreviewWidthRole:
+    case NodePreviewHeightRole:
+    case NodePreviewChannelsRole: {
+        const auto preview = m_nodePreviews.find(node->id);
+        if (preview == m_nodePreviews.end()) {
+            return role == NodePreviewSourceRole ? QVariant(QString{})
+                                                 : QVariant(0);
+        }
+        if (role == NodePreviewSourceRole) {
+            return preview->second.source;
+        }
+        if (role == NodePreviewWidthRole) {
+            return preview->second.width;
+        }
+        if (role == NodePreviewHeightRole) {
+            return preview->second.height;
+        }
+        return preview->second.channels;
+    }
     default:
         return {};
     }
@@ -427,6 +447,10 @@ QHash<int, QByteArray> GraphController::roleNames() const {
         {NodeIsGroupRole, "nodeIsGroup"},
         {NodeGroupIdRole, "nodeGroupId"},
         {NodeSelectedRole, "nodeSelected"},
+        {NodePreviewSourceRole, "nodePreviewSource"},
+        {NodePreviewWidthRole, "nodePreviewWidth"},
+        {NodePreviewHeightRole, "nodePreviewHeight"},
+        {NodePreviewChannelsRole, "nodePreviewChannels"},
     };
 }
 
@@ -567,6 +591,7 @@ bool GraphController::loadGraph(QString filePath) {
     beginResetModel();
     m_document = std::move(*result);
     m_nodeOrder = m_document.nodeIds();
+    m_nodePreviews.clear();
     m_commandStack.clear();
     endResetModel();
     setSelection({});
@@ -579,6 +604,37 @@ bool GraphController::loadGraph(QString filePath) {
     return true;
 }
 
+bool GraphController::setNodePreview(int row, QString source, int width,
+                                     int height, int channels) {
+    if (row < 0 || row >= nodeCount() || width < 0 || height < 0 ||
+        channels < 0) {
+        return false;
+    }
+    const auto nodeId = m_nodeOrder[static_cast<std::size_t>(row)];
+    m_nodePreviews.insert_or_assign(
+        nodeId, NodePreview{std::move(source), width, height, channels});
+    const auto modelIndex = index(row, 0);
+    emit dataChanged(modelIndex, modelIndex,
+                     {NodePreviewSourceRole, NodePreviewWidthRole,
+                      NodePreviewHeightRole, NodePreviewChannelsRole});
+    return true;
+}
+
+bool GraphController::clearNodePreview(int row) {
+    if (row < 0 || row >= nodeCount()) {
+        return false;
+    }
+    const auto nodeId = m_nodeOrder[static_cast<std::size_t>(row)];
+    if (m_nodePreviews.erase(nodeId) == 0) {
+        return false;
+    }
+    const auto modelIndex = index(row, 0);
+    emit dataChanged(modelIndex, modelIndex,
+                     {NodePreviewSourceRole, NodePreviewWidthRole,
+                      NodePreviewHeightRole, NodePreviewChannelsRole});
+    return true;
+}
+
 void GraphController::clearGraph() {
     setSelection({});
     if (m_nodeOrder.empty()) {
@@ -588,6 +644,7 @@ void GraphController::clearGraph() {
     beginResetModel();
     m_nodeOrder.clear();
     m_document.clear();
+    m_nodePreviews.clear();
     m_commandStack.clear();
     endResetModel();
     emit nodeCountChanged();

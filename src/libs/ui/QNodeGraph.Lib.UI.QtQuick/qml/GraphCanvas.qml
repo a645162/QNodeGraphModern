@@ -199,6 +199,10 @@ Rectangle {
                 required property bool nodeIsGroup
                 required property int nodeGroupId
                 required property bool nodeSelected
+                required property string nodePreviewSource
+                required property int nodePreviewWidth
+                required property int nodePreviewHeight
+                required property int nodePreviewChannels
                 required property real nodeX
                 required property real nodeY
                 required property int inputPortCount
@@ -272,10 +276,29 @@ Rectangle {
                     }
                 }
 
+                Image {
+                    x: 8
+                    y: 34
+                    width: parent.width - 16
+                    height: 50
+                    visible: nodeItem.nodePreviewSource.length > 0
+                    source: nodeItem.nodePreviewSource
+                    fillMode: Image.PreserveAspectFit
+                    asynchronous: true
+                    cache: false
+                }
+
                 Label {
-                    anchors.centerIn: parent
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: 6
                     text: nodeItem.nodeIsBackdrop
                           ? qsTr("Backdrop")
+                          : nodeItem.nodePreviewSource.length > 0
+                            ? qsTr("%1 x %2  |  %3 ch")
+                              .arg(nodeItem.nodePreviewWidth)
+                              .arg(nodeItem.nodePreviewHeight)
+                              .arg(nodeItem.nodePreviewChannels)
                           : (nodeItem.nodeIsGroup
                              ? qsTr("Group  %1 -> %2").arg(
                                    nodeItem.inputPortCount).arg(

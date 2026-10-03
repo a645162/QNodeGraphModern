@@ -41,6 +41,11 @@ void GraphCanvasVisualTest::rendersGraphCanvasWithNode() {
     QVERIFY(QMetaObject::invokeMethod(controller,
                                       "addNodeType", Q_ARG(QString, "grayscale"),
                                       Q_ARG(bool, false)));
+    QVERIFY(QMetaObject::invokeMethod(
+        controller, "setNodePreview", Q_ARG(int, 0),
+        Q_ARG(QString,
+              QStringLiteral("qrc:/qt/qml/QNodeGraph/UI/qml/icons/node.svg")),
+        Q_ARG(int, 24), Q_ARG(int, 24), Q_ARG(int, 4)));
     QTest::qWait(100);
     const auto image = window.grabWindow();
     QVERIFY(!image.isNull());
