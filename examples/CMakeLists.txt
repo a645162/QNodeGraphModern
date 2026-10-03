@@ -1,0 +1,2 @@
+add_subdirectory(QNodeGraph.BasicDemo)
+add_subdirectory(QNodeGraph.ImagePipelineDemo)
