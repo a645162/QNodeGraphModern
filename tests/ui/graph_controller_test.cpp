@@ -25,6 +25,7 @@ private slots:
     void movesSelectedNodesAsOneCommand();
     void exposesNodeVisualRolesAndDisabledState();
     void exposesNodeImagePreviewRoles();
+    void exposesPortNameRoles();
     void reportsGraphBounds();
     void autoLayoutsConnectedNodes();
     void slicesConnectionsAlongGesture();
@@ -303,6 +304,24 @@ void GraphControllerTest::exposesNodeImagePreviewRoles() {
     QVERIFY(index.data(QNodeGraph::UI::GraphController::NodePreviewSourceRole)
                 .toString()
                 .isEmpty());
+}
+
+void GraphControllerTest::exposesPortNameRoles() {
+    QNodeGraph::UI::GraphController controller;
+    controller.addNodeType(QStringLiteral("grayscale"), false);
+    const auto index = controller.index(0, 0);
+    const auto inputs = index.data(
+        QNodeGraph::UI::GraphController::NodeInputPortsRole).toList();
+    const auto outputs = index.data(
+        QNodeGraph::UI::GraphController::NodeOutputPortsRole).toList();
+    QCOMPARE(inputs.size(), qsizetype{1});
+    QCOMPARE(outputs.size(), qsizetype{1});
+    QCOMPARE(inputs.constFirst().toMap().value(QStringLiteral("name"))
+                 .toString(),
+             QStringLiteral("image"));
+    QCOMPARE(outputs.constFirst().toMap().value(QStringLiteral("dataType"))
+                 .toString(),
+             QStringLiteral("image"));
 }
 
 void GraphControllerTest::reportsGraphBounds() {

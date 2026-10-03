@@ -150,6 +150,40 @@ QString nodeStringProperty(const Core::Node& node, const char* name,
     return fallback;
 }
 
+QString portDataTypeName(Core::PortDataType type) {
+    switch (type) {
+    case Core::PortDataType::Any:
+        return QStringLiteral("any");
+    case Core::PortDataType::Image:
+        return QStringLiteral("image");
+    case Core::PortDataType::Number:
+        return QStringLiteral("number");
+    case Core::PortDataType::Text:
+        return QStringLiteral("text");
+    case Core::PortDataType::Boolean:
+        return QStringLiteral("boolean");
+    }
+    return {};
+}
+
+QVariantList nodePorts(const Core::Node& node,
+                       const Core::GraphDocument& document,
+                       Core::PortDirection direction) {
+    QVariantList ports;
+    for (const auto portId : node.ports) {
+        const auto* port = document.port(portId);
+        if (port == nullptr || port->direction != direction) {
+            continue;
+        }
+        ports.push_back(QVariantMap{
+            {QStringLiteral("name"), QString::fromStdString(port->name)},
+            {QStringLiteral("dataType"), portDataTypeName(port->dataType)},
+            {QStringLiteral("acceptsMultiple"),
+             port->acceptsMultipleConnections}});
+    }
+    return ports;
+}
+
 double cross(const Core::Point& first, const Core::Point& second,
              const Core::Point& third) {
     return (second.x - first.x) * (third.y - first.y) -
@@ -401,6 +435,10 @@ QVariant GraphController::data(const QModelIndex& index, int role) const {
     case NodeSelectedRole:
         return std::find(m_selectedRows.cbegin(), m_selectedRows.cend(),
                           index.row()) != m_selectedRows.cend();
+    case NodeInputPortsRole:
+        return nodePorts(*node, m_document, Core::PortDirection::Input);
+    case NodeOutputPortsRole:
+        return nodePorts(*node, m_document, Core::PortDirection::Output);
     case NodePreviewSourceRole:
     case NodePreviewWidthRole:
     case NodePreviewHeightRole:
@@ -451,6 +489,8 @@ QHash<int, QByteArray> GraphController::roleNames() const {
         {NodePreviewWidthRole, "nodePreviewWidth"},
         {NodePreviewHeightRole, "nodePreviewHeight"},
         {NodePreviewChannelsRole, "nodePreviewChannels"},
+        {NodeInputPortsRole, "nodeInputPorts"},
+        {NodeOutputPortsRole, "nodeOutputPorts"},
     };
 }
 

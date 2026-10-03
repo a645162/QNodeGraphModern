@@ -257,6 +257,8 @@ Rectangle {
                 required property int nodePreviewWidth
                 required property int nodePreviewHeight
                 required property int nodePreviewChannels
+                required property var nodeInputPorts
+                required property var nodeOutputPorts
                 required property real nodeX
                 required property real nodeY
                 required property int inputPortCount
@@ -343,23 +345,68 @@ Rectangle {
                 }
 
                 Label {
+                    visible: nodeItem.nodePreviewSource.length === 0 &&
+                             (nodeItem.nodeIsBackdrop || nodeItem.nodeIsGroup)
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.bottom: parent.bottom
                     anchors.bottomMargin: 6
                     text: nodeItem.nodeIsBackdrop
                           ? qsTr("Backdrop")
-                          : nodeItem.nodePreviewSource.length > 0
-                            ? qsTr("%1 x %2  |  %3 ch")
-                              .arg(nodeItem.nodePreviewWidth)
-                              .arg(nodeItem.nodePreviewHeight)
-                              .arg(nodeItem.nodePreviewChannels)
-                          : (nodeItem.nodeIsGroup
-                             ? qsTr("Group  %1 -> %2").arg(
-                                   nodeItem.inputPortCount).arg(
-                                   nodeItem.outputPortCount)
-                             : qsTr("%1 -> %2").arg(nodeItem.inputPortCount)
-                               .arg(nodeItem.outputPortCount))
+                          : qsTr("Group  %1 -> %2").arg(
+                                nodeItem.inputPortCount).arg(
+                                nodeItem.outputPortCount)
                     color: "#9aa6b2"
+                }
+
+                Label {
+                    visible: nodeItem.nodePreviewSource.length > 0
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: 6
+                    text: qsTr("%1 x %2  |  %3 ch")
+                          .arg(nodeItem.nodePreviewWidth)
+                          .arg(nodeItem.nodePreviewHeight)
+                          .arg(nodeItem.nodePreviewChannels)
+                    color: "#9aa6b2"
+                }
+
+                Row {
+                    visible: nodeItem.nodePreviewSource.length === 0 &&
+                             !nodeItem.nodeIsBackdrop && !nodeItem.nodeIsGroup
+                    anchors.centerIn: parent
+                    spacing: 14
+
+                    Column {
+                        spacing: 2
+                        Repeater {
+                            model: nodeItem.nodeInputPorts
+                            delegate: Label {
+                                required property var modelData
+                                text: modelData.name
+                                color: "#c7d1db"
+                                font.pixelSize: 12
+                            }
+                        }
+                    }
+
+                    Label {
+                        text: qsTr("->")
+                        color: "#738292"
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+
+                    Column {
+                        spacing: 2
+                        Repeater {
+                            model: nodeItem.nodeOutputPorts
+                            delegate: Label {
+                                required property var modelData
+                                text: modelData.name
+                                color: "#c7d1db"
+                                font.pixelSize: 12
+                            }
+                        }
+                    }
                 }
 
                 Rectangle {

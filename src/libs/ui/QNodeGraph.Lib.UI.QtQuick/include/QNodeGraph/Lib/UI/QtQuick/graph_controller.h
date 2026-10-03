@@ -54,6 +54,8 @@ public:
         NodePreviewWidthRole,
         NodePreviewHeightRole,
         NodePreviewChannelsRole,
+        NodeInputPortsRole,
+        NodeOutputPortsRole,
     };
     Q_ENUM(NodeRole)
 

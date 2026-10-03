@@ -69,6 +69,7 @@
   - [x] Make scene-graph pipe rendering selectable as curved, angled, or straight.
   - [x] Add dynamic Group assignment/removal actions to the node context menu.
   - [x] Move all selected nodes together through a single undoable command.
+  - [x] Expose input/output port names and data types for NodeGraphQt-style node labels.
 - [x] Add an offscreen screenshot smoke checkpoint for the reusable canvas; auxiliary panels remain covered by example startup and model tests.
   - [x] Verify a node-bound image preview source reaches the rendered canvas.
 
