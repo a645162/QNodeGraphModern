@@ -2,16 +2,55 @@
 
 #include <QHash>
 #include <QString>
+#include <QVariantMap>
 
 #include <string>
 
 namespace QNodeGraph::UI {
+
+namespace {
+
+constexpr double kDemoNodeWidth = 180.0;
+constexpr double kDemoNodeHeight = 108.0;
+
+} // namespace
 
 GraphController::GraphController(QObject* parent)
     : QAbstractListModel(parent), m_document("QNodeGraphModern") {}
 
 int GraphController::nodeCount() const noexcept {
     return static_cast<int>(m_nodeOrder.size());
+}
+
+QVariantList GraphController::connections() const {
+    QVariantList values;
+    for (const auto& connection : m_document.connections()) {
+        const auto* outputPort = m_document.port(connection.outputPort);
+        const auto* inputPort = m_document.port(connection.inputPort);
+        if (outputPort == nullptr || inputPort == nullptr) {
+            continue;
+        }
+        const auto* outputNode = m_document.node(outputPort->nodeId);
+        const auto* inputNode = m_document.node(inputPort->nodeId);
+        const auto outputRow = rowFor(outputPort->nodeId);
+        const auto inputRow = rowFor(inputPort->nodeId);
+        if (outputNode == nullptr || inputNode == nullptr || outputRow < 0 ||
+            inputRow < 0) {
+            continue;
+        }
+        QVariantMap value;
+        value.insert(QStringLiteral("outputRow"), outputRow);
+        value.insert(QStringLiteral("inputRow"), inputRow);
+        value.insert(QStringLiteral("outputX"), outputNode->position.x);
+        value.insert(QStringLiteral("outputY"),
+                     outputNode->position.y + kDemoNodeHeight / 2.0);
+        value.insert(QStringLiteral("inputX"), inputNode->position.x);
+        value.insert(QStringLiteral("inputY"),
+                     inputNode->position.y + kDemoNodeHeight / 2.0);
+        value.insert(QStringLiteral("outputWidth"), kDemoNodeWidth);
+        values.push_back(value);
+    }
+    return values;
 }
 
 int GraphController::rowCount(const QModelIndex& parent) const {
@@ -96,7 +135,15 @@ void GraphController::addDemoNode() {
     beginInsertRows(QModelIndex(), row, row);
     m_nodeOrder.push_back(*node);
     endInsertRows();
+    if (row > 0) {
+        const auto previousNode = m_nodeOrder[static_cast<std::size_t>(row - 1)];
+        const auto previousOutput = portFor(previousNode, Core::PortDirection::Output);
+        if (previousOutput != 0) {
+            m_document.connect(previousOutput, *input);
+        }
+    }
     emit nodeCountChanged();
+    emit connectionsChanged();
 }
 
 void GraphController::clearGraph() {
@@ -108,6 +155,7 @@ void GraphController::clearGraph() {
     m_document.clear();
     endResetModel();
     emit nodeCountChanged();
+    emit connectionsChanged();
 }
 
 bool GraphController::moveNode(int row, double x, double y) {
@@ -120,7 +168,32 @@ bool GraphController::moveNode(int row, double x, double y) {
     }
     const auto modelIndex = index(row, 0);
     emit dataChanged(modelIndex, modelIndex, {NodeXRole, NodeYRole});
+    emit connectionsChanged();
     return true;
+}
+
+Core::PortId GraphController::portFor(Core::NodeId nodeId,
+                                      Core::PortDirection direction) const {
+    const auto* value = m_document.node(nodeId);
+    if (value == nullptr) {
+        return 0;
+    }
+    for (const auto portId : value->ports) {
+        const auto* port = m_document.port(portId);
+        if (port != nullptr && port->direction == direction) {
+            return portId;
+        }
+    }
+    return 0;
+}
+
+int GraphController::rowFor(Core::NodeId nodeId) const {
+    for (std::size_t row = 0; row < m_nodeOrder.size(); ++row) {
+        if (m_nodeOrder[row] == nodeId) {
+            return static_cast<int>(row);
+        }
+    }
+    return -1;
 }
 
 } // namespace QNodeGraph::UI

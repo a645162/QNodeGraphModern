@@ -91,6 +91,7 @@ public:
 
     [[nodiscard]] std::size_t nodeCount() const noexcept;
     [[nodiscard]] std::size_t connectionCount() const noexcept;
+    [[nodiscard]] const std::vector<Connection>& connections() const noexcept;
 
     GraphResult<NodeId> addNode(std::string type = "generic",
                                 std::string name = "Node",

@@ -8,6 +8,7 @@ class GraphControllerTest final : public QObject {
 private slots:
     void startsWithEmptyModel();
     void addsNodeWithRoles();
+    void connectsAdjacentDemoNodes();
     void movesNodeAndEmitsData();
     void clearsModel();
 };
@@ -34,6 +35,16 @@ void GraphControllerTest::addsNodeWithRoles() {
              1);
 }
 
+void GraphControllerTest::connectsAdjacentDemoNodes() {
+    QNodeGraph::UI::GraphController controller;
+    controller.addDemoNode();
+    controller.addDemoNode();
+    QCOMPARE(controller.connections().size(), qsizetype{1});
+    const auto connection = controller.connections().constFirst().toMap();
+    QCOMPARE(connection.value(QStringLiteral("outputRow")).toInt(), 0);
+    QCOMPARE(connection.value(QStringLiteral("inputRow")).toInt(), 1);
+}
+
 void GraphControllerTest::movesNodeAndEmitsData() {
     QNodeGraph::UI::GraphController controller;
     controller.addDemoNode();
@@ -58,4 +69,3 @@ void GraphControllerTest::clearsModel() {
 
 QTEST_MAIN(GraphControllerTest)
 #include "graph_controller_test.moc"
-

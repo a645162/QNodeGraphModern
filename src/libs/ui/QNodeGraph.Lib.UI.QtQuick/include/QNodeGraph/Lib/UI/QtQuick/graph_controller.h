@@ -11,6 +11,7 @@ namespace QNodeGraph::UI {
 class GraphController : public QAbstractListModel {
     Q_OBJECT
     Q_PROPERTY(int nodeCount READ nodeCount NOTIFY nodeCountChanged)
+    Q_PROPERTY(QVariantList connections READ connections NOTIFY connectionsChanged)
 
 public:
     enum NodeRole {
@@ -32,6 +33,7 @@ public:
         const QModelIndex& index, int role = Qt::DisplayRole) const override;
     [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
     [[nodiscard]] int nodeCount() const noexcept;
+    [[nodiscard]] QVariantList connections() const;
 
     Q_INVOKABLE void addDemoNode();
     Q_INVOKABLE void clearGraph();
@@ -39,8 +41,13 @@ public:
 
 signals:
     void nodeCountChanged();
+    void connectionsChanged();
 
 private:
+    [[nodiscard]] Core::PortId portFor(Core::NodeId nodeId,
+                                       Core::PortDirection direction) const;
+    [[nodiscard]] int rowFor(Core::NodeId nodeId) const;
+
     Core::GraphDocument m_document;
     std::vector<Core::NodeId> m_nodeOrder;
 };

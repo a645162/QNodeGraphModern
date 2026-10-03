@@ -2,6 +2,8 @@ import QtQuick
 import QtQuick.Controls
 import QNodeGraph.UI 1.0
 
+pragma ComponentBehavior: Bound
+
 Rectangle {
     id: canvas
     color: "#171b20"
@@ -15,6 +17,15 @@ Rectangle {
     property bool selecting: false
     property point selectionStart: Qt.point(0, 0)
     property point selectionEnd: Qt.point(0, 0)
+
+    onZoomFactorChanged: {
+        grid.requestPaint()
+        pipes.requestPaint()
+    }
+    onPanOffsetChanged: {
+        grid.requestPaint()
+        pipes.requestPaint()
+    }
 
     function clampZoom(value) {
         return Math.max(0.25, Math.min(2.5, value))
@@ -78,6 +89,35 @@ Rectangle {
         }
     }
 
+    Canvas {
+        id: pipes
+        anchors.fill: parent
+        z: -1
+        property var connectionData: graphController.connections
+
+        onConnectionDataChanged: requestPaint()
+        onPaint: {
+            var context = getContext("2d")
+            context.reset()
+            context.strokeStyle = "#7d9bb8"
+            context.lineWidth = 3
+            for (var i = 0; i < connectionData.length; ++i) {
+                var connection = connectionData[i]
+                var startX = canvas.panOffset.x +
+                             (connection.outputX + connection.outputWidth) * canvas.zoomFactor
+                var startY = canvas.panOffset.y + connection.outputY * canvas.zoomFactor
+                var endX = canvas.panOffset.x + connection.inputX * canvas.zoomFactor
+                var endY = canvas.panOffset.y + connection.inputY * canvas.zoomFactor
+                var distance = Math.max(40, Math.abs(endX - startX) * 0.5)
+                context.beginPath()
+                context.moveTo(startX, startY)
+                context.bezierCurveTo(startX + distance, startY,
+                                      endX - distance, endY, endX, endY)
+                context.stroke()
+            }
+        }
+    }
+
     Item {
         id: world
         x: canvas.panOffset.x
@@ -89,28 +129,36 @@ Rectangle {
 
             delegate: Rectangle {
                 id: nodeItem
-                x: nodeX
-                y: nodeY
+                required property int index
+                required property string nodeName
+                required property string nodeType
+                required property real nodeX
+                required property real nodeY
+                required property int inputPortCount
+                required property int outputPortCount
+
+                x: nodeItem.nodeX
+                y: nodeItem.nodeY
                 width: 180
                 height: 108
-                color: selected ? "#394b5d" : "#2a333d"
-                border.color: selected ? "#69a7dc" : "#566575"
-                border.width: selected ? 2 : 1
+                color: nodeItem.selected ? "#394b5d" : "#2a333d"
+                border.color: nodeItem.selected ? "#69a7dc" : "#566575"
+                border.width: nodeItem.selected ? 2 : 1
                 radius: 4
 
-                property bool selected: canvas.selectedIndex === index
+                property bool selected: canvas.selectedIndex === nodeItem.index
 
                 Rectangle {
                     width: parent.width
                     height: 28
-                    color: selected ? "#426b91" : "#34414d"
+                    color: nodeItem.selected ? "#426b91" : "#34414d"
                     radius: 4
 
                     Label {
                         anchors.left: parent.left
                         anchors.leftMargin: 10
                         anchors.verticalCenter: parent.verticalCenter
-                        text: nodeName
+                        text: nodeItem.nodeName
                         color: "#e6edf3"
                         font.bold: true
                     }
@@ -118,7 +166,8 @@ Rectangle {
 
                 Label {
                     anchors.centerIn: parent
-                    text: qsTr("%1 -> %2").arg(inputPortCount).arg(outputPortCount)
+                    text: qsTr("%1 -> %2").arg(nodeItem.inputPortCount)
+                        .arg(nodeItem.outputPortCount)
                     color: "#9aa6b2"
                 }
 
@@ -144,7 +193,7 @@ Rectangle {
 
                 MouseArea {
                     anchors.fill: parent
-                    onClicked: canvas.selectedIndex = index
+                    onClicked: canvas.selectedIndex = nodeItem.index
                 }
 
                 DragHandler {
@@ -153,12 +202,12 @@ Rectangle {
                     property point startPosition: Qt.point(0, 0)
                     onActiveChanged: {
                         if (active)
-                            startPosition = Qt.point(nodeX, nodeY)
+                            startPosition = Qt.point(nodeItem.nodeX, nodeItem.nodeY)
                     }
                     onTranslationChanged: {
                         if (active)
-                            graphController.moveNode(
-                                index,
+                            canvas.controller.moveNode(
+                                nodeItem.index,
                                 startPosition.x + translation.x / canvas.zoomFactor,
                                 startPosition.y + translation.y / canvas.zoomFactor)
                     }
