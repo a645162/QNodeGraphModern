@@ -17,6 +17,7 @@ qt_add_qml_module(QNodeGraph.Lib.UI.QtQuick
         qml/PropertiesBin.qml
         qml/NodesPalette.qml
         qml/NodesTree.qml
+        qml/TabSearch.qml
 )
 
 target_include_directories(QNodeGraph.Lib.UI.QtQuick

@@ -59,6 +59,27 @@ Rectangle {
         id: graphController
     }
 
+    Menu {
+        id: contextMenu
+
+        MenuItem {
+            text: qsTr("Add Grayscale Node")
+            onTriggered: canvas.controller.addNodeType("grayscale")
+        }
+
+        MenuItem {
+            text: qsTr("Clear Graph")
+            onTriggered: canvas.controller.clearGraph()
+        }
+
+        MenuSeparator {}
+
+        MenuItem {
+            text: qsTr("Reset View")
+            onTriggered: canvas.resetView()
+        }
+    }
+
     Connections {
         target: graphController
         function onSelectedRowChanged() {
@@ -295,8 +316,15 @@ Rectangle {
         id: selectionArea
         anchors.fill: parent
         z: -1
-        acceptedButtons: Qt.LeftButton
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
         onPressed: function(mouse) {
+            if (mouse.button === Qt.RightButton) {
+                contextMenu.x = mouse.x
+                contextMenu.y = mouse.y
+                contextMenu.open()
+                mouse.accepted = true
+                return
+            }
             canvas.selecting = true
             canvas.selectionStart = Qt.point(mouse.x, mouse.y)
             canvas.selectionEnd = canvas.selectionStart

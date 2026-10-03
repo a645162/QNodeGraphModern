@@ -78,6 +78,11 @@ ApplicationWindow {
         onActivated: canvas.controller.redo()
     }
 
+    Shortcut {
+        sequence: "Ctrl+P"
+        onActivated: tabSearch.open()
+    }
+
     RowLayout {
         anchors.fill: parent
         anchors.margins: 16
@@ -116,5 +121,11 @@ ApplicationWindow {
             Layout.fillHeight: true
             controller: canvas.controller
         }
+    }
+
+    TabSearch {
+        id: tabSearch
+        anchors.centerIn: parent
+        controller: canvas.controller
     }
 }
