@@ -53,6 +53,7 @@
 - [ ] Reproduce node title bars, colors, icons, SVG content, disabled state, vertical layout, and embedded controls.
 - [ ] Implement Properties Bin, Nodes Tree, Nodes Palette, Tab Search, context menus, hotkeys, and undo/redo UI.
   - [x] Reusable Properties Bin with selected-node property listing and type-aware editing.
+  - [x] Registry-backed searchable Nodes Palette and categorized Nodes Tree components.
 - [ ] Implement Group Node, Backdrop Node, subgraph proxy ports, automatic layout, and pipe slicing.
 - [ ] Add screenshot-based visual checkpoints for the canvas and each auxiliary panel.
 
@@ -90,7 +91,7 @@
 **Files:** `scripts/test/test.ps1`, `docs/README.md`, `README.md`, `README.zh-cn.md`
 
 - [x] Run CMake configure and Debug build on the supported Qt kit.
-- [x] Run CTest with failure output enabled (7/7 tests passed).
+- [x] Run CTest with failure output enabled (8/8 tests passed).
 - [x] Run the image pipeline demo manually with the offscreen Qt platform.
 - [ ] Add Release build verification before performance work.
 - [ ] Document build, run, test, QML module layout, node authoring, and image-node extension points.

@@ -61,6 +61,28 @@ ApplicationWindow {
         anchors.margins: 16
         spacing: 12
 
+        ColumnLayout {
+            Layout.preferredWidth: 230
+            Layout.fillHeight: true
+            spacing: 8
+
+            TabBar {
+                id: nodeTabs
+                Layout.fillWidth: true
+                TabButton { text: qsTr("Palette") }
+                TabButton { text: qsTr("Tree") }
+            }
+
+            StackLayout {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                currentIndex: nodeTabs.currentIndex
+
+                NodesPalette { controller: canvas.controller }
+                NodesTree { controller: canvas.controller }
+            }
+        }
+
         GraphCanvas {
             id: canvas
             Layout.fillWidth: true

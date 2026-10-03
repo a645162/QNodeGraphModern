@@ -13,3 +13,17 @@ target_link_libraries(QNodeGraph.UI.Tests
 
 add_test(NAME QNodeGraph.UI.Tests COMMAND QNodeGraph.UI.Tests)
 
+add_executable(QNodeGraph.UI.Palette.Tests
+    node_palette_model_test.cpp
+)
+
+target_link_libraries(QNodeGraph.UI.Palette.Tests
+    PRIVATE
+        QNodeGraph.Lib.UI.QtQuick
+        Qt6::Core
+        Qt6::Qml
+        Qt6::Quick
+        Qt6::Test
+)
+
+add_test(NAME QNodeGraph.UI.Palette.Tests COMMAND QNodeGraph.UI.Palette.Tests)

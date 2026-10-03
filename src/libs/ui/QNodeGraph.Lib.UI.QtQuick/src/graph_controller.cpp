@@ -55,7 +55,9 @@ QString propertyType(const Core::PropertyValue& value) {
 } // namespace
 
 GraphController::GraphController(QObject* parent)
-    : QAbstractListModel(parent), m_document("QNodeGraphModern") {}
+    : QAbstractListModel(parent),
+      m_document("QNodeGraphModern"),
+      m_registry(QNodeGraph::Graph::NodeRegistry::withBuiltins()) {}
 
 int GraphController::nodeCount() const noexcept {
     return static_cast<int>(m_nodeOrder.size());
@@ -231,6 +233,37 @@ void GraphController::addDemoNode(bool connectToPrevious) {
     }
     emit nodeCountChanged();
     emit connectionsChanged();
+}
+
+bool GraphController::addNodeType(QString typeId, bool connectToPrevious) {
+    const auto* descriptor = m_registry.find(typeId.toStdString());
+    if (descriptor == nullptr) {
+        return false;
+    }
+    const auto row = static_cast<int>(m_nodeOrder.size());
+    const auto name = descriptor->displayName + " " + std::to_string(row + 1);
+    const auto node = m_registry.createNode(
+        m_document, descriptor->typeId, name,
+        {80.0 + (row % 3) * 250.0, 90.0 + (row / 3) * 180.0});
+    if (!node) {
+        return false;
+    }
+    m_document.setProperty(*node, "enabled", true);
+    m_document.setProperty(*node, "label", name);
+    const auto input = portFor(*node, Core::PortDirection::Input);
+    if (connectToPrevious && row > 0 && input != 0) {
+        const auto previousNode = m_nodeOrder[static_cast<std::size_t>(row - 1)];
+        const auto previousOutput = portFor(previousNode, Core::PortDirection::Output);
+        if (previousOutput != 0) {
+            static_cast<void>(m_document.connect(previousOutput, input));
+        }
+    }
+    beginInsertRows(QModelIndex(), row, row);
+    m_nodeOrder.push_back(*node);
+    endInsertRows();
+    emit nodeCountChanged();
+    emit connectionsChanged();
+    return true;
 }
 
 void GraphController::clearGraph() {

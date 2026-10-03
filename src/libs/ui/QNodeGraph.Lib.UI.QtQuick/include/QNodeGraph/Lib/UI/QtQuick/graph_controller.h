@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QNodeGraph/Lib/Core/graph_document.h>
+#include <QNodeGraph/Lib/Graph/node_registry.h>
 
 #include <QAbstractListModel>
 #include <QString>
@@ -46,6 +47,8 @@ public:
     [[nodiscard]] QVariantList selectedProperties() const;
 
     Q_INVOKABLE void addDemoNode(bool connectToPrevious = true);
+    Q_INVOKABLE bool addNodeType(QString typeId,
+                                 bool connectToPrevious = true);
     Q_INVOKABLE void clearGraph();
     Q_INVOKABLE bool moveNode(int row, double x, double y);
     Q_INVOKABLE QVariantMap portAt(double worldX, double worldY) const;
@@ -71,6 +74,7 @@ private:
     [[nodiscard]] bool connectRows(int outputRow, int inputRow);
 
     Core::GraphDocument m_document;
+    QNodeGraph::Graph::NodeRegistry m_registry;
     std::vector<Core::NodeId> m_nodeOrder;
     int m_pendingOutputRow = -1;
     Core::Point m_previewPoint;
