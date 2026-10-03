@@ -459,7 +459,7 @@ Rectangle {
                     }
                     onTranslationChanged: {
                         if (active)
-                            canvas.controller.moveNode(
+                            canvas.controller.moveSelectedNodes(
                                 nodeItem.index,
                                 startPosition.x + translation.x / canvas.zoomFactor,
                                 startPosition.y + translation.y / canvas.zoomFactor)

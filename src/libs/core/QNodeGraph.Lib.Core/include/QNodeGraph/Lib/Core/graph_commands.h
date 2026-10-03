@@ -5,6 +5,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace QNodeGraph::Core {
@@ -51,6 +52,18 @@ private:
     NodeId m_nodeId;
     Point m_position;
     std::optional<Point> m_previousPosition;
+};
+
+class MoveNodesCommand final : public GraphCommand {
+public:
+    explicit MoveNodesCommand(std::vector<std::pair<NodeId, Point>> targets);
+    GraphResult<void> execute(GraphDocument& document) override;
+    GraphResult<void> undo(GraphDocument& document) override;
+    [[nodiscard]] const char* name() const noexcept override;
+
+private:
+    std::vector<std::pair<NodeId, Point>> m_targets;
+    std::vector<std::pair<NodeId, Point>> m_previousPositions;
 };
 
 class ConnectPortsCommand final : public GraphCommand {
@@ -103,4 +116,3 @@ private:
 };
 
 } // namespace QNodeGraph::Core
-

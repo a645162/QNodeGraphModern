@@ -87,6 +87,60 @@ GraphResult<void> MoveNodeCommand::undo(GraphDocument& document) {
 
 const char* MoveNodeCommand::name() const noexcept { return "Move Node"; }
 
+MoveNodesCommand::MoveNodesCommand(
+    std::vector<std::pair<NodeId, Point>> targets)
+    : m_targets(std::move(targets)) {}
+
+GraphResult<void> MoveNodesCommand::execute(GraphDocument& document) {
+    if (m_targets.empty()) {
+        return std::unexpected(commandError("A multi-node move is empty."));
+    }
+    if (m_previousPositions.empty()) {
+        m_previousPositions.reserve(m_targets.size());
+        for (const auto& [nodeId, target] : m_targets) {
+            static_cast<void>(target);
+            const auto* node = document.node(nodeId);
+            if (node == nullptr) {
+                m_previousPositions.clear();
+                return std::unexpected(GraphError{
+                    GraphErrorCode::NodeNotFound,
+                    "A multi-node move target does not exist."});
+            }
+            m_previousPositions.emplace_back(nodeId, node->position);
+        }
+    }
+    std::size_t moved = 0;
+    for (const auto& [nodeId, target] : m_targets) {
+        const auto result = document.setNodePosition(nodeId, target);
+        if (!result) {
+            for (std::size_t index = 0; index < moved; ++index) {
+                static_cast<void>(document.setNodePosition(
+                    m_previousPositions[index].first,
+                    m_previousPositions[index].second));
+            }
+            return std::unexpected(result.error());
+        }
+        ++moved;
+    }
+    return {};
+}
+
+GraphResult<void> MoveNodesCommand::undo(GraphDocument& document) {
+    if (m_previousPositions.empty()) {
+        return std::unexpected(
+            commandError("The multi-node move was not executed."));
+    }
+    for (const auto& [nodeId, position] : m_previousPositions) {
+        const auto result = document.setNodePosition(nodeId, position);
+        if (!result) {
+            return std::unexpected(result.error());
+        }
+    }
+    return {};
+}
+
+const char* MoveNodesCommand::name() const noexcept { return "Move Nodes"; }
+
 ConnectPortsCommand::ConnectPortsCommand(PortId outputPort, PortId inputPort)
     : m_outputPort(outputPort), m_inputPort(inputPort) {}
 
@@ -195,4 +249,3 @@ void GraphCommandStack::clear() noexcept {
 }
 
 } // namespace QNodeGraph::Core
-

@@ -705,6 +705,46 @@ bool GraphController::moveNode(int row, double x, double y) {
     return true;
 }
 
+bool GraphController::moveSelectedNodes(int anchorRow, double x, double y) {
+    if (anchorRow < 0 || anchorRow >= nodeCount() ||
+        std::find(m_selectedRows.cbegin(), m_selectedRows.cend(), anchorRow) ==
+            m_selectedRows.cend()) {
+        return moveNode(anchorRow, x, y);
+    }
+    const auto* anchor = m_document.node(
+        m_nodeOrder[static_cast<std::size_t>(anchorRow)]);
+    if (anchor == nullptr) {
+        return false;
+    }
+    const auto dx = x - anchor->position.x;
+    const auto dy = y - anchor->position.y;
+    std::vector<std::pair<Core::NodeId, Core::Point>> targets;
+    targets.reserve(m_selectedRows.size());
+    for (const auto row : m_selectedRows) {
+        const auto* node = m_document.node(
+            m_nodeOrder[static_cast<std::size_t>(row)]);
+        if (node == nullptr) {
+            return false;
+        }
+        targets.emplace_back(node->id,
+                             Core::Point{node->position.x + dx,
+                                         node->position.y + dy});
+    }
+    const auto result = m_commandStack.execute(
+        std::make_unique<Core::MoveNodesCommand>(std::move(targets)),
+        m_document);
+    if (!result) {
+        return false;
+    }
+    for (const auto row : m_selectedRows) {
+        const auto modelIndex = index(row, 0);
+        emit dataChanged(modelIndex, modelIndex, {NodeXRole, NodeYRole});
+    }
+    emit connectionsChanged();
+    emit historyChanged();
+    return true;
+}
+
 bool GraphController::autoLayout() {
     const auto count = nodeCount();
     if (count == 0) {

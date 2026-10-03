@@ -22,6 +22,7 @@ private slots:
     void deletesNodeAndRestoresWithUndo();
     void savesAndLoadsGraphThroughController();
     void movesNodeWithUndoAndRedo();
+    void movesSelectedNodesAsOneCommand();
     void exposesNodeVisualRolesAndDisabledState();
     void exposesNodeImagePreviewRoles();
     void reportsGraphBounds();
@@ -233,6 +234,31 @@ void GraphControllerTest::movesNodeWithUndoAndRedo() {
                  .data(QNodeGraph::UI::GraphController::NodeXRole)
                  .toDouble(),
              320.0);
+}
+
+void GraphControllerTest::movesSelectedNodesAsOneCommand() {
+    QNodeGraph::UI::GraphController controller;
+    controller.addDemoNode(false);
+    controller.addDemoNode(false);
+    QVERIFY(controller.selectNodesInRect(0.0, 0.0, 600.0, 300.0));
+    QVERIFY(controller.moveSelectedNodes(0, 120.0, 130.0));
+    QCOMPARE(controller.index(0, 0)
+                 .data(QNodeGraph::UI::GraphController::NodeXRole)
+                 .toDouble(),
+             120.0);
+    QCOMPARE(controller.index(1, 0)
+                 .data(QNodeGraph::UI::GraphController::NodeXRole)
+                 .toDouble(),
+             370.0);
+    QVERIFY(controller.undo());
+    QCOMPARE(controller.index(0, 0)
+                 .data(QNodeGraph::UI::GraphController::NodeXRole)
+                 .toDouble(),
+             80.0);
+    QCOMPARE(controller.index(1, 0)
+                 .data(QNodeGraph::UI::GraphController::NodeXRole)
+                 .toDouble(),
+             330.0);
 }
 
 void GraphControllerTest::exposesNodeVisualRolesAndDisabledState() {

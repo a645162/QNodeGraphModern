@@ -87,6 +87,7 @@ public:
     Q_INVOKABLE bool clearNodePreview(int row);
     Q_INVOKABLE void clearGraph();
     Q_INVOKABLE bool moveNode(int row, double x, double y);
+    Q_INVOKABLE bool moveSelectedNodes(int anchorRow, double x, double y);
     Q_INVOKABLE bool autoLayout();
     Q_INVOKABLE int sliceConnections(double startX, double startY,
                                      double endX, double endY);

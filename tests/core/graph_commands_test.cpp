@@ -9,6 +9,7 @@ private slots:
     void createCommandSupportsUndoAndRedo();
     void deleteCommandRestoresNodeAndConnections();
     void moveCommandSupportsUndoAndRedo();
+    void moveNodesCommandSupportsUndoAndRedo();
     void connectionCommandSupportsUndoAndRedo();
     void propertyCommandSupportsUndoAndRedo();
 };
@@ -66,6 +67,29 @@ void GraphCommandsTest::moveCommandSupportsUndoAndRedo() {
     QCOMPARE(document.node(*node)->position.x, 0.0);
     QVERIFY(stack.redo(document).has_value());
     QCOMPARE(document.node(*node)->position.y, 40.0);
+}
+
+void GraphCommandsTest::moveNodesCommandSupportsUndoAndRedo() {
+    QNodeGraph::Core::GraphDocument document;
+    const auto first = document.addNode("node", "First");
+    const auto second = document.addNode("node", "Second");
+    QNodeGraph::Core::GraphCommandStack stack;
+    QVERIFY(stack.execute(std::make_unique<
+                             QNodeGraph::Core::MoveNodesCommand>(
+                             std::vector<std::pair<
+                                 QNodeGraph::Core::NodeId,
+                                 QNodeGraph::Core::Point>>{
+                                 {*first, {10.0, 20.0}},
+                                 {*second, {30.0, 40.0}}}),
+                         document)
+                .has_value());
+    QCOMPARE(document.node(*first)->position.x, 10.0);
+    QCOMPARE(document.node(*second)->position.y, 40.0);
+    QVERIFY(stack.undo(document).has_value());
+    QCOMPARE(document.node(*first)->position.x, 0.0);
+    QCOMPARE(document.node(*second)->position.y, 0.0);
+    QVERIFY(stack.redo(document).has_value());
+    QCOMPARE(document.node(*first)->position.y, 20.0);
 }
 
 void GraphCommandsTest::connectionCommandSupportsUndoAndRedo() {
