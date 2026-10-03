@@ -12,6 +12,13 @@ target_include_directories(QNodeGraph.Lib.Core
 
 target_compile_features(QNodeGraph.Lib.Core PUBLIC cxx_std_23)
 
+install(TARGETS QNodeGraph.Lib.Core
+    EXPORT QNodeGraphTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
 set_target_properties(QNodeGraph.Lib.Core PROPERTIES
     OUTPUT_NAME QNodeGraphCore
 )

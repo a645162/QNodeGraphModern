@@ -39,3 +39,17 @@ UI 库注册 `QNodeGraph.UI 1.0`，组件包括 `GraphCanvas`、`PropertiesBin`�
 
 Debug 和 Release 构建均使用 CMake/Ninja。提交前运行完整 `ctest --output-on-failure`
 并在 `QT_QPA_PLATFORM=offscreen` 下启动两个示例。
+
+## 安装与部署
+
+使用 `cmake --install` 可导出库、头文件、QML 源文件和
+`QNodeGraphModernConfig.cmake`。Windows 示例部署使用：
+
+```powershell
+.\scripts\package\package.ps1 -Configuration Release `
+    -QtPrefix C:\Qt\6.12.0\llvm-mingw_64
+```
+
+宿主项目需要同时提供匹配版本的 Qt 前缀，随后通过
+`find_package(QNodeGraphModern CONFIG REQUIRED)` 链接导出的
+`QNodeGraph::QNodeGraph.Lib.*` 目标。

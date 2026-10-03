@@ -25,7 +25,7 @@
 
 - [x] Configure the root project for C++23, Qt6, CTest, and optional examples/tests; no standalone application target is built from `src/`.
 - [x] Add repeatable PowerShell configure/build entry point.
-- [ ] Add Qt deployment and packaging after the first usable UI exists.
+- [x] Add Qt deployment and packaging after the first usable UI exists.
 
 ## Task 2: Core Graph Model
 

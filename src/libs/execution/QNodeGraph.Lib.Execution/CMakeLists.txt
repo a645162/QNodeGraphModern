@@ -20,3 +20,10 @@ target_link_libraries(QNodeGraph.Lib.Execution
 )
 
 target_compile_features(QNodeGraph.Lib.Execution PUBLIC cxx_std_23)
+
+install(TARGETS QNodeGraph.Lib.Execution
+    EXPORT QNodeGraphTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})

@@ -38,3 +38,24 @@ target_link_libraries(QNodeGraph.Lib.UI.QtQuick
 )
 
 target_compile_features(QNodeGraph.Lib.UI.QtQuick PUBLIC cxx_std_23)
+
+install(TARGETS QNodeGraph.Lib.UI.QtQuick
+    EXPORT QNodeGraphTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+foreach(QNODEGRAPH_QML_RESOURCE_TARGET
+        QNodeGraph.Lib.UI.QtQuick_resources_1
+        QNodeGraph.Lib.UI.QtQuick_resources_2
+        QNodeGraph.Lib.UI.QtQuick_resources_3)
+    if(TARGET ${QNODEGRAPH_QML_RESOURCE_TARGET})
+        install(TARGETS ${QNODEGRAPH_QML_RESOURCE_TARGET}
+            EXPORT QNodeGraphTargets
+            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+    endif()
+endforeach()
+install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(DIRECTORY qml/
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/QNodeGraphModern/qml/QNodeGraph/UI
+    FILES_MATCHING PATTERN "*.qml")

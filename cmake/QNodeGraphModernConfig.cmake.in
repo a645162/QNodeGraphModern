@@ -1,0 +1,9 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+find_dependency(Qt6 6.5 COMPONENTS Core Gui Quick Qml Concurrent)
+include("${CMAKE_CURRENT_LIST_DIR}/QNodeGraphTargets.cmake")
+
+set(QNodeGraphModern_QML_IMPORT_DIR
+    "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_DATADIR@/QNodeGraphModern/qml")
+check_required_components(QNodeGraphModern)

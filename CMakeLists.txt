@@ -6,6 +6,9 @@ project(QNodeGraphModern
     LANGUAGES CXX
 )
 
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -34,3 +37,21 @@ if(QNODEGRAPH_BUILD_TESTS AND BUILD_TESTING)
     find_package(Qt6 6.5 REQUIRED COMPONENTS Test)
     add_subdirectory(tests)
 endif()
+
+set(QNODEGRAPH_CMAKE_INSTALL_DIR
+    "${CMAKE_INSTALL_LIBDIR}/cmake/QNodeGraphModern")
+configure_package_config_file(
+    cmake/QNodeGraphModernConfig.cmake.in
+    "${CMAKE_CURRENT_BINARY_DIR}/QNodeGraphModernConfig.cmake"
+    INSTALL_DESTINATION "${QNODEGRAPH_CMAKE_INSTALL_DIR}")
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/QNodeGraphModernConfigVersion.cmake"
+    COMPATIBILITY SameMajorVersion)
+install(EXPORT QNodeGraphTargets
+    FILE QNodeGraphTargets.cmake
+    NAMESPACE QNodeGraph::
+    DESTINATION "${QNODEGRAPH_CMAKE_INSTALL_DIR}")
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/QNodeGraphModernConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/QNodeGraphModernConfigVersion.cmake"
+    DESTINATION "${QNODEGRAPH_CMAKE_INSTALL_DIR}")
