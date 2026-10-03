@@ -20,6 +20,16 @@ qt_add_qml_module(QNodeGraph.Lib.UI.QtQuick
         include/QNodeGraph/Lib/UI/QtQuick/graph_controller.h
         include/QNodeGraph/Lib/UI/QtQuick/graph_connections_item.h
         include/QNodeGraph/Lib/UI/QtQuick/node_palette_model.h
+    RESOURCES
+        qml/icons/node.svg
+        qml/icons/load_image.svg
+        qml/icons/grayscale.svg
+        qml/icons/blur.svg
+        qml/icons/edge_detect.svg
+        qml/icons/image_preview.svg
+        qml/icons/save_image.svg
+        qml/icons/group.svg
+        qml/icons/backdrop.svg
     QML_FILES
         qml/GraphCanvas.qml
         qml/PropertiesBin.qml
@@ -55,7 +65,8 @@ install(TARGETS QNodeGraph.Lib.UI.QtQuick
 foreach(QNODEGRAPH_QML_RESOURCE_TARGET
         QNodeGraph.Lib.UI.QtQuick_resources_1
         QNodeGraph.Lib.UI.QtQuick_resources_2
-        QNodeGraph.Lib.UI.QtQuick_resources_3)
+        QNodeGraph.Lib.UI.QtQuick_resources_3
+        QNodeGraph.Lib.UI.QtQuick_resources_4)
     if(TARGET ${QNODEGRAPH_QML_RESOURCE_TARGET})
         install(TARGETS ${QNODEGRAPH_QML_RESOURCE_TARGET}
             EXPORT QNodeGraphTargets

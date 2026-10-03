@@ -35,6 +35,7 @@ public:
         InputPortCountRole,
         OutputPortCountRole,
         NodeIconRole,
+        NodeIconSourceRole,
         NodeAccentRole,
         NodeEnabledRole,
         NodeLabelRole,

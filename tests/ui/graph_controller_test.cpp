@@ -179,6 +179,9 @@ void GraphControllerTest::exposesNodeVisualRolesAndDisabledState() {
     QVERIFY(index.data(QNodeGraph::UI::GraphController::NodeIconRole)
                 .toString()
                 .size() > 0);
+    QVERIFY(index.data(QNodeGraph::UI::GraphController::NodeIconSourceRole)
+                .toString()
+                .startsWith(QStringLiteral("qrc:/")));
     QVERIFY(index.data(QNodeGraph::UI::GraphController::NodeAccentRole)
                 .toString()
                 .startsWith(QStringLiteral("#")));

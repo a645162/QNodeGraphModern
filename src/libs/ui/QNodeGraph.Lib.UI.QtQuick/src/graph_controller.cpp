@@ -84,6 +84,17 @@ QString nodeIcon(const std::string& type) {
     return QStringLiteral("NODE");
 }
 
+QString nodeIconSource(const std::string& type) {
+    const auto iconType = type == "load_image" || type == "grayscale" ||
+                                  type == "blur" || type == "edge_detect" ||
+                                  type == "image_preview" || type == "save_image" ||
+                                  type == "group" || type == "backdrop"
+                              ? type
+                              : std::string{"node"};
+    return QStringLiteral("qrc:/qt/qml/QNodeGraph/UI/qml/icons/%1.svg")
+        .arg(QString::fromStdString(iconType));
+}
+
 QString nodeAccent(const std::string& type) {
     if (type == "load_image") {
         return QStringLiteral("#4f8fc6");
@@ -337,6 +348,8 @@ QVariant GraphController::data(const QModelIndex& index, int role) const {
     }
     case NodeIconRole:
         return nodeIcon(node->type);
+    case NodeIconSourceRole:
+        return nodeIconSource(node->type);
     case NodeAccentRole:
         return nodeAccent(node->type);
     case NodeEnabledRole: {
@@ -387,6 +400,7 @@ QHash<int, QByteArray> GraphController::roleNames() const {
         {InputPortCountRole, "inputPortCount"},
         {OutputPortCountRole, "outputPortCount"},
         {NodeIconRole, "nodeIcon"},
+        {NodeIconSourceRole, "nodeIconSource"},
         {NodeAccentRole, "nodeAccent"},
         {NodeEnabledRole, "nodeEnabled"},
         {NodeLabelRole, "nodeLabel"},

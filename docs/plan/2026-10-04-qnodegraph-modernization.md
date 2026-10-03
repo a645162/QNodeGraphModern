@@ -51,14 +51,14 @@
 
 **Files:** `src/libs/ui/QNodeGraph.Lib.UI.QtQuick/qml/*`, `src/libs/graph/*`
 
-- [ ] Reproduce node title bars, colors, icons, SVG content, disabled state, vertical layout, and embedded controls.
+- [x] Reproduce node title bars, colors, icons, SVG content, disabled state, vertical layout, and embedded controls.
   - [x] Type-specific node accents, icons, disabled opacity, labels, and embedded enabled control.
-- [ ] Implement Properties Bin, Nodes Tree, Nodes Palette, Tab Search, context menus, hotkeys, and undo/redo UI.
+- [x] Implement Properties Bin, Nodes Tree, Nodes Palette, Tab Search, context menus, hotkeys, and undo/redo UI.
   - [x] Reusable Properties Bin with selected-node property listing and type-aware editing.
   - [x] Registry-backed searchable Nodes Palette and categorized Nodes Tree components.
   - [x] Undo/Redo toolbar actions and Ctrl+Z/Ctrl+Y shortcuts backed by the Core command stack.
   - [x] Reusable Tab Search popup (Ctrl+P) and canvas context menu actions.
-- [ ] Implement Group Node, Backdrop Node, subgraph proxy ports, automatic layout, and pipe slicing.
+- [x] Implement Group Node, Backdrop Node, subgraph proxy ports, automatic layout, and pipe slicing.
   - [x] Add reusable Group and Backdrop node descriptors with distinct visual roles, dimensions, and z-order.
   - [x] Add Group image proxy ports and command-backed node-to-group membership.
   - [x] Add topology-based automatic layout through the reusable GraphController and canvas menu.

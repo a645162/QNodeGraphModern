@@ -148,6 +148,7 @@ Rectangle {
                 required property string nodeName
                 required property string nodeType
                 required property string nodeIcon
+                required property string nodeIconSource
                 required property string nodeAccent
                 required property bool nodeEnabled
                 required property string nodeLabel
@@ -207,6 +208,15 @@ Rectangle {
                             color: "#f1f6fa"
                             font.pixelSize: 9
                             font.bold: true
+                        }
+
+                        Image {
+                            anchors.centerIn: parent
+                            width: 16
+                            height: 16
+                            source: nodeItem.nodeIconSource
+                            fillMode: Image.PreserveAspectFit
+                            opacity: 0.9
                         }
                     }
 
