@@ -2,6 +2,7 @@
 
 #include <QNodeGraph/Lib/Core/graph_document.h>
 #include <QNodeGraph/Lib/Core/graph_commands.h>
+#include <QNodeGraph/Lib/Graph/graph_json.h>
 #include <QNodeGraph/Lib/Graph/node_registry.h>
 
 #include <QAbstractListModel>
@@ -23,6 +24,7 @@ class GraphController : public QAbstractListModel {
     Q_PROPERTY(int selectedRow READ selectedRow NOTIFY selectedRowChanged)
     Q_PROPERTY(QVariantList selectedRows READ selectedRows NOTIFY selectionChanged)
     Q_PROPERTY(QVariantList selectedProperties READ selectedProperties NOTIFY propertiesChanged)
+    Q_PROPERTY(QString lastError READ lastError NOTIFY errorChanged)
     Q_PROPERTY(bool canUndo READ canUndo NOTIFY historyChanged)
     Q_PROPERTY(bool canRedo READ canRedo NOTIFY historyChanged)
 
@@ -64,6 +66,7 @@ public:
     [[nodiscard]] int selectedRow() const noexcept;
     [[nodiscard]] QVariantList selectedRows() const;
     [[nodiscard]] QVariantList selectedProperties() const;
+    [[nodiscard]] QString lastError() const;
     [[nodiscard]] bool canUndo() const noexcept;
     [[nodiscard]] bool canRedo() const noexcept;
 
@@ -71,6 +74,8 @@ public:
     Q_INVOKABLE bool addNodeType(QString typeId,
                                  bool connectToPrevious = true);
     Q_INVOKABLE bool deleteNode(int row);
+    Q_INVOKABLE bool saveGraph(QString filePath);
+    Q_INVOKABLE bool loadGraph(QString filePath);
     Q_INVOKABLE void clearGraph();
     Q_INVOKABLE bool moveNode(int row, double x, double y);
     Q_INVOKABLE bool autoLayout();
@@ -100,9 +105,11 @@ signals:
     void selectedRowChanged();
     void selectionChanged();
     void propertiesChanged();
+    void errorChanged();
     void historyChanged();
 
 private:
+    void setError(QString message);
     void setSelection(std::vector<int> rows);
     void syncModelOrder();
     [[nodiscard]] Core::PortId portFor(Core::NodeId nodeId,
@@ -115,6 +122,7 @@ private:
     Core::GraphCommandStack m_commandStack;
     std::vector<Core::NodeId> m_nodeOrder;
     std::vector<int> m_selectedRows;
+    QString m_lastError;
     int m_pendingOutputRow = -1;
     Core::Point m_previewPoint;
     int m_selectedRow = -1;

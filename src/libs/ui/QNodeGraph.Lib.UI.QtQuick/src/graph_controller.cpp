@@ -1,5 +1,7 @@
 #include <QNodeGraph/Lib/UI/QtQuick/graph_controller.h>
 
+#include <QFileInfo>
+
 #include <QHash>
 #include <QMetaType>
 #include <QString>
@@ -279,6 +281,8 @@ QVariantList GraphController::selectedProperties() const {
     return values;
 }
 
+QString GraphController::lastError() const { return m_lastError; }
+
 QVariantList GraphController::connections() const {
     QVariantList values;
     for (const auto& connection : m_document.connections()) {
@@ -522,6 +526,56 @@ bool GraphController::deleteNode(int row) {
     }
     emit connectionsChanged();
     emit historyChanged();
+    return true;
+}
+
+bool GraphController::saveGraph(QString filePath) {
+    filePath = filePath.trimmed();
+    if (filePath.isEmpty()) {
+        setError(QStringLiteral("A graph file path is required."));
+        return false;
+    }
+    const auto result = Graph::GraphJson::save(m_document, filePath);
+    if (!result) {
+        setError(QString::fromStdString(result.error().message));
+        return false;
+    }
+    setError({});
+    return true;
+}
+
+bool GraphController::loadGraph(QString filePath) {
+    filePath = filePath.trimmed();
+    if (filePath.isEmpty()) {
+        setError(QStringLiteral("A graph file path is required."));
+        return false;
+    }
+    const auto result = Graph::GraphJson::load(filePath);
+    if (!result) {
+        setError(QString::fromStdString(result.error().message));
+        return false;
+    }
+    const auto assets = Graph::GraphJson::validateExternalAssets(
+        *result, QFileInfo(filePath).absolutePath());
+    if (!assets) {
+        setError(QString::fromStdString(assets.error().message));
+        return false;
+    }
+
+    const auto oldCount = nodeCount();
+    cancelConnection();
+    beginResetModel();
+    m_document = std::move(*result);
+    m_nodeOrder = m_document.nodeIds();
+    m_commandStack.clear();
+    endResetModel();
+    setSelection({});
+    if (nodeCount() != oldCount) {
+        emit nodeCountChanged();
+    }
+    emit connectionsChanged();
+    emit historyChanged();
+    setError({});
     return true;
 }
 
@@ -1049,6 +1103,14 @@ void GraphController::setSelection(std::vector<int> rows) {
     emit selectedRowChanged();
     emit selectionChanged();
     emit propertiesChanged();
+}
+
+void GraphController::setError(QString message) {
+    if (m_lastError == message) {
+        return;
+    }
+    m_lastError = std::move(message);
+    emit errorChanged();
 }
 
 int GraphController::rowFor(Core::NodeId nodeId) const {

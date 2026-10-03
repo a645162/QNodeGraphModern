@@ -75,6 +75,7 @@
 - [x] Add node descriptors and a registry for built-in image nodes.
 - [x] Add migration tests for the initial schema version and missing external assets.
   - [x] Cover schema-version rejection and missing JSON file errors.
+  - [x] Expose library save/load actions and a BasicDemo Open/Save workflow.
 
 ## Task 6: Image Data and Execution
 

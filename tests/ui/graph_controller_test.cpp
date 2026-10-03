@@ -1,6 +1,7 @@
 #include <QNodeGraph/Lib/UI/QtQuick/graph_controller.h>
 
 #include <QtTest/QtTest>
+#include <QTemporaryDir>
 
 #include <algorithm>
 
@@ -19,6 +20,7 @@ private slots:
     void editsSelectedNodeProperty();
     void addsRegisteredNodeType();
     void deletesNodeAndRestoresWithUndo();
+    void savesAndLoadsGraphThroughController();
     void movesNodeWithUndoAndRedo();
     void exposesNodeVisualRolesAndDisabledState();
     void autoLayoutsConnectedNodes();
@@ -190,6 +192,27 @@ void GraphControllerTest::deletesNodeAndRestoresWithUndo() {
     QVERIFY(controller.redo());
     QCOMPARE(controller.nodeCount(), 1);
     QCOMPARE(controller.connections().size(), qsizetype{0});
+}
+
+void GraphControllerTest::savesAndLoadsGraphThroughController() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto path = directory.filePath(QStringLiteral("session.json"));
+
+    QNodeGraph::UI::GraphController source;
+    source.addDemoNode(false);
+    source.addDemoNode(true);
+    QVERIFY(source.saveGraph(path));
+    QVERIFY(source.lastError().isEmpty());
+
+    QNodeGraph::UI::GraphController loaded;
+    QVERIFY(loaded.loadGraph(path));
+    QCOMPARE(loaded.nodeCount(), 2);
+    QCOMPARE(loaded.connections().size(), qsizetype{1});
+    QVERIFY(loaded.lastError().isEmpty());
+
+    QVERIFY(!loaded.loadGraph(directory.filePath(QStringLiteral("missing.json"))));
+    QVERIFY(!loaded.lastError().isEmpty());
 }
 
 void GraphControllerTest::movesNodeWithUndoAndRedo() {

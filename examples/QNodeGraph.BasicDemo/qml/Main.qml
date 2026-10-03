@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 import QtQuick.Layouts
 import QNodeGraph.UI 1.0
 
@@ -27,6 +28,16 @@ ApplicationWindow {
                 text: qsTr("Nodes: %1").arg(canvas.controller.nodeCount)
                 color: "#aab4bf"
                 Layout.fillWidth: true
+            }
+
+            Button {
+                text: qsTr("Open")
+                onClicked: openDialog.open()
+            }
+
+            Button {
+                text: qsTr("Save")
+                onClicked: saveDialog.open()
             }
 
             Button {
@@ -65,7 +76,34 @@ ApplicationWindow {
                 text: qsTr("+")
                 onClicked: canvas.zoomIn()
             }
+
+            Label {
+                visible: canvas.controller.lastError.length > 0
+                text: canvas.controller.lastError
+                color: "#ef9a9a"
+                elide: Text.ElideRight
+                Layout.maximumWidth: 280
+            }
         }
+    }
+
+    FileDialog {
+        id: openDialog
+        title: qsTr("Open Node Graph")
+        fileMode: FileDialog.OpenFile
+        nameFilters: [qsTr("Node Graph (*.json)"), qsTr("All Files (*)")]
+        onAccepted: canvas.controller.loadGraph(
+                        selectedFile.toString().replace("file:///", ""))
+    }
+
+    FileDialog {
+        id: saveDialog
+        title: qsTr("Save Node Graph")
+        fileMode: FileDialog.SaveFile
+        defaultSuffix: "json"
+        nameFilters: [qsTr("Node Graph (*.json)"), qsTr("All Files (*)")]
+        onAccepted: canvas.controller.saveGraph(
+                        selectedFile.toString().replace("file:///", ""))
     }
 
     Shortcut {
