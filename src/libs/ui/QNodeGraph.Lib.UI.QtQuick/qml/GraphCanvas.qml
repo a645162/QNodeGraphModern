@@ -68,6 +68,11 @@ Rectangle {
         }
 
         MenuItem {
+            text: qsTr("Auto Layout")
+            onTriggered: canvas.controller.autoLayout()
+        }
+
+        MenuItem {
             text: qsTr("Clear Graph")
             onTriggered: canvas.controller.clearGraph()
         }

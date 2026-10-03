@@ -5,6 +5,8 @@
 #include <QString>
 #include <QVariantMap>
 
+#include <algorithm>
+#include <queue>
 #include <string>
 #include <cstdint>
 #include <memory>
@@ -373,6 +375,94 @@ bool GraphController::moveNode(int row, double x, double y) {
     }
     const auto modelIndex = index(row, 0);
     emit dataChanged(modelIndex, modelIndex, {NodeXRole, NodeYRole});
+    emit connectionsChanged();
+    if (connectionPending()) {
+        emit connectionPreviewChanged();
+    }
+    emit historyChanged();
+    return true;
+}
+
+bool GraphController::autoLayout() {
+    const auto count = nodeCount();
+    if (count == 0) {
+        return false;
+    }
+
+    std::vector<std::vector<int>> successors(static_cast<std::size_t>(count));
+    std::vector<int> indegree(static_cast<std::size_t>(count), 0);
+    for (const auto& connection : m_document.connections()) {
+        const auto* output = m_document.port(connection.outputPort);
+        const auto* input = m_document.port(connection.inputPort);
+        if (output == nullptr || input == nullptr) {
+            continue;
+        }
+        const auto outputRow = rowFor(output->nodeId);
+        const auto inputRow = rowFor(input->nodeId);
+        if (outputRow < 0 || inputRow < 0 || outputRow == inputRow) {
+            continue;
+        }
+        successors[static_cast<std::size_t>(outputRow)].push_back(inputRow);
+        ++indegree[static_cast<std::size_t>(inputRow)];
+    }
+
+    std::vector<int> columns(static_cast<std::size_t>(count), 0);
+    std::queue<int> ready;
+    for (int row = 0; row < count; ++row) {
+        if (indegree[static_cast<std::size_t>(row)] == 0) {
+            ready.push(row);
+        }
+    }
+    int visited = 0;
+    while (!ready.empty()) {
+        const auto row = ready.front();
+        ready.pop();
+        ++visited;
+        for (const auto successor : successors[static_cast<std::size_t>(row)]) {
+            auto& successorColumn = columns[static_cast<std::size_t>(successor)];
+            successorColumn =
+                std::max(successorColumn, columns[static_cast<std::size_t>(row)] + 1);
+            if (--indegree[static_cast<std::size_t>(successor)] == 0) {
+                ready.push(successor);
+            }
+        }
+    }
+    if (visited != count) {
+        // Keep cyclic/disconnected leftovers visible in the first column.
+        for (int row = 0; row < count; ++row) {
+            if (indegree[static_cast<std::size_t>(row)] > 0) {
+                columns[static_cast<std::size_t>(row)] = 0;
+            }
+        }
+    }
+
+    const auto maxColumn = *std::max_element(columns.begin(), columns.end());
+    std::vector<int> rowsPerColumn(static_cast<std::size_t>(maxColumn + 1), 0);
+    bool changed = false;
+    for (int row = 0; row < count; ++row) {
+        const auto column = columns[static_cast<std::size_t>(row)];
+        const auto line = rowsPerColumn[static_cast<std::size_t>(column)]++;
+        const Core::Point position{80.0 + column * 260.0,
+                                   90.0 + line * 180.0};
+        const auto* node = m_document.node(
+            m_nodeOrder[static_cast<std::size_t>(row)]);
+        if (node == nullptr ||
+            (node->position.x == position.x && node->position.y == position.y)) {
+            continue;
+        }
+        const auto result = m_commandStack.execute(
+            std::make_unique<Core::MoveNodeCommand>(node->id, position),
+            m_document);
+        if (!result) {
+            return false;
+        }
+        changed = true;
+    }
+    if (!changed) {
+        return false;
+    }
+    emit dataChanged(index(0, 0), index(count - 1, 0),
+                     {NodeXRole, NodeYRole});
     emit connectionsChanged();
     if (connectionPending()) {
         emit connectionPreviewChanged();

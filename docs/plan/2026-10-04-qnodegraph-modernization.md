@@ -58,6 +58,7 @@
   - [x] Undo/Redo toolbar actions and Ctrl+Z/Ctrl+Y shortcuts backed by the Core command stack.
   - [x] Reusable Tab Search popup (Ctrl+P) and canvas context menu actions.
 - [ ] Implement Group Node, Backdrop Node, subgraph proxy ports, automatic layout, and pipe slicing.
+  - [x] Add topology-based automatic layout through the reusable GraphController and canvas menu.
 - [ ] Add screenshot-based visual checkpoints for the canvas and each auxiliary panel.
 
 ## Task 5: Persistence and Node Registry

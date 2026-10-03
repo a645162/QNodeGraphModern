@@ -19,6 +19,7 @@ private slots:
     void addsRegisteredNodeType();
     void movesNodeWithUndoAndRedo();
     void exposesNodeVisualRolesAndDisabledState();
+    void autoLayoutsConnectedNodes();
     void movesNodeAndEmitsData();
     void clearsModel();
 };
@@ -183,6 +184,30 @@ void GraphControllerTest::exposesNodeVisualRolesAndDisabledState() {
     QVERIFY(controller.setNodeProperty(0, QStringLiteral("enabled"), false));
     QVERIFY(!index.data(QNodeGraph::UI::GraphController::NodeEnabledRole)
                  .toBool());
+}
+
+void GraphControllerTest::autoLayoutsConnectedNodes() {
+    QNodeGraph::UI::GraphController controller;
+    QVERIFY(controller.addNodeType(QStringLiteral("load_image"), false));
+    QVERIFY(controller.addNodeType(QStringLiteral("grayscale"), true));
+    QVERIFY(controller.addNodeType(QStringLiteral("edge_detect"), true));
+    QVERIFY(controller.moveNode(0, 620.0, 480.0));
+    QVERIFY(controller.moveNode(1, 120.0, 480.0));
+    QVERIFY(controller.moveNode(2, 360.0, 480.0));
+
+    QVERIFY(controller.autoLayout());
+    QVERIFY(controller.index(0, 0)
+                .data(QNodeGraph::UI::GraphController::NodeXRole)
+                .toDouble() <
+            controller.index(1, 0)
+                .data(QNodeGraph::UI::GraphController::NodeXRole)
+                .toDouble());
+    QVERIFY(controller.index(1, 0)
+                .data(QNodeGraph::UI::GraphController::NodeXRole)
+                .toDouble() <
+            controller.index(2, 0)
+                .data(QNodeGraph::UI::GraphController::NodeXRole)
+                .toDouble());
 }
 
 void GraphControllerTest::movesNodeAndEmitsData() {
