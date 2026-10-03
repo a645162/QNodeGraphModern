@@ -85,12 +85,12 @@ Rectangle {
         scale: canvas.zoomFactor
 
         Repeater {
-            model: graphController.nodeCount
+            model: graphController
 
             delegate: Rectangle {
                 id: nodeItem
-                x: 80 + (index % 3) * 250
-                y: 90 + Math.floor(index / 3) * 180
+                x: nodeX
+                y: nodeY
                 width: 180
                 height: 108
                 color: selected ? "#394b5d" : "#2a333d"
@@ -110,7 +110,7 @@ Rectangle {
                         anchors.left: parent.left
                         anchors.leftMargin: 10
                         anchors.verticalCenter: parent.verticalCenter
-                        text: qsTr("Demo Node %1").arg(index + 1)
+                        text: nodeName
                         color: "#e6edf3"
                         font.bold: true
                     }
@@ -118,7 +118,7 @@ Rectangle {
 
                 Label {
                     anchors.centerIn: parent
-                    text: qsTr("Port preview")
+                    text: qsTr("%1 -> %2").arg(inputPortCount).arg(outputPortCount)
                     color: "#9aa6b2"
                 }
 
@@ -145,6 +145,23 @@ Rectangle {
                 MouseArea {
                     anchors.fill: parent
                     onClicked: canvas.selectedIndex = index
+                }
+
+                DragHandler {
+                    acceptedButtons: Qt.LeftButton
+                    target: null
+                    property point startPosition: Qt.point(0, 0)
+                    onActiveChanged: {
+                        if (active)
+                            startPosition = Qt.point(nodeX, nodeY)
+                    }
+                    onTranslationChanged: {
+                        if (active)
+                            graphController.moveNode(
+                                index,
+                                startPosition.x + translation.x / canvas.zoomFactor,
+                                startPosition.y + translation.y / canvas.zoomFactor)
+                    }
                 }
             }
         }
