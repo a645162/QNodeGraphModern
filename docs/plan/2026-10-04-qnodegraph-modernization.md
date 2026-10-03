@@ -65,6 +65,7 @@
   - [x] Add Shift-drag pipe slicing with curve intersection and undo support.
   - [x] Expose command-backed node deletion through the node context menu and Delete/Backspace shortcuts.
   - [x] Add multi-node selection roles, Ctrl/Shift toggling, and rubber-band selection.
+  - [x] Add graph bounds, Fit/Home view framing, and a reusable canvas toolbar action.
 - [x] Add an offscreen screenshot smoke checkpoint for the reusable canvas; auxiliary panels remain covered by example startup and model tests.
   - [x] Verify a node-bound image preview source reaches the rendered canvas.
 

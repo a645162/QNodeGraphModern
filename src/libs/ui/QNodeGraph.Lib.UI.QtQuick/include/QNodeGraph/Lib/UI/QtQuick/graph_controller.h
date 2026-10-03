@@ -81,6 +81,7 @@ public:
     Q_INVOKABLE bool deleteNode(int row);
     Q_INVOKABLE bool saveGraph(QString filePath);
     Q_INVOKABLE bool loadGraph(QString filePath);
+    Q_INVOKABLE QVariantMap graphBounds() const;
     Q_INVOKABLE bool setNodePreview(int row, QString source, int width,
                                     int height, int channels);
     Q_INVOKABLE bool clearNodePreview(int row);

@@ -73,6 +73,11 @@ ApplicationWindow {
             }
 
             Button {
+                text: qsTr("Fit")
+                onClicked: canvas.fitToNodes()
+            }
+
+            Button {
                 text: qsTr("+")
                 onClicked: canvas.zoomIn()
             }

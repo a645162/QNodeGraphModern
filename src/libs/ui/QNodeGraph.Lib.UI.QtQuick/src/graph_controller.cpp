@@ -604,6 +604,38 @@ bool GraphController::loadGraph(QString filePath) {
     return true;
 }
 
+QVariantMap GraphController::graphBounds() const {
+    if (m_nodeOrder.empty()) {
+        return {};
+    }
+    auto first = m_document.node(m_nodeOrder.front());
+    if (first == nullptr) {
+        return {};
+    }
+    auto left = first->position.x;
+    auto top = first->position.y;
+    auto right = left + nodeNumberProperty(*first, "width", kDemoNodeWidth);
+    auto bottom = top + nodeNumberProperty(*first, "height", kDemoNodeHeight);
+    for (std::size_t row = 1; row < m_nodeOrder.size(); ++row) {
+        const auto* node = m_document.node(m_nodeOrder[row]);
+        if (node == nullptr) {
+            continue;
+        }
+        left = std::min(left, node->position.x);
+        top = std::min(top, node->position.y);
+        right = std::max(right, node->position.x +
+                                   nodeNumberProperty(*node, "width",
+                                                      kDemoNodeWidth));
+        bottom = std::max(bottom, node->position.y +
+                                    nodeNumberProperty(*node, "height",
+                                                       kDemoNodeHeight));
+    }
+    return {{QStringLiteral("x"), left},
+            {QStringLiteral("y"), top},
+            {QStringLiteral("width"), std::max(1.0, right - left)},
+            {QStringLiteral("height"), std::max(1.0, bottom - top)}};
+}
+
 bool GraphController::setNodePreview(int row, QString source, int width,
                                      int height, int channels) {
     if (row < 0 || row >= nodeCount() || width < 0 || height < 0 ||

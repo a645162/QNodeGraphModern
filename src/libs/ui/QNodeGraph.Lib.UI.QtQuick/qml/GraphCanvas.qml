@@ -51,6 +51,24 @@ Rectangle {
         panOffset = Qt.point(0, 0)
     }
 
+    function fitToNodes() {
+        var bounds = canvas.controller.graphBounds()
+        if (!bounds || bounds.width === undefined) {
+            resetView()
+            return
+        }
+        var padding = 48
+        var availableWidth = Math.max(1, width - padding * 2)
+        var availableHeight = Math.max(1, height - padding * 2)
+        var fittedZoom = clampZoom(Math.min(availableWidth / bounds.width,
+                                             availableHeight / bounds.height))
+        zoomFactor = fittedZoom
+        panOffset = Qt.point((width - bounds.width * fittedZoom) / 2 -
+                             bounds.x * fittedZoom,
+                             (height - bounds.height * fittedZoom) / 2 -
+                             bounds.y * fittedZoom)
+    }
+
     function zoomIn() {
         zoomAt(1.15, width / 2, height / 2)
     }
@@ -124,6 +142,11 @@ Rectangle {
             if (canvas.selectedIndex >= 0)
                 canvas.controller.deleteNode(canvas.selectedIndex)
         }
+    }
+
+    Shortcut {
+        sequence: "Home"
+        onActivated: canvas.fitToNodes()
     }
 
     Connections {

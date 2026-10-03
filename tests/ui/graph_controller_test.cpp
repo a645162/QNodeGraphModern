@@ -24,6 +24,7 @@ private slots:
     void movesNodeWithUndoAndRedo();
     void exposesNodeVisualRolesAndDisabledState();
     void exposesNodeImagePreviewRoles();
+    void reportsGraphBounds();
     void autoLayoutsConnectedNodes();
     void slicesConnectionsAlongGesture();
     void exposesGroupAndBackdropVisualRoles();
@@ -276,6 +277,17 @@ void GraphControllerTest::exposesNodeImagePreviewRoles() {
     QVERIFY(index.data(QNodeGraph::UI::GraphController::NodePreviewSourceRole)
                 .toString()
                 .isEmpty());
+}
+
+void GraphControllerTest::reportsGraphBounds() {
+    QNodeGraph::UI::GraphController controller;
+    controller.addDemoNode(false);
+    QVERIFY(controller.moveNode(0, 320.0, 150.0));
+    const auto bounds = controller.graphBounds();
+    QCOMPARE(bounds.value(QStringLiteral("x")).toDouble(), 320.0);
+    QCOMPARE(bounds.value(QStringLiteral("y")).toDouble(), 150.0);
+    QCOMPARE(bounds.value(QStringLiteral("width")).toDouble(), 180.0);
+    QCOMPARE(bounds.value(QStringLiteral("height")).toDouble(), 108.0);
 }
 
 void GraphControllerTest::autoLayoutsConnectedNodes() {
