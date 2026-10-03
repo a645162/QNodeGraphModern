@@ -38,6 +38,21 @@ ApplicationWindow {
                 text: qsTr("Clear")
                 onClicked: canvas.controller.clearGraph()
             }
+
+            Button {
+                text: qsTr("-")
+                onClicked: canvas.zoomOut()
+            }
+
+            Button {
+                text: qsTr("100%")
+                onClicked: canvas.resetView()
+            }
+
+            Button {
+                text: qsTr("+")
+                onClicked: canvas.zoomIn()
+            }
         }
     }
 
@@ -47,4 +62,3 @@ ApplicationWindow {
         anchors.margins: 16
     }
 }
-

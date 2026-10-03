@@ -42,7 +42,7 @@
 
 - [x] Add a QML module and Qt QObject bridge to the reusable UI library.
 - [x] Add a basic consumer example with a visible canvas placeholder and graph controller actions.
-- [ ] Add a real `GraphCanvas` item with zoom, pan, selection, and coordinate transforms.
+- [x] Add a real `GraphCanvas` item with zoom, pan, selection, and coordinate transforms.
 - [ ] Add node delegates, port hit testing, connection previews, and scene-graph connection rendering.
 
 ## Task 4: NodeGraphQt UI Parity
