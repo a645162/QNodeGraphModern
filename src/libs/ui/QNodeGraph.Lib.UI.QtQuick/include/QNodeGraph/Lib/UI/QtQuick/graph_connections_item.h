@@ -19,6 +19,8 @@ class GraphConnectionsItem : public QQuickItem {
                    NOTIFY panOffsetChanged)
     Q_PROPERTY(qreal zoomFactor READ zoomFactor WRITE setZoomFactor
                    NOTIFY zoomFactorChanged)
+    Q_PROPERTY(int layoutMode READ layoutMode WRITE setLayoutMode
+                   NOTIFY layoutModeChanged)
 
 public:
     explicit GraphConnectionsItem(QQuickItem* parent = nullptr);
@@ -27,17 +29,20 @@ public:
     [[nodiscard]] QVariantMap preview() const;
     [[nodiscard]] QPointF panOffset() const;
     [[nodiscard]] qreal zoomFactor() const noexcept;
+    [[nodiscard]] int layoutMode() const noexcept;
 
     void setConnections(QVariantList value);
     void setPreview(QVariantMap value);
     void setPanOffset(QPointF value);
     void setZoomFactor(qreal value);
+    void setLayoutMode(int value);
 
 signals:
     void connectionsChanged();
     void previewChanged();
     void panOffsetChanged();
     void zoomFactorChanged();
+    void layoutModeChanged();
 
 protected:
     QSGNode* updatePaintNode(QSGNode* oldNode,
@@ -48,6 +53,7 @@ private:
     QVariantMap m_preview;
     QPointF m_panOffset;
     qreal m_zoomFactor = 1.0;
+    int m_layoutMode = 0;
 };
 
 } // namespace QNodeGraph::UI

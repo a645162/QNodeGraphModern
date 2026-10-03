@@ -13,6 +13,7 @@ Rectangle {
 
     property alias controller: graphController
     property real zoomFactor: 1.0
+    property int pipeLayout: 0
     property point panOffset: Qt.point(0, 0)
     property int selectedIndex: -1
     property bool selecting: false
@@ -194,6 +195,7 @@ Rectangle {
         preview: graphController.connectionPreview
         panOffset: canvas.panOffset
         zoomFactor: canvas.zoomFactor
+        layoutMode: canvas.pipeLayout
     }
 
     Item {

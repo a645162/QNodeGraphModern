@@ -82,6 +82,13 @@ ApplicationWindow {
                 onClicked: canvas.zoomIn()
             }
 
+            ComboBox {
+                model: [qsTr("Curved"), qsTr("Angled"), qsTr("Straight")]
+                currentIndex: canvas.pipeLayout
+                onActivated: canvas.pipeLayout = currentIndex
+                implicitWidth: 110
+            }
+
             Label {
                 visible: canvas.controller.lastError.length > 0
                 text: canvas.controller.lastError

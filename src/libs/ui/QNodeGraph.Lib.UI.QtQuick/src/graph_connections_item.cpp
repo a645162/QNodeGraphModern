@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 namespace QNodeGraph::UI {
 
@@ -17,8 +18,8 @@ QPointF screenPoint(double x, double y, const QPointF& pan, qreal zoom) {
     return {pan.x() + x * zoom, pan.y() + y * zoom};
 }
 
-void appendCurve(QSGNode* root, const QVariantMap& connection,
-                 const QPointF& pan, qreal zoom, const QColor& color) {
+std::pair<QPointF, QPointF> endpoints(const QVariantMap& connection,
+                                      const QPointF& pan, qreal zoom) {
     const auto start = screenPoint(
         connection.value(QStringLiteral("outputX")).toDouble() +
             connection.value(QStringLiteral("outputWidth")).toDouble(),
@@ -26,22 +27,21 @@ void appendCurve(QSGNode* root, const QVariantMap& connection,
     const auto end = screenPoint(
         connection.value(QStringLiteral("inputX")).toDouble(),
         connection.value(QStringLiteral("inputY")).toDouble(), pan, zoom);
-    const auto distance = std::max(40.0, std::abs(end.x() - start.x()) * 0.5);
-    const QPointF controlStart(start.x() + distance * zoom, start.y());
-    const QPointF controlEnd(end.x() - distance * zoom, end.y());
+    return {start, end};
+}
 
+void appendPath(QSGNode* root, const std::vector<QPointF>& points,
+                const QColor& color) {
+    if (points.size() < 2) {
+        return;
+    }
     auto* geometry = new QSGGeometry(
-        QSGGeometry::defaultAttributes_Point2D(), kCurveSamples + 1);
+        QSGGeometry::defaultAttributes_Point2D(),
+        static_cast<int>(points.size()));
     geometry->setDrawingMode(QSGGeometry::DrawLineStrip);
     auto* vertices = geometry->vertexDataAsPoint2D();
-    for (int index = 0; index <= kCurveSamples; ++index) {
-        const auto t = static_cast<float>(index) / kCurveSamples;
-        const auto inverse = 1.0f - t;
-        const auto point = inverse * inverse * inverse * start +
-                           3.0f * inverse * inverse * t * controlStart +
-                           3.0f * inverse * t * t * controlEnd +
-                           t * t * t * end;
-        vertices[index].set(point.x(), point.y());
+    for (std::size_t index = 0; index < points.size(); ++index) {
+        vertices[index].set(points[index].x(), points[index].y());
     }
 
     auto* node = new QSGGeometryNode();
@@ -52,6 +52,38 @@ void appendCurve(QSGNode* root, const QVariantMap& connection,
     node->setMaterial(material);
     node->setFlag(QSGNode::OwnsMaterial);
     root->appendChildNode(node);
+}
+
+void appendConnection(QSGNode* root, const QVariantMap& connection,
+                      const QPointF& pan, qreal zoom, int layoutMode,
+                      const QColor& color) {
+    const auto [start, end] = endpoints(connection, pan, zoom);
+    if (layoutMode == 2) {
+        appendPath(root, {start, end}, color);
+        return;
+    }
+    if (layoutMode == 1) {
+        const auto middleX = (start.x() + end.x()) * 0.5;
+        appendPath(root, {start, {middleX, start.y()},
+                          {middleX, end.y()}, end}, color);
+        return;
+    }
+    const auto distance = std::max(40.0, std::abs(end.x() - start.x()) * 0.5);
+    const QPointF controlStart(start.x() + distance * zoom, start.y());
+    const QPointF controlEnd(end.x() - distance * zoom, end.y());
+
+    std::vector<QPointF> points;
+    points.reserve(kCurveSamples + 1);
+    for (int index = 0; index <= kCurveSamples; ++index) {
+        const auto t = static_cast<float>(index) / kCurveSamples;
+        const auto inverse = 1.0f - t;
+        const auto point = inverse * inverse * inverse * start +
+                           3.0f * inverse * inverse * t * controlStart +
+                           3.0f * inverse * t * t * controlEnd +
+                           t * t * t * end;
+        points.emplace_back(point.x(), point.y());
+    }
+    appendPath(root, points, color);
 }
 
 } // namespace
@@ -68,6 +100,8 @@ QVariantMap GraphConnectionsItem::preview() const { return m_preview; }
 QPointF GraphConnectionsItem::panOffset() const { return m_panOffset; }
 
 qreal GraphConnectionsItem::zoomFactor() const noexcept { return m_zoomFactor; }
+
+int GraphConnectionsItem::layoutMode() const noexcept { return m_layoutMode; }
 
 void GraphConnectionsItem::setConnections(QVariantList value) {
     if (m_connections == value) {
@@ -105,6 +139,16 @@ void GraphConnectionsItem::setZoomFactor(qreal value) {
     update();
 }
 
+void GraphConnectionsItem::setLayoutMode(int value) {
+    value = std::clamp(value, 0, 2);
+    if (m_layoutMode == value) {
+        return;
+    }
+    m_layoutMode = value;
+    emit layoutModeChanged();
+    update();
+}
+
 QSGNode* GraphConnectionsItem::updatePaintNode(
     QSGNode* oldNode, UpdatePaintNodeData*) {
     auto* root = oldNode == nullptr ? new QSGNode() : oldNode;
@@ -113,12 +157,12 @@ QSGNode* GraphConnectionsItem::updatePaintNode(
         delete child;
     }
     for (const auto& value : m_connections) {
-        appendCurve(root, value.toMap(), m_panOffset, m_zoomFactor,
-                    QColor(QStringLiteral("#7d9bb8")));
+        appendConnection(root, value.toMap(), m_panOffset, m_zoomFactor,
+                         m_layoutMode, QColor(QStringLiteral("#7d9bb8")));
     }
     if (!m_preview.isEmpty()) {
-        appendCurve(root, m_preview, m_panOffset, m_zoomFactor,
-                    QColor(QStringLiteral("#c8d9e8")));
+        appendConnection(root, m_preview, m_panOffset, m_zoomFactor,
+                         m_layoutMode, QColor(QStringLiteral("#c8d9e8")));
     }
     return root;
 }
