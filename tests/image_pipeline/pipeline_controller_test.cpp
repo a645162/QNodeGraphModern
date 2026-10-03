@@ -2,6 +2,8 @@
 
 #include <QtTest/QtTest>
 
+#include <QFileInfo>
+
 class PipelineControllerTest final : public QObject {
     Q_OBJECT
 
@@ -25,8 +27,14 @@ void PipelineControllerTest::producesPreviewAfterProcessing() {
     QVERIFY(!preview.isNull());
     QCOMPARE(size, QSize(320, 180));
     QCOMPARE(preview.format(), QImage::Format_Grayscale8);
+    QCOMPARE(controller.imageWidth(), 320);
+    QCOMPARE(controller.imageHeight(), 180);
+    QCOMPARE(controller.imageChannels(), 1);
+    QVERIFY(controller.status().contains(QStringLiteral("Edge Detect")));
+    QVERIFY(!controller.outputPath().isEmpty());
+    QVERIFY(QFileInfo::exists(controller.outputPath()));
+    QFile::remove(controller.outputPath());
 }
 
 QTEST_MAIN(PipelineControllerTest)
 #include "pipeline_controller_test.moc"
-

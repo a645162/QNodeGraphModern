@@ -2,8 +2,11 @@
 
 #include <QNodeGraph/Lib/Image/image_processors.h>
 
+#include <QDir>
 #include <QLinearGradient>
 #include <QPainter>
+
+#include <memory>
 
 #include <utility>
 
@@ -44,11 +47,27 @@ PipelineController::PipelineController(DemoImageProvider* provider,
                 m_previewUrl = QStringLiteral("image://pipeline/preview?revision=%1")
                                    .arg(++m_revision);
                 emit previewUrlChanged();
+                m_imageWidth = result.width();
+                m_imageHeight = result.height();
+                m_imageChannels = result.channels();
+                emit imageMetadataChanged();
+                const auto savedPath = QDir::temp().filePath(
+                    QStringLiteral("qnodegraph-image-pipeline-preview.png"));
+                if (!result.image().save(savedPath)) {
+                    setProcessing(false);
+                    setStatus(QStringLiteral(
+                        "Load Image -> Grayscale -> Edge Detect -> Preview complete; "
+                        "Save Image failed"));
+                    return;
+                }
+                setOutputPath(savedPath);
                 setProcessing(false);
-                setStatus(QStringLiteral("Grayscale complete: %1 x %2, %3 channel")
-                              .arg(result.width())
-                              .arg(result.height())
-                              .arg(result.channels()));
+                setStatus(QStringLiteral(
+                              "Load Image -> Grayscale -> Edge Detect -> Preview -> "
+                              "Save complete: %1 x %2, %3 channel")
+                              .arg(m_imageWidth)
+                              .arg(m_imageHeight)
+                              .arg(m_imageChannels));
             });
     connect(&m_executor,
             &QNodeGraph::Execution::ImageExecutionService::failed, this,
@@ -67,6 +86,14 @@ QString PipelineController::status() const { return m_status; }
 
 bool PipelineController::processing() const noexcept { return m_processing; }
 
+int PipelineController::imageWidth() const noexcept { return m_imageWidth; }
+
+int PipelineController::imageHeight() const noexcept { return m_imageHeight; }
+
+int PipelineController::imageChannels() const noexcept { return m_imageChannels; }
+
+QString PipelineController::outputPath() const { return m_outputPath; }
+
 void PipelineController::runDemo() {
     if (m_processing || m_provider == nullptr) {
         return;
@@ -78,9 +105,21 @@ void PipelineController::runDemo() {
         return;
     }
     setProcessing(true);
-    setStatus(QStringLiteral("Processing grayscale..."));
+    setOutputPath(QString{});
+    if (m_imageWidth != 0 || m_imageHeight != 0 || m_imageChannels != 0) {
+        m_imageWidth = 0;
+        m_imageHeight = 0;
+        m_imageChannels = 0;
+        emit imageMetadataChanged();
+    }
+    setStatus(QStringLiteral("Load Image -> Grayscale -> Edge Detect -> Preview -> Save..."));
+    auto pipeline = std::make_shared<QNodeGraph::Execution::ImagePipeline>();
+    pipeline->addStep(QStringLiteral("Grayscale").toStdString(),
+                      QNodeGraph::Image::ImageProcessors::grayscale);
+    pipeline->addStep(QStringLiteral("Edge Detect").toStdString(),
+                      QNodeGraph::Image::ImageProcessors::edgeDetect);
     m_requestId = m_executor.submit(
-        *frame, QNodeGraph::Image::ImageProcessors::grayscale);
+        *frame, [pipeline](const auto& input) { return pipeline->process(input); });
     if (m_requestId == 0) {
         setProcessing(false);
         setStatus(QStringLiteral("Unable to start image processing"));
@@ -108,6 +147,14 @@ void PipelineController::setProcessing(bool value) {
     }
     m_processing = value;
     emit processingChanged();
+}
+
+void PipelineController::setOutputPath(QString value) {
+    if (m_outputPath == value) {
+        return;
+    }
+    m_outputPath = std::move(value);
+    emit outputPathChanged();
 }
 
 QImage PipelineController::createDemoImage() const {

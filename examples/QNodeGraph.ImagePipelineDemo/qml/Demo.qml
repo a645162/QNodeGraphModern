@@ -22,7 +22,7 @@ ApplicationWindow {
         }
 
         Label {
-            text: qsTr("Scaffold: Load Image -> Process -> Preview")
+            text: qsTr("Load -> Grayscale -> Edge Detect -> Preview -> Save")
             color: "#9aa6b2"
         }
 
@@ -32,11 +32,15 @@ ApplicationWindow {
             spacing: 18
 
             Repeater {
-                model: [qsTr("Load Image"), qsTr("Grayscale"), qsTr("Preview")]
+                model: [qsTr("Load Image"), qsTr("Grayscale"),
+                    qsTr("Edge Detect"), qsTr("Preview"), qsTr("Save Image")]
 
                 delegate: Rectangle {
-                    Layout.preferredWidth: 240
-                    Layout.preferredHeight: 150
+                    required property string modelData
+                    property bool isPreview: modelData === qsTr("Preview")
+                    property bool isSave: modelData === qsTr("Save Image")
+                    Layout.preferredWidth: 190
+                    Layout.preferredHeight: 178
                     color: "#2a313a"
                     border.color: "#566575"
                     radius: 5
@@ -54,8 +58,41 @@ ApplicationWindow {
 
                         Label {
                             anchors.horizontalCenter: parent.horizontalCenter
-                            text: qsTr("Image node")
+                            text: isPreview
+                                  ? qsTr("Preview node")
+                                  : isSave ? qsTr("Output node") : qsTr("Image node")
                             color: "#9aa6b2"
+                        }
+
+                        Image {
+                            visible: isPreview && pipelineController.previewUrl.length > 0
+                            width: 148
+                            height: 92
+                            fillMode: Image.PreserveAspectFit
+                            source: pipelineController.previewUrl
+                        }
+
+                        Label {
+                            visible: isPreview
+                            width: 170
+                            horizontalAlignment: Text.AlignHCenter
+                            text: pipelineController.imageWidth > 0
+                                  ? qsTr("%1 x %2, %3 channel")
+                                    .arg(pipelineController.imageWidth)
+                                    .arg(pipelineController.imageHeight)
+                                    .arg(pipelineController.imageChannels)
+                                  : qsTr("Waiting for image")
+                            color: "#b8c5d1"
+                            elide: Text.ElideRight
+                        }
+
+                        Label {
+                            visible: isSave
+                            width: 170
+                            horizontalAlignment: Text.AlignHCenter
+                            text: pipelineController.outputPath.length > 0
+                                  ? qsTr("Saved PNG") : qsTr("Waiting for output")
+                            color: "#b8c5d1"
                         }
                     }
                 }
@@ -88,7 +125,7 @@ ApplicationWindow {
         Button {
             text: pipelineController.processing
                   ? qsTr("Processing...")
-                  : qsTr("Run grayscale image pipeline")
+                  : qsTr("Run image pipeline")
             enabled: !pipelineController.processing
             onClicked: pipelineController.runDemo()
         }

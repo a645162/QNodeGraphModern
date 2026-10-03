@@ -1,4 +1,5 @@
 #include <QNodeGraph/Lib/Execution/image_execution_service.h>
+#include <QNodeGraph/Lib/Execution/image_pipeline.h>
 #include <QNodeGraph/Lib/Image/image_processors.h>
 
 #include <QtTest/QtTest>
@@ -10,6 +11,7 @@ private slots:
     void completesProcessorOnWorkerThread();
     void reportsProcessorFailure();
     void ignoresCancelledResult();
+    void runsProcessorPipelineInOrder();
 };
 
 void ImageExecutionTest::completesProcessorOnWorkerThread() {
@@ -68,6 +70,20 @@ void ImageExecutionTest::ignoresCancelledResult() {
     QCOMPARE(finished.count(), 0);
 }
 
+void ImageExecutionTest::runsProcessorPipelineInOrder() {
+    const auto frame = QNodeGraph::Image::ImageFrame::fromQImage(
+        QImage(4, 4, QImage::Format_RGB888));
+    QVERIFY(frame.has_value());
+
+    QNodeGraph::Execution::ImagePipeline pipeline;
+    pipeline.addStep("grayscale", QNodeGraph::Image::ImageProcessors::grayscale);
+    pipeline.addStep("edge", QNodeGraph::Image::ImageProcessors::edgeDetect);
+    QCOMPARE(pipeline.stepNames().size(), std::size_t{2});
+
+    const auto result = pipeline.process(*frame);
+    QVERIFY(result.has_value());
+    QCOMPARE(result->channels(), 1);
+}
+
 QTEST_MAIN(ImageExecutionTest)
 #include "image_execution_test.moc"
-

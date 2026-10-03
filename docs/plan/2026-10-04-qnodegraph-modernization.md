@@ -80,8 +80,9 @@
 
 - [x] Add a runnable visual demo shell with Load Image, Grayscale, and Preview placeholders.
 - [ ] Implement `LoadImageNode`, `GrayscaleNode`, `BlurNode`, `EdgeDetectNode`, `ImagePreviewNode`, and `SaveImageNode`.
-- [ ] Demonstrate `Load -> Grayscale -> Edge Detect -> Preview -> Save` with an actual image.
-- [ ] Show image thumbnail, dimensions, channels, processing status, and errors inside nodes.
+  - [x] Provide reusable grayscale, blur, edge-detect processors and an asynchronous `ImagePipeline` executor.
+- [x] Demonstrate `Load -> Grayscale -> Edge Detect -> Preview -> Save` with a generated image.
+- [x] Show image thumbnail, dimensions, channels, processing status, and save errors in the demo node cards.
 
 ## Task 8: Verification and Delivery
 

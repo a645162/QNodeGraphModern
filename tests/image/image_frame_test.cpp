@@ -10,6 +10,8 @@ private slots:
     void rejectsNullImage();
     void preservesImageMetadata();
     void convertsToGrayscale();
+    void blursImage();
+    void detectsEdges();
 };
 
 void ImageFrameTest::rejectsNullImage() {
@@ -44,6 +46,39 @@ void ImageFrameTest::convertsToGrayscale() {
     QCOMPARE(result->channels(), 1);
     QVERIFY(result->image().pixelColor(0, 0).red() > 50);
     QVERIFY(result->image().pixelColor(1, 0).green() > 100);
+}
+
+void ImageFrameTest::blursImage() {
+    QImage image(3, 1, QImage::Format_Grayscale8);
+    image.setPixelColor(0, 0, QColor(0, 0, 0));
+    image.setPixelColor(1, 0, QColor(255, 255, 255));
+    image.setPixelColor(2, 0, QColor(0, 0, 0));
+    const auto frame = QNodeGraph::Image::ImageFrame::fromQImage(image);
+    QVERIFY(frame.has_value());
+
+    const auto result = QNodeGraph::Image::ImageProcessors::blur(*frame, 1);
+    QVERIFY(result.has_value());
+    QCOMPARE(result->channels(), 1);
+    QVERIFY(result->image().pixelColor(0, 0).red() > 0);
+    QVERIFY(result->image().pixelColor(1, 0).red() < 255);
+}
+
+void ImageFrameTest::detectsEdges() {
+    QImage image(5, 5, QImage::Format_Grayscale8);
+    for (int y = 0; y < image.height(); ++y) {
+        for (int x = 0; x < image.width(); ++x) {
+            image.setPixelColor(x, y, x < 2 ? QColor(0, 0, 0)
+                                           : QColor(255, 255, 255));
+        }
+    }
+    const auto frame = QNodeGraph::Image::ImageFrame::fromQImage(image);
+    QVERIFY(frame.has_value());
+
+    const auto result = QNodeGraph::Image::ImageProcessors::edgeDetect(*frame);
+    QVERIFY(result.has_value());
+    QCOMPARE(result->channels(), 1);
+    QVERIFY(result->image().pixelColor(2, 2).red() > 100);
+    QVERIFY(result->image().pixelColor(0, 2).red() < 20);
 }
 
 QTEST_MAIN(ImageFrameTest)
