@@ -6,6 +6,7 @@ pragma ComponentBehavior: Bound
 
 Rectangle {
     id: canvas
+    focus: true
     color: "#171b20"
     border.color: "#3c4652"
     radius: 4
@@ -20,6 +21,7 @@ Rectangle {
     property bool slicing: false
     property point sliceStart: Qt.point(0, 0)
     property point sliceEnd: Qt.point(0, 0)
+    property int contextNodeRow: -1
 
     onZoomFactorChanged: {
         grid.requestPaint()
@@ -83,6 +85,43 @@ Rectangle {
         MenuItem {
             text: qsTr("Reset View")
             onTriggered: canvas.resetView()
+        }
+    }
+
+    Menu {
+        id: nodeContextMenu
+
+        MenuItem {
+            text: qsTr("Delete Node")
+            onTriggered: {
+                if (canvas.contextNodeRow >= 0)
+                    canvas.controller.deleteNode(canvas.contextNodeRow)
+            }
+        }
+
+        MenuItem {
+            text: qsTr("Clear Selection")
+            onTriggered: {
+                canvas.contextNodeRow = -1
+                canvas.selectedIndex = -1
+                canvas.controller.selectNode(-1)
+            }
+        }
+    }
+
+    Shortcut {
+        sequence: "Delete"
+        onActivated: {
+            if (canvas.selectedIndex >= 0)
+                canvas.controller.deleteNode(canvas.selectedIndex)
+        }
+    }
+
+    Shortcut {
+        sequence: "Backspace"
+        onActivated: {
+            if (canvas.selectedIndex >= 0)
+                canvas.controller.deleteNode(canvas.selectedIndex)
         }
     }
 
@@ -295,7 +334,19 @@ Rectangle {
 
                 MouseArea {
                     anchors.fill: parent
-                    onClicked: {
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    onClicked: function(mouse) {
+                        canvas.forceActiveFocus()
+                        if (mouse.button === Qt.RightButton) {
+                            canvas.contextNodeRow = nodeItem.index
+                            canvas.selectedIndex = nodeItem.index
+                            canvas.controller.selectNode(nodeItem.index)
+                            nodeContextMenu.x = mouse.x
+                            nodeContextMenu.y = mouse.y
+                            nodeContextMenu.open()
+                            mouse.accepted = true
+                            return
+                        }
                         canvas.selectedIndex = nodeItem.index
                         canvas.controller.selectNode(nodeItem.index)
                     }
@@ -373,6 +424,7 @@ Rectangle {
         z: -1
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         onPressed: function(mouse) {
+            canvas.forceActiveFocus()
             if (mouse.button === Qt.RightButton) {
                 contextMenu.x = mouse.x
                 contextMenu.y = mouse.y

@@ -67,6 +67,7 @@ public:
     Q_INVOKABLE void addDemoNode(bool connectToPrevious = true);
     Q_INVOKABLE bool addNodeType(QString typeId,
                                  bool connectToPrevious = true);
+    Q_INVOKABLE bool deleteNode(int row);
     Q_INVOKABLE void clearGraph();
     Q_INVOKABLE bool moveNode(int row, double x, double y);
     Q_INVOKABLE bool autoLayout();
@@ -94,6 +95,7 @@ signals:
     void historyChanged();
 
 private:
+    void syncModelOrder();
     [[nodiscard]] Core::PortId portFor(Core::NodeId nodeId,
                                        Core::PortDirection direction) const;
     [[nodiscard]] int rowFor(Core::NodeId nodeId) const;

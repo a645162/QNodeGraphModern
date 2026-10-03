@@ -487,6 +487,35 @@ bool GraphController::addNodeType(QString typeId, bool connectToPrevious) {
     return true;
 }
 
+bool GraphController::deleteNode(int row) {
+    if (row < 0 || row >= nodeCount()) {
+        return false;
+    }
+    const auto nodeId = m_nodeOrder[static_cast<std::size_t>(row)];
+    const auto result = m_commandStack.execute(
+        std::make_unique<Core::DeleteNodeCommand>(nodeId), m_document);
+    if (!result) {
+        return false;
+    }
+
+    cancelConnection();
+    const auto oldCount = nodeCount();
+    beginResetModel();
+    m_nodeOrder = m_document.nodeIds();
+    endResetModel();
+    if (m_selectedRow != -1) {
+        m_selectedRow = -1;
+        emit selectedRowChanged();
+        emit propertiesChanged();
+    }
+    if (nodeCount() != oldCount) {
+        emit nodeCountChanged();
+    }
+    emit connectionsChanged();
+    emit historyChanged();
+    return true;
+}
+
 void GraphController::clearGraph() {
     if (m_selectedRow != -1) {
         m_selectedRow = -1;
@@ -879,6 +908,11 @@ bool GraphController::undo() {
     if (!result) {
         return false;
     }
+    const auto previousCount = nodeCount();
+    syncModelOrder();
+    if (nodeCount() != previousCount) {
+        emit nodeCountChanged();
+    }
     if (rowCount() > 0) {
         emit dataChanged(index(0, 0), index(rowCount() - 1, 0),
                          {NodeXRole, NodeYRole, NodeIconRole, NodeAccentRole,
@@ -896,6 +930,11 @@ bool GraphController::redo() {
     const auto result = m_commandStack.redo(m_document);
     if (!result) {
         return false;
+    }
+    const auto previousCount = nodeCount();
+    syncModelOrder();
+    if (nodeCount() != previousCount) {
+        emit nodeCountChanged();
     }
     if (rowCount() > 0) {
         emit dataChanged(index(0, 0), index(rowCount() - 1, 0),
@@ -923,6 +962,21 @@ Core::PortId GraphController::portFor(Core::NodeId nodeId,
         }
     }
     return 0;
+}
+
+void GraphController::syncModelOrder() {
+    const auto current = m_document.nodeIds();
+    if (current == m_nodeOrder) {
+        return;
+    }
+    beginResetModel();
+    m_nodeOrder = current;
+    endResetModel();
+    if (m_selectedRow >= nodeCount()) {
+        m_selectedRow = -1;
+        emit selectedRowChanged();
+    }
+    emit propertiesChanged();
 }
 
 int GraphController::rowFor(Core::NodeId nodeId) const {
