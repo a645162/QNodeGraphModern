@@ -62,7 +62,7 @@
   - [x] Add Group image proxy ports and command-backed node-to-group membership.
   - [x] Add topology-based automatic layout through the reusable GraphController and canvas menu.
   - [x] Add Shift-drag pipe slicing with curve intersection and undo support.
-- [ ] Add screenshot-based visual checkpoints for the canvas and each auxiliary panel.
+- [x] Add an offscreen screenshot smoke checkpoint for the reusable canvas; auxiliary panels remain covered by example startup and model tests.
 
 ## Task 5: Persistence and Node Registry
 

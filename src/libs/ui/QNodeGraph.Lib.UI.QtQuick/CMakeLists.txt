@@ -14,6 +14,9 @@ set(QT_QML_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
 qt_add_qml_module(QNodeGraph.Lib.UI.QtQuick
     URI QNodeGraph.UI
     VERSION 1.0
+    SOURCES
+        include/QNodeGraph/Lib/UI/QtQuick/graph_controller.h
+        include/QNodeGraph/Lib/UI/QtQuick/node_palette_model.h
     QML_FILES
         qml/GraphCanvas.qml
         qml/PropertiesBin.qml
@@ -25,6 +28,8 @@ qt_add_qml_module(QNodeGraph.Lib.UI.QtQuick
 target_include_directories(QNodeGraph.Lib.UI.QtQuick
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/QNodeGraph/Lib/UI/QtQuick
 )
 
 target_link_libraries(QNodeGraph.Lib.UI.QtQuick

@@ -3,6 +3,7 @@
 #include <QNodeGraph/Lib/Graph/node_registry.h>
 
 #include <QAbstractListModel>
+#include <QtQml/qqmlregistration.h>
 #include <QString>
 
 #include <vector>
@@ -11,6 +12,7 @@ namespace QNodeGraph::UI {
 
 class NodePaletteModel : public QAbstractListModel {
     Q_OBJECT
+    QML_ELEMENT
     Q_PROPERTY(QString filter READ filter WRITE setFilter NOTIFY filterChanged)
 
 public:

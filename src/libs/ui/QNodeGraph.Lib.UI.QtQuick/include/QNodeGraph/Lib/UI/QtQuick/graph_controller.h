@@ -5,6 +5,7 @@
 #include <QNodeGraph/Lib/Graph/node_registry.h>
 
 #include <QAbstractListModel>
+#include <QtQml/qqmlregistration.h>
 #include <QString>
 #include <QVariant>
 
@@ -14,6 +15,7 @@ namespace QNodeGraph::UI {
 
 class GraphController : public QAbstractListModel {
     Q_OBJECT
+    QML_ELEMENT
     Q_PROPERTY(int nodeCount READ nodeCount NOTIFY nodeCountChanged)
     Q_PROPERTY(QVariantList connections READ connections NOTIFY connectionsChanged)
     Q_PROPERTY(bool connectionPending READ connectionPending NOTIFY connectionPendingChanged)

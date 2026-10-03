@@ -4,6 +4,14 @@
 
 #include <QtQml/qqml.h>
 
+// Qt 6.12 names the generated qmlcache resource after the URI while the
+// static plugin uses the target name. Keep both symbols available to static
+// library consumers.
+void qInitResources_qmlcache_QNodeGraph_Lib_UI();
+void qInitResources_qmlcache_QNodeGraph_Lib_UI_QtQuick() {
+    qInitResources_qmlcache_QNodeGraph_Lib_UI();
+}
+
 namespace QNodeGraph::UI {
 
 void registerQNodeGraphQmlTypes() {
