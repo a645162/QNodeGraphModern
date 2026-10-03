@@ -54,6 +54,7 @@
 - [ ] Implement Properties Bin, Nodes Tree, Nodes Palette, Tab Search, context menus, hotkeys, and undo/redo UI.
   - [x] Reusable Properties Bin with selected-node property listing and type-aware editing.
   - [x] Registry-backed searchable Nodes Palette and categorized Nodes Tree components.
+  - [x] Undo/Redo toolbar actions and Ctrl+Z/Ctrl+Y shortcuts backed by the Core command stack.
 - [ ] Implement Group Node, Backdrop Node, subgraph proxy ports, automatic layout, and pipe slicing.
 - [ ] Add screenshot-based visual checkpoints for the canvas and each auxiliary panel.
 

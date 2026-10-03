@@ -40,6 +40,18 @@ ApplicationWindow {
             }
 
             Button {
+                text: qsTr("Undo")
+                enabled: canvas.controller.canUndo
+                onClicked: canvas.controller.undo()
+            }
+
+            Button {
+                text: qsTr("Redo")
+                enabled: canvas.controller.canRedo
+                onClicked: canvas.controller.redo()
+            }
+
+            Button {
                 text: qsTr("-")
                 onClicked: canvas.zoomOut()
             }
@@ -54,6 +66,16 @@ ApplicationWindow {
                 onClicked: canvas.zoomIn()
             }
         }
+    }
+
+    Shortcut {
+        sequence: "Ctrl+Z"
+        onActivated: canvas.controller.undo()
+    }
+
+    Shortcut {
+        sequence: "Ctrl+Y"
+        onActivated: canvas.controller.redo()
     }
 
     RowLayout {

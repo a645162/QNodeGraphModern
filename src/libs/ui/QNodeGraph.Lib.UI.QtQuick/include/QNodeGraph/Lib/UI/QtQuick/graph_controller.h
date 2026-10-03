@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QNodeGraph/Lib/Core/graph_document.h>
+#include <QNodeGraph/Lib/Core/graph_commands.h>
 #include <QNodeGraph/Lib/Graph/node_registry.h>
 
 #include <QAbstractListModel>
@@ -19,6 +20,8 @@ class GraphController : public QAbstractListModel {
     Q_PROPERTY(QVariantMap connectionPreview READ connectionPreview NOTIFY connectionPreviewChanged)
     Q_PROPERTY(int selectedRow READ selectedRow NOTIFY selectedRowChanged)
     Q_PROPERTY(QVariantList selectedProperties READ selectedProperties NOTIFY propertiesChanged)
+    Q_PROPERTY(bool canUndo READ canUndo NOTIFY historyChanged)
+    Q_PROPERTY(bool canRedo READ canRedo NOTIFY historyChanged)
 
 public:
     enum NodeRole {
@@ -45,6 +48,8 @@ public:
     [[nodiscard]] QVariantMap connectionPreview() const;
     [[nodiscard]] int selectedRow() const noexcept;
     [[nodiscard]] QVariantList selectedProperties() const;
+    [[nodiscard]] bool canUndo() const noexcept;
+    [[nodiscard]] bool canRedo() const noexcept;
 
     Q_INVOKABLE void addDemoNode(bool connectToPrevious = true);
     Q_INVOKABLE bool addNodeType(QString typeId,
@@ -58,6 +63,8 @@ public:
     Q_INVOKABLE void cancelConnection();
     Q_INVOKABLE bool selectNode(int row);
     Q_INVOKABLE bool setNodeProperty(int row, QString name, QVariant value);
+    Q_INVOKABLE bool undo();
+    Q_INVOKABLE bool redo();
 
 signals:
     void nodeCountChanged();
@@ -66,6 +73,7 @@ signals:
     void connectionPreviewChanged();
     void selectedRowChanged();
     void propertiesChanged();
+    void historyChanged();
 
 private:
     [[nodiscard]] Core::PortId portFor(Core::NodeId nodeId,
@@ -75,6 +83,7 @@ private:
 
     Core::GraphDocument m_document;
     QNodeGraph::Graph::NodeRegistry m_registry;
+    Core::GraphCommandStack m_commandStack;
     std::vector<Core::NodeId> m_nodeOrder;
     int m_pendingOutputRow = -1;
     Core::Point m_previewPoint;

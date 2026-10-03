@@ -7,6 +7,7 @@
 
 #include <string>
 #include <cstdint>
+#include <memory>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -88,6 +89,14 @@ QVariantMap GraphController::connectionPreview() const {
 }
 
 int GraphController::selectedRow() const noexcept { return m_selectedRow; }
+
+bool GraphController::canUndo() const noexcept {
+    return m_commandStack.canUndo();
+}
+
+bool GraphController::canRedo() const noexcept {
+    return m_commandStack.canRedo();
+}
 
 QVariantList GraphController::selectedProperties() const {
     QVariantList values;
@@ -279,9 +288,11 @@ void GraphController::clearGraph() {
     beginResetModel();
     m_nodeOrder.clear();
     m_document.clear();
+    m_commandStack.clear();
     endResetModel();
     emit nodeCountChanged();
     emit connectionsChanged();
+    emit historyChanged();
 }
 
 bool GraphController::moveNode(int row, double x, double y) {
@@ -289,7 +300,10 @@ bool GraphController::moveNode(int row, double x, double y) {
         return false;
     }
     const auto nodeId = m_nodeOrder[static_cast<std::size_t>(row)];
-    if (!m_document.setNodePosition(nodeId, {x, y})) {
+    const auto result = m_commandStack.execute(
+        std::make_unique<Core::MoveNodeCommand>(nodeId, Core::Point{x, y}),
+        m_document);
+    if (!result) {
         return false;
     }
     const auto modelIndex = index(row, 0);
@@ -298,6 +312,7 @@ bool GraphController::moveNode(int row, double x, double y) {
     if (connectionPending()) {
         emit connectionPreviewChanged();
     }
+    emit historyChanged();
     return true;
 }
 
@@ -444,12 +459,45 @@ bool GraphController::setNodeProperty(int row, QString name, QVariant value) {
         converted = value.toString().toStdString();
     }
 
-    const auto result = m_document.setProperty(nodeId, name.toStdString(),
-                                                std::move(converted));
+    const auto result = m_commandStack.execute(
+        std::make_unique<Core::SetPropertyCommand>(
+            nodeId, name.toStdString(), std::move(converted)),
+        m_document);
     if (!result) {
         return false;
     }
     emit propertiesChanged();
+    emit historyChanged();
+    return true;
+}
+
+bool GraphController::undo() {
+    const auto result = m_commandStack.undo(m_document);
+    if (!result) {
+        return false;
+    }
+    if (rowCount() > 0) {
+        emit dataChanged(index(0, 0), index(rowCount() - 1, 0),
+                         {NodeXRole, NodeYRole});
+    }
+    emit connectionsChanged();
+    emit propertiesChanged();
+    emit historyChanged();
+    return true;
+}
+
+bool GraphController::redo() {
+    const auto result = m_commandStack.redo(m_document);
+    if (!result) {
+        return false;
+    }
+    if (rowCount() > 0) {
+        emit dataChanged(index(0, 0), index(rowCount() - 1, 0),
+                         {NodeXRole, NodeYRole});
+    }
+    emit connectionsChanged();
+    emit propertiesChanged();
+    emit historyChanged();
     return true;
 }
 
@@ -486,11 +534,17 @@ bool GraphController::connectRows(int outputRow, int inputRow) {
     const auto inputNode = m_nodeOrder[static_cast<std::size_t>(inputRow)];
     const auto outputPort = portFor(outputNode, Core::PortDirection::Output);
     const auto inputPort = portFor(inputNode, Core::PortDirection::Input);
-    if (outputPort == 0 || inputPort == 0 ||
-        !m_document.connect(outputPort, inputPort)) {
+    if (outputPort == 0 || inputPort == 0) {
+        return false;
+    }
+    const auto result = m_commandStack.execute(
+        std::make_unique<Core::ConnectPortsCommand>(outputPort, inputPort),
+        m_document);
+    if (!result) {
         return false;
     }
     emit connectionsChanged();
+    emit historyChanged();
     return true;
 }
 

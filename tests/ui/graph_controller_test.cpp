@@ -17,6 +17,7 @@ private slots:
     void selectsNodeAndListsProperties();
     void editsSelectedNodeProperty();
     void addsRegisteredNodeType();
+    void movesNodeWithUndoAndRedo();
     void movesNodeAndEmitsData();
     void clearsModel();
 };
@@ -146,6 +147,24 @@ void GraphControllerTest::addsRegisteredNodeType() {
     QCOMPARE(index.data(QNodeGraph::UI::GraphController::OutputPortCountRole)
                  .toInt(),
              1);
+}
+
+void GraphControllerTest::movesNodeWithUndoAndRedo() {
+    QNodeGraph::UI::GraphController controller;
+    controller.addDemoNode(false);
+    QVERIFY(controller.moveNode(0, 320.0, 150.0));
+    QVERIFY(controller.canUndo());
+    QVERIFY(controller.undo());
+    QCOMPARE(controller.index(0, 0)
+                 .data(QNodeGraph::UI::GraphController::NodeXRole)
+                 .toDouble(),
+             80.0);
+    QVERIFY(controller.canRedo());
+    QVERIFY(controller.redo());
+    QCOMPARE(controller.index(0, 0)
+                 .data(QNodeGraph::UI::GraphController::NodeXRole)
+                 .toDouble(),
+             320.0);
 }
 
 void GraphControllerTest::movesNodeAndEmitsData() {
