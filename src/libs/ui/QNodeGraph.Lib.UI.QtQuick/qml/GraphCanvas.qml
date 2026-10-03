@@ -187,6 +187,10 @@ Rectangle {
                 required property int index
                 required property string nodeName
                 required property string nodeType
+                required property string nodeIcon
+                required property string nodeAccent
+                required property bool nodeEnabled
+                required property string nodeLabel
                 required property real nodeX
                 required property real nodeY
                 required property int inputPortCount
@@ -200,22 +204,44 @@ Rectangle {
                 border.color: nodeItem.selected ? "#69a7dc" : "#566575"
                 border.width: nodeItem.selected ? 2 : 1
                 radius: 4
+                opacity: nodeItem.nodeEnabled ? 1.0 : 0.55
 
                 property bool selected: canvas.selectedIndex === nodeItem.index
 
                 Rectangle {
                     width: parent.width
                     height: 28
-                    color: nodeItem.selected ? "#426b91" : "#34414d"
+                    color: nodeItem.nodeAccent
                     radius: 4
+
+                    Rectangle {
+                        anchors.left: parent.left
+                        anchors.leftMargin: 6
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 28
+                        height: 20
+                        radius: 3
+                        color: "#26000000"
+
+                        Label {
+                            anchors.centerIn: parent
+                            text: nodeItem.nodeIcon
+                            color: "#f1f6fa"
+                            font.pixelSize: 9
+                            font.bold: true
+                        }
+                    }
 
                     Label {
                         anchors.left: parent.left
-                        anchors.leftMargin: 10
+                        anchors.leftMargin: 40
+                        anchors.right: parent.right
+                        anchors.rightMargin: 6
                         anchors.verticalCenter: parent.verticalCenter
-                        text: nodeItem.nodeName
+                        text: nodeItem.nodeLabel
                         color: "#e6edf3"
                         font.bold: true
+                        elide: Text.ElideRight
                     }
                 }
 
@@ -279,6 +305,21 @@ Rectangle {
                         canvas.selectedIndex = nodeItem.index
                         canvas.controller.selectNode(nodeItem.index)
                     }
+                }
+
+                CheckBox {
+                    id: enabledToggle
+                    z: 3
+                    anchors.right: parent.right
+                    anchors.rightMargin: 5
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: 3
+                    text: qsTr("Enabled")
+                    checked: nodeItem.nodeEnabled
+                    scale: 0.72
+                    transformOrigin: Item.BottomRight
+                    onToggled: canvas.controller.setNodeProperty(
+                        nodeItem.index, "enabled", checked)
                 }
 
                 DragHandler {

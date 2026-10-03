@@ -51,6 +51,7 @@
 **Files:** `src/libs/ui/QNodeGraph.Lib.UI.QtQuick/qml/*`, `src/libs/graph/*`
 
 - [ ] Reproduce node title bars, colors, icons, SVG content, disabled state, vertical layout, and embedded controls.
+  - [x] Type-specific node accents, icons, disabled opacity, labels, and embedded enabled control.
 - [ ] Implement Properties Bin, Nodes Tree, Nodes Palette, Tab Search, context menus, hotkeys, and undo/redo UI.
   - [x] Reusable Properties Bin with selected-node property listing and type-aware editing.
   - [x] Registry-backed searchable Nodes Palette and categorized Nodes Tree components.

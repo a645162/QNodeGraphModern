@@ -18,6 +18,7 @@ private slots:
     void editsSelectedNodeProperty();
     void addsRegisteredNodeType();
     void movesNodeWithUndoAndRedo();
+    void exposesNodeVisualRolesAndDisabledState();
     void movesNodeAndEmitsData();
     void clearsModel();
 };
@@ -165,6 +166,23 @@ void GraphControllerTest::movesNodeWithUndoAndRedo() {
                  .data(QNodeGraph::UI::GraphController::NodeXRole)
                  .toDouble(),
              320.0);
+}
+
+void GraphControllerTest::exposesNodeVisualRolesAndDisabledState() {
+    QNodeGraph::UI::GraphController controller;
+    QVERIFY(controller.addNodeType(QStringLiteral("edge_detect"), false));
+    const auto index = controller.index(0, 0);
+    QVERIFY(index.data(QNodeGraph::UI::GraphController::NodeIconRole)
+                .toString()
+                .size() > 0);
+    QVERIFY(index.data(QNodeGraph::UI::GraphController::NodeAccentRole)
+                .toString()
+                .startsWith(QStringLiteral("#")));
+    QVERIFY(index.data(QNodeGraph::UI::GraphController::NodeEnabledRole)
+                .toBool());
+    QVERIFY(controller.setNodeProperty(0, QStringLiteral("enabled"), false));
+    QVERIFY(!index.data(QNodeGraph::UI::GraphController::NodeEnabledRole)
+                 .toBool());
 }
 
 void GraphControllerTest::movesNodeAndEmitsData() {

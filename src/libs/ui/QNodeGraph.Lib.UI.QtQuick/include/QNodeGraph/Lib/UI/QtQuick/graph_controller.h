@@ -32,6 +32,10 @@ public:
         NodeYRole,
         InputPortCountRole,
         OutputPortCountRole,
+        NodeIconRole,
+        NodeAccentRole,
+        NodeEnabledRole,
+        NodeLabelRole,
     };
     Q_ENUM(NodeRole)
 

@@ -53,6 +53,50 @@ QString propertyType(const Core::PropertyValue& value) {
         value);
 }
 
+QString nodeIcon(const std::string& type) {
+    if (type == "load_image") {
+        return QStringLiteral("IMG");
+    }
+    if (type == "grayscale") {
+        return QStringLiteral("FX");
+    }
+    if (type == "blur") {
+        return QStringLiteral("BLR");
+    }
+    if (type == "edge_detect") {
+        return QStringLiteral("EDG");
+    }
+    if (type == "image_preview") {
+        return QStringLiteral("VIEW");
+    }
+    if (type == "save_image") {
+        return QStringLiteral("SAVE");
+    }
+    return QStringLiteral("NODE");
+}
+
+QString nodeAccent(const std::string& type) {
+    if (type == "load_image") {
+        return QStringLiteral("#4f8fc6");
+    }
+    if (type == "grayscale") {
+        return QStringLiteral("#6f7bd8");
+    }
+    if (type == "blur") {
+        return QStringLiteral("#9568c7");
+    }
+    if (type == "edge_detect") {
+        return QStringLiteral("#b26d5c");
+    }
+    if (type == "image_preview") {
+        return QStringLiteral("#4aaf85");
+    }
+    if (type == "save_image") {
+        return QStringLiteral("#71859a");
+    }
+    return QStringLiteral("#426b91");
+}
+
 } // namespace
 
 GraphController::GraphController(QObject* parent)
@@ -193,6 +237,23 @@ QVariant GraphController::data(const QModelIndex& index, int role) const {
         }
         return count;
     }
+    case NodeIconRole:
+        return nodeIcon(node->type);
+    case NodeAccentRole:
+        return nodeAccent(node->type);
+    case NodeEnabledRole: {
+        const auto* enabled = m_document.property(node->id, "enabled");
+        return enabled != nullptr && std::holds_alternative<bool>(*enabled)
+                   ? QVariant(std::get<bool>(*enabled))
+                   : QVariant(true);
+    }
+    case NodeLabelRole: {
+        const auto* label = m_document.property(node->id, "label");
+        if (label != nullptr && std::holds_alternative<std::string>(*label)) {
+            return QString::fromStdString(std::get<std::string>(*label));
+        }
+        return QString::fromStdString(node->name);
+    }
     default:
         return {};
     }
@@ -207,6 +268,10 @@ QHash<int, QByteArray> GraphController::roleNames() const {
         {NodeYRole, "nodeY"},
         {InputPortCountRole, "inputPortCount"},
         {OutputPortCountRole, "outputPortCount"},
+        {NodeIconRole, "nodeIcon"},
+        {NodeAccentRole, "nodeAccent"},
+        {NodeEnabledRole, "nodeEnabled"},
+        {NodeLabelRole, "nodeLabel"},
     };
 }
 
@@ -466,6 +531,12 @@ bool GraphController::setNodeProperty(int row, QString name, QVariant value) {
     if (!result) {
         return false;
     }
+    const auto modelIndex = index(row, 0);
+    if (name == QStringLiteral("enabled")) {
+        emit dataChanged(modelIndex, modelIndex, {NodeEnabledRole});
+    } else if (name == QStringLiteral("label")) {
+        emit dataChanged(modelIndex, modelIndex, {NodeLabelRole, NodeNameRole});
+    }
     emit propertiesChanged();
     emit historyChanged();
     return true;
@@ -478,7 +549,8 @@ bool GraphController::undo() {
     }
     if (rowCount() > 0) {
         emit dataChanged(index(0, 0), index(rowCount() - 1, 0),
-                         {NodeXRole, NodeYRole});
+                         {NodeXRole, NodeYRole, NodeIconRole, NodeAccentRole,
+                          NodeEnabledRole, NodeLabelRole});
     }
     emit connectionsChanged();
     emit propertiesChanged();
@@ -493,7 +565,8 @@ bool GraphController::redo() {
     }
     if (rowCount() > 0) {
         emit dataChanged(index(0, 0), index(rowCount() - 1, 0),
-                         {NodeXRole, NodeYRole});
+                         {NodeXRole, NodeYRole, NodeIconRole, NodeAccentRole,
+                          NodeEnabledRole, NodeLabelRole});
     }
     emit connectionsChanged();
     emit propertiesChanged();
