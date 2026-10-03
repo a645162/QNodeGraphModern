@@ -12,6 +12,8 @@ class GraphController : public QAbstractListModel {
     Q_OBJECT
     Q_PROPERTY(int nodeCount READ nodeCount NOTIFY nodeCountChanged)
     Q_PROPERTY(QVariantList connections READ connections NOTIFY connectionsChanged)
+    Q_PROPERTY(bool connectionPending READ connectionPending NOTIFY connectionPendingChanged)
+    Q_PROPERTY(QVariantMap connectionPreview READ connectionPreview NOTIFY connectionPreviewChanged)
 
 public:
     enum NodeRole {
@@ -34,22 +36,34 @@ public:
     [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
     [[nodiscard]] int nodeCount() const noexcept;
     [[nodiscard]] QVariantList connections() const;
+    [[nodiscard]] bool connectionPending() const noexcept;
+    [[nodiscard]] QVariantMap connectionPreview() const;
 
-    Q_INVOKABLE void addDemoNode();
+    Q_INVOKABLE void addDemoNode(bool connectToPrevious = true);
     Q_INVOKABLE void clearGraph();
     Q_INVOKABLE bool moveNode(int row, double x, double y);
+    Q_INVOKABLE QVariantMap portAt(double worldX, double worldY) const;
+    Q_INVOKABLE bool beginConnection(int outputRow);
+    Q_INVOKABLE void updateConnectionPreview(double worldX, double worldY);
+    Q_INVOKABLE bool completeConnectionAt(double worldX, double worldY);
+    Q_INVOKABLE void cancelConnection();
 
 signals:
     void nodeCountChanged();
     void connectionsChanged();
+    void connectionPendingChanged();
+    void connectionPreviewChanged();
 
 private:
     [[nodiscard]] Core::PortId portFor(Core::NodeId nodeId,
                                        Core::PortDirection direction) const;
     [[nodiscard]] int rowFor(Core::NodeId nodeId) const;
+    [[nodiscard]] bool connectRows(int outputRow, int inputRow);
 
     Core::GraphDocument m_document;
     std::vector<Core::NodeId> m_nodeOrder;
+    int m_pendingOutputRow = -1;
+    Core::Point m_previewPoint;
 };
 
 } // namespace QNodeGraph::UI

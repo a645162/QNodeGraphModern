@@ -9,6 +9,9 @@ private slots:
     void startsWithEmptyModel();
     void addsNodeWithRoles();
     void connectsAdjacentDemoNodes();
+    void connectsNodesThroughPortInteraction();
+    void reportsPortHitTestingResults();
+    void exposesAndClearsConnectionPreview();
     void movesNodeAndEmitsData();
     void clearsModel();
 };
@@ -43,6 +46,54 @@ void GraphControllerTest::connectsAdjacentDemoNodes() {
     const auto connection = controller.connections().constFirst().toMap();
     QCOMPARE(connection.value(QStringLiteral("outputRow")).toInt(), 0);
     QCOMPARE(connection.value(QStringLiteral("inputRow")).toInt(), 1);
+}
+
+void GraphControllerTest::connectsNodesThroughPortInteraction() {
+    QNodeGraph::UI::GraphController controller;
+    controller.addDemoNode(false);
+    controller.addDemoNode(false);
+
+    QVERIFY(controller.beginConnection(0));
+    controller.updateConnectionPreview(330.0, 144.0);
+    QVERIFY(controller.completeConnectionAt(330.0, 144.0));
+    QCOMPARE(controller.connections().size(), qsizetype{1});
+    QVERIFY(!controller.connectionPending());
+}
+
+void GraphControllerTest::reportsPortHitTestingResults() {
+    QNodeGraph::UI::GraphController controller;
+    controller.addDemoNode();
+
+    const auto input = controller.portAt(80.0, 144.0);
+    QCOMPARE(input.value(QStringLiteral("row")).toInt(), 0);
+    QCOMPARE(input.value(QStringLiteral("direction")).toString(),
+             QStringLiteral("input"));
+
+    const auto output = controller.portAt(260.0, 144.0);
+    QCOMPARE(output.value(QStringLiteral("row")).toInt(), 0);
+    QCOMPARE(output.value(QStringLiteral("direction")).toString(),
+             QStringLiteral("output"));
+    QVERIFY(controller.portAt(400.0, 400.0).isEmpty());
+}
+
+void GraphControllerTest::exposesAndClearsConnectionPreview() {
+    QNodeGraph::UI::GraphController controller;
+    controller.addDemoNode();
+    QSignalSpy previewSpy(
+        &controller,
+        &QNodeGraph::UI::GraphController::connectionPreviewChanged);
+
+    QVERIFY(controller.beginConnection(0));
+    controller.updateConnectionPreview(300.0, 210.0);
+    const auto preview = controller.connectionPreview();
+    QCOMPARE(preview.value(QStringLiteral("outputRow")).toInt(), 0);
+    QCOMPARE(preview.value(QStringLiteral("inputX")).toDouble(), 300.0);
+    QCOMPARE(preview.value(QStringLiteral("inputY")).toDouble(), 210.0);
+    QVERIFY(!previewSpy.isEmpty());
+
+    controller.cancelConnection();
+    QVERIFY(!controller.connectionPending());
+    QVERIFY(controller.connectionPreview().isEmpty());
 }
 
 void GraphControllerTest::movesNodeAndEmitsData() {

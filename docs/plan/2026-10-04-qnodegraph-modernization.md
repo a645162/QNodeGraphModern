@@ -44,6 +44,7 @@
 - [x] Add a basic consumer example with a visible canvas placeholder and graph controller actions.
 - [x] Add a real `GraphCanvas` item with zoom, pan, selection, and coordinate transforms.
 - [ ] Add node delegates, port hit testing, connection previews, and scene-graph connection rendering.
+  - [x] Node delegates, C++ port hit testing, drag previews, and QML Canvas connection rendering.
 
 ## Task 4: NodeGraphQt UI Parity
 

@@ -26,7 +26,6 @@ Rectangle {
         grid.requestPaint()
         pipes.requestPaint()
     }
-
     function clampZoom(value) {
         return Math.max(0.25, Math.min(2.5, value))
     }
@@ -94,8 +93,10 @@ Rectangle {
         anchors.fill: parent
         z: -1
         property var connectionData: graphController.connections
+        property var previewData: graphController.connectionPreview
 
         onConnectionDataChanged: requestPaint()
+        onPreviewDataChanged: requestPaint()
         onPaint: {
             var context = getContext("2d")
             context.reset()
@@ -114,6 +115,31 @@ Rectangle {
                 context.bezierCurveTo(startX + distance, startY,
                                       endX - distance, endY, endX, endY)
                 context.stroke()
+            }
+
+            if (previewData && Object.keys(previewData).length > 0) {
+                var previewStartX = canvas.panOffset.x +
+                                    (previewData.outputX + previewData.outputWidth) *
+                                    canvas.zoomFactor
+                var previewStartY = canvas.panOffset.y +
+                                    previewData.outputY * canvas.zoomFactor
+                var previewEndX = canvas.panOffset.x +
+                                  previewData.inputX * canvas.zoomFactor
+                var previewEndY = canvas.panOffset.y +
+                                  previewData.inputY * canvas.zoomFactor
+                var previewDistance = Math.max(
+                    40, Math.abs(previewEndX - previewStartX) * 0.5)
+                context.strokeStyle = "#c8d9e8"
+                context.lineWidth = 2
+                context.setLineDash([7, 5])
+                context.beginPath()
+                context.moveTo(previewStartX, previewStartY)
+                context.bezierCurveTo(previewStartX + previewDistance,
+                                      previewStartY,
+                                      previewEndX - previewDistance,
+                                      previewEndY, previewEndX, previewEndY)
+                context.stroke()
+                context.setLineDash([])
             }
         }
     }
@@ -173,21 +199,48 @@ Rectangle {
 
                 Rectangle {
                     x: -6
-                    y: height / 2 - 6
+                    y: nodeItem.height / 2 - 6
                     width: 12
                     height: 12
                     radius: 6
                     color: "#6fa8dc"
                     border.color: "#c4e2ff"
+
+                    MouseArea {
+                        anchors.fill: parent
+                        acceptedButtons: Qt.LeftButton
+                        onPressed: {
+                            mouse.accepted = true
+                            canvas.controller.beginConnection(nodeItem.index)
+                        }
+                        onPositionChanged: {
+                            var point = parent.mapToItem(canvas, mouse.x, mouse.y)
+                            canvas.controller.updateConnectionPreview(
+                                (point.x - canvas.panOffset.x) /
+                                canvas.zoomFactor,
+                                (point.y - canvas.panOffset.y) /
+                                canvas.zoomFactor)
+                        }
+                        onReleased: {
+                            var point = parent.mapToItem(canvas, mouse.x, mouse.y)
+                            var worldX = (point.x - canvas.panOffset.x) /
+                                         canvas.zoomFactor
+                            var worldY = (point.y - canvas.panOffset.y) /
+                                         canvas.zoomFactor
+                            if (!canvas.controller.completeConnectionAt(worldX,
+                                                                         worldY))
+                                canvas.controller.cancelConnection()
+                        }
+                    }
                 }
 
                 Rectangle {
                     x: parent.width - 6
-                    y: height / 2 - 6
+                    y: nodeItem.height / 2 - 6
                     width: 12
                     height: 12
                     radius: 6
-                    color: "#7bc58c"
+                    color: canvas.controller.connectionPending ? "#f0b45f" : "#7bc58c"
                     border.color: "#d5f6dc"
                 }
 
