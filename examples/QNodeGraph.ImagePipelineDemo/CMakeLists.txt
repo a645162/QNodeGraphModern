@@ -1,5 +1,7 @@
 qt_add_executable(QNodeGraph.ImagePipelineDemo
     main.cpp
+    pipeline_controller.h
+    pipeline_controller.cpp
 )
 
 qt_add_qml_module(QNodeGraph.ImagePipelineDemo
@@ -12,6 +14,8 @@ qt_add_qml_module(QNodeGraph.ImagePipelineDemo
 target_link_libraries(QNodeGraph.ImagePipelineDemo
     PRIVATE
         QNodeGraph.Lib.UI.QtQuick
+        QNodeGraph.Lib.Execution
+        QNodeGraph.Lib.Image
         Qt6::Gui
         Qt6::Quick
         Qt6::Qml

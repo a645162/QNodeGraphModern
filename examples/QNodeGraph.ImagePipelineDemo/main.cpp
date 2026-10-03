@@ -1,7 +1,10 @@
+#include "pipeline_controller.h"
+
 #include <QNodeGraph/Lib/UI/QtQuick/qml_registration.h>
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
+#include <QQmlContext>
 
 int main(int argc, char* argv[]) {
     QGuiApplication app(argc, argv);
@@ -9,7 +12,12 @@ int main(int argc, char* argv[]) {
 
     QNodeGraph::UI::registerQNodeGraphQmlTypes();
 
+    DemoImageProvider provider;
+    PipelineController controller(&provider);
     QQmlApplicationEngine engine;
+    engine.addImageProvider(QStringLiteral("pipeline"), &provider);
+    engine.rootContext()->setContextProperty(QStringLiteral("pipelineController"),
+                                             &controller);
     engine.loadFromModule("QNodeGraph.ImagePipelineDemo", "Demo");
     if (engine.rootObjects().isEmpty()) {
         return 1;

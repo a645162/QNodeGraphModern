@@ -10,8 +10,6 @@ ApplicationWindow {
     title: qsTr("QNodeGraph Image Pipeline Demo")
     color: "#1b2026"
 
-    GraphController { id: controller }
-
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 24
@@ -64,9 +62,46 @@ ApplicationWindow {
             }
         }
 
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 260
+            color: "#14191e"
+            border.color: "#566575"
+            radius: 5
+
+            Image {
+                anchors.fill: parent
+                anchors.margins: 12
+                source: pipelineController.previewUrl
+                fillMode: Image.PreserveAspectFit
+                visible: source.length > 0
+            }
+
+            Label {
+                anchors.centerIn: parent
+                text: qsTr("Run the pipeline to display the processed image")
+                color: "#738292"
+                visible: pipelineController.previewUrl.length === 0
+            }
+        }
+
         Button {
-            text: qsTr("Add demo node (%1)").arg(controller.nodeCount)
-            onClicked: controller.addDemoNode()
+            text: pipelineController.processing
+                  ? qsTr("Processing...")
+                  : qsTr("Run grayscale image pipeline")
+            enabled: !pipelineController.processing
+            onClicked: pipelineController.runDemo()
+        }
+
+        Button {
+            text: qsTr("Cancel")
+            enabled: pipelineController.processing
+            onClicked: pipelineController.cancel()
+        }
+
+        Label {
+            text: pipelineController.status
+            color: "#aab4bf"
         }
     }
 }
