@@ -39,6 +39,11 @@ enum class GraphErrorCode {
     CycleDetected,
     InvalidImage,
     CommandStackEmpty,
+    DuplicateNodeType,
+    UnknownNodeType,
+    InvalidDocument,
+    UnsupportedSchemaVersion,
+    SerializationError,
 };
 
 struct GraphError {
@@ -92,6 +97,7 @@ public:
 
     [[nodiscard]] std::size_t nodeCount() const noexcept;
     [[nodiscard]] std::size_t connectionCount() const noexcept;
+    [[nodiscard]] std::vector<NodeId> nodeIds() const;
     [[nodiscard]] const std::vector<Connection>& connections() const noexcept;
 
     GraphResult<NodeId> addNode(std::string type = "generic",

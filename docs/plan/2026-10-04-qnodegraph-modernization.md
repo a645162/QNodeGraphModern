@@ -59,9 +59,10 @@
 
 **Files:** `src/libs/graph/*`, `src/libs/core/*`, `tests/graph/*`
 
-- [ ] Define a versioned JSON schema for documents, nodes, ports, properties, positions, groups, and connections.
-- [ ] Add node descriptors and a registry for built-in nodes.
+- [x] Define a versioned JSON schema for documents, nodes, ports, properties, positions, and connections.
+- [x] Add node descriptors and a registry for built-in image nodes.
 - [ ] Add migration tests for the initial schema version and missing external assets.
+  - [x] Cover schema-version rejection and missing JSON file errors.
 
 ## Task 6: Image Data and Execution
 
@@ -87,7 +88,7 @@
 **Files:** `scripts/test/test.ps1`, `docs/README.md`, `README.md`, `README.zh-cn.md`
 
 - [x] Run CMake configure and Debug build on the supported Qt kit.
-- [x] Run CTest with failure output enabled (6/6 tests passed).
+- [x] Run CTest with failure output enabled (7/7 tests passed).
 - [x] Run the image pipeline demo manually with the offscreen Qt platform.
 - [ ] Add Release build verification before performance work.
 - [ ] Document build, run, test, QML module layout, node authoring, and image-node extension points.

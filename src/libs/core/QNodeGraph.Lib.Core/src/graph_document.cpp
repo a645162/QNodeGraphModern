@@ -43,6 +43,16 @@ std::size_t GraphDocument::connectionCount() const noexcept {
     return m_connections.size();
 }
 
+std::vector<NodeId> GraphDocument::nodeIds() const {
+    std::vector<NodeId> ids;
+    ids.reserve(m_nodes.size());
+    for (const auto& [id, node] : m_nodes) {
+        static_cast<void>(node);
+        ids.push_back(id);
+    }
+    return ids;
+}
+
 const std::vector<Connection>& GraphDocument::connections() const noexcept {
     return m_connections;
 }
