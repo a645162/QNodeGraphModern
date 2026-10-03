@@ -36,6 +36,11 @@ public:
         NodeAccentRole,
         NodeEnabledRole,
         NodeLabelRole,
+        NodeWidthRole,
+        NodeHeightRole,
+        NodeColorRole,
+        NodeIsBackdropRole,
+        NodeIsGroupRole,
     };
     Q_ENUM(NodeRole)
 

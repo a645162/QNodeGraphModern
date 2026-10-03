@@ -112,6 +112,11 @@ NodeRegistry NodeRegistry::withBuiltins() {
     registerBuiltin(registry,
                     {"save_image", "Save Image",
                      {imagePort("image", Core::PortDirection::Input)}});
+    registerBuiltin(registry,
+                    {"group", "Group",
+                     {imagePort("in", Core::PortDirection::Input),
+                      imagePort("out", Core::PortDirection::Output)}});
+    registerBuiltin(registry, {"backdrop", "Backdrop", {}});
     return registry;
 }
 

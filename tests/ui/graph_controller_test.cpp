@@ -21,6 +21,7 @@ private slots:
     void exposesNodeVisualRolesAndDisabledState();
     void autoLayoutsConnectedNodes();
     void slicesConnectionsAlongGesture();
+    void exposesGroupAndBackdropVisualRoles();
     void movesNodeAndEmitsData();
     void clearsModel();
 };
@@ -224,6 +225,28 @@ void GraphControllerTest::slicesConnectionsAlongGesture() {
     QCOMPARE(controller.connections().size(), qsizetype{1});
     QVERIFY(controller.undo());
     QCOMPARE(controller.connections().size(), qsizetype{2});
+}
+
+void GraphControllerTest::exposesGroupAndBackdropVisualRoles() {
+    QNodeGraph::UI::GraphController controller;
+    QVERIFY(controller.addNodeType(QStringLiteral("backdrop"), false));
+    QVERIFY(controller.addNodeType(QStringLiteral("group"), false));
+
+    const auto backdrop = controller.index(0, 0);
+    QVERIFY(backdrop.data(
+                         QNodeGraph::UI::GraphController::NodeIsBackdropRole)
+                .toBool());
+    QVERIFY(backdrop.data(QNodeGraph::UI::GraphController::NodeWidthRole)
+                .toDouble() > 180.0);
+    QVERIFY(backdrop.data(QNodeGraph::UI::GraphController::NodeColorRole)
+                .toString()
+                .startsWith(QStringLiteral("#")));
+
+    const auto group = controller.index(1, 0);
+    QVERIFY(group.data(QNodeGraph::UI::GraphController::NodeIsGroupRole)
+                .toBool());
+    QVERIFY(!group.data(QNodeGraph::UI::GraphController::NodeIsBackdropRole)
+                 .toBool());
 }
 
 void GraphControllerTest::movesNodeAndEmitsData() {

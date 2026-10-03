@@ -199,6 +199,11 @@ Rectangle {
                 required property string nodeAccent
                 required property bool nodeEnabled
                 required property string nodeLabel
+                required property real nodeWidth
+                required property real nodeHeight
+                required property string nodeColor
+                required property bool nodeIsBackdrop
+                required property bool nodeIsGroup
                 required property real nodeX
                 required property real nodeY
                 required property int inputPortCount
@@ -206,10 +211,16 @@ Rectangle {
 
                 x: nodeItem.nodeX
                 y: nodeItem.nodeY
-                width: 180
-                height: 108
-                color: nodeItem.selected ? "#394b5d" : "#2a333d"
-                border.color: nodeItem.selected ? "#69a7dc" : "#566575"
+                width: nodeItem.nodeWidth
+                height: nodeItem.nodeHeight
+                z: nodeItem.nodeIsBackdrop ? -0.5 : 0
+                color: nodeItem.nodeIsBackdrop
+                       ? nodeItem.nodeColor
+                       : (nodeItem.selected ? "#394b5d" : "#2a333d")
+                border.color: nodeItem.selected
+                              ? "#69a7dc"
+                              : (nodeItem.nodeIsBackdrop ? nodeItem.nodeAccent
+                                                         : "#566575")
                 border.width: nodeItem.selected ? 2 : 1
                 radius: 4
                 opacity: nodeItem.nodeEnabled ? 1.0 : 0.55
@@ -219,7 +230,9 @@ Rectangle {
                 Rectangle {
                     width: parent.width
                     height: 28
-                    color: nodeItem.nodeAccent
+                    color: nodeItem.nodeIsBackdrop
+                           ? nodeItem.nodeAccent
+                           : nodeItem.nodeAccent
                     radius: 4
 
                     Rectangle {
@@ -255,8 +268,14 @@ Rectangle {
 
                 Label {
                     anchors.centerIn: parent
-                    text: qsTr("%1 -> %2").arg(nodeItem.inputPortCount)
-                        .arg(nodeItem.outputPortCount)
+                    text: nodeItem.nodeIsBackdrop
+                          ? qsTr("Backdrop")
+                          : (nodeItem.nodeIsGroup
+                             ? qsTr("Group  %1 -> %2").arg(
+                                   nodeItem.inputPortCount).arg(
+                                   nodeItem.outputPortCount)
+                             : qsTr("%1 -> %2").arg(nodeItem.inputPortCount)
+                               .arg(nodeItem.outputPortCount))
                     color: "#9aa6b2"
                 }
 

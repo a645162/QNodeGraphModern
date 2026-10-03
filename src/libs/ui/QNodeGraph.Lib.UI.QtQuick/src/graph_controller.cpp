@@ -75,6 +75,12 @@ QString nodeIcon(const std::string& type) {
     if (type == "save_image") {
         return QStringLiteral("SAVE");
     }
+    if (type == "group") {
+        return QStringLiteral("GRP");
+    }
+    if (type == "backdrop") {
+        return QStringLiteral("BG");
+    }
     return QStringLiteral("NODE");
 }
 
@@ -97,7 +103,38 @@ QString nodeAccent(const std::string& type) {
     if (type == "save_image") {
         return QStringLiteral("#71859a");
     }
+    if (type == "group") {
+        return QStringLiteral("#4a718c");
+    }
+    if (type == "backdrop") {
+        return QStringLiteral("#557081");
+    }
     return QStringLiteral("#426b91");
+}
+
+double nodeNumberProperty(const Core::Node& node, const char* name,
+                          double fallback) {
+    const auto iterator = node.properties.find(name);
+    if (iterator == node.properties.end()) {
+        return fallback;
+    }
+    if (std::holds_alternative<double>(iterator->second)) {
+        return std::get<double>(iterator->second);
+    }
+    if (std::holds_alternative<std::int64_t>(iterator->second)) {
+        return static_cast<double>(std::get<std::int64_t>(iterator->second));
+    }
+    return fallback;
+}
+
+QString nodeStringProperty(const Core::Node& node, const char* name,
+                           QString fallback) {
+    const auto iterator = node.properties.find(name);
+    if (iterator != node.properties.end() &&
+        std::holds_alternative<std::string>(iterator->second)) {
+        return QString::fromStdString(std::get<std::string>(iterator->second));
+    }
+    return fallback;
 }
 
 double cross(const Core::Point& first, const Core::Point& second,
@@ -315,6 +352,16 @@ QVariant GraphController::data(const QModelIndex& index, int role) const {
         }
         return QString::fromStdString(node->name);
     }
+    case NodeWidthRole:
+        return nodeNumberProperty(*node, "width", kDemoNodeWidth);
+    case NodeHeightRole:
+        return nodeNumberProperty(*node, "height", kDemoNodeHeight);
+    case NodeColorRole:
+        return nodeStringProperty(*node, "color", QStringLiteral("#2a333d"));
+    case NodeIsBackdropRole:
+        return node->type == "backdrop";
+    case NodeIsGroupRole:
+        return node->type == "group";
     default:
         return {};
     }
@@ -333,6 +380,11 @@ QHash<int, QByteArray> GraphController::roleNames() const {
         {NodeAccentRole, "nodeAccent"},
         {NodeEnabledRole, "nodeEnabled"},
         {NodeLabelRole, "nodeLabel"},
+        {NodeWidthRole, "nodeWidth"},
+        {NodeHeightRole, "nodeHeight"},
+        {NodeColorRole, "nodeColor"},
+        {NodeIsBackdropRole, "nodeIsBackdrop"},
+        {NodeIsGroupRole, "nodeIsGroup"},
     };
 }
 
@@ -385,6 +437,15 @@ bool GraphController::addNodeType(QString typeId, bool connectToPrevious) {
     }
     m_document.setProperty(*node, "enabled", true);
     m_document.setProperty(*node, "label", name);
+    if (typeId == QStringLiteral("backdrop")) {
+        m_document.setProperty(*node, "width", std::int64_t{560});
+        m_document.setProperty(*node, "height", std::int64_t{300});
+        m_document.setProperty(*node, "color", std::string{"#304554"});
+    } else if (typeId == QStringLiteral("group")) {
+        m_document.setProperty(*node, "width", std::int64_t{240});
+        m_document.setProperty(*node, "height", std::int64_t{140});
+        m_document.setProperty(*node, "color", std::string{"#384b5b"});
+    }
     const auto input = portFor(*node, Core::PortDirection::Input);
     if (connectToPrevious && row > 0 && input != 0) {
         const auto previousNode = m_nodeOrder[static_cast<std::size_t>(row - 1)];
@@ -747,7 +808,9 @@ bool GraphController::undo() {
     if (rowCount() > 0) {
         emit dataChanged(index(0, 0), index(rowCount() - 1, 0),
                          {NodeXRole, NodeYRole, NodeIconRole, NodeAccentRole,
-                          NodeEnabledRole, NodeLabelRole});
+                          NodeEnabledRole, NodeLabelRole, NodeWidthRole,
+                          NodeHeightRole, NodeColorRole, NodeIsBackdropRole,
+                          NodeIsGroupRole});
     }
     emit connectionsChanged();
     emit propertiesChanged();
@@ -763,7 +826,9 @@ bool GraphController::redo() {
     if (rowCount() > 0) {
         emit dataChanged(index(0, 0), index(rowCount() - 1, 0),
                          {NodeXRole, NodeYRole, NodeIconRole, NodeAccentRole,
-                          NodeEnabledRole, NodeLabelRole});
+                          NodeEnabledRole, NodeLabelRole, NodeWidthRole,
+                          NodeHeightRole, NodeColorRole, NodeIsBackdropRole,
+                          NodeIsGroupRole});
     }
     emit connectionsChanged();
     emit propertiesChanged();
