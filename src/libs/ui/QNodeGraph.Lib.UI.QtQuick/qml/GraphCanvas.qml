@@ -18,6 +18,7 @@ Rectangle {
     property bool selecting: false
     property point selectionStart: Qt.point(0, 0)
     property point selectionEnd: Qt.point(0, 0)
+    property bool selectionAdditive: false
     property bool slicing: false
     property point sliceStart: Qt.point(0, 0)
     property point sliceEnd: Qt.point(0, 0)
@@ -197,6 +198,7 @@ Rectangle {
                 required property bool nodeIsBackdrop
                 required property bool nodeIsGroup
                 required property int nodeGroupId
+                required property bool nodeSelected
                 required property real nodeX
                 required property real nodeY
                 required property int inputPortCount
@@ -213,16 +215,14 @@ Rectangle {
                       : (nodeItem.nodeGroupId >= 0 ? 0.1 : 0))
                 color: nodeItem.nodeIsBackdrop
                        ? nodeItem.nodeColor
-                       : (nodeItem.selected ? "#394b5d" : "#2a333d")
-                border.color: nodeItem.selected
+                       : (nodeItem.nodeSelected ? "#394b5d" : "#2a333d")
+                border.color: nodeItem.nodeSelected
                               ? "#69a7dc"
                               : (nodeItem.nodeIsBackdrop ? nodeItem.nodeAccent
                                                          : "#566575")
-                border.width: nodeItem.selected ? 2 : 1
+                border.width: nodeItem.nodeSelected ? 2 : 1
                 radius: 4
                 opacity: nodeItem.nodeEnabled ? 1.0 : 0.55
-
-                property bool selected: canvas.selectedIndex === nodeItem.index
 
                 Rectangle {
                     width: parent.width
@@ -347,8 +347,13 @@ Rectangle {
                             mouse.accepted = true
                             return
                         }
-                        canvas.selectedIndex = nodeItem.index
-                        canvas.controller.selectNode(nodeItem.index)
+                        if ((mouse.modifiers & (Qt.ControlModifier |
+                                                Qt.MetaModifier |
+                                                Qt.ShiftModifier)) !== 0) {
+                            canvas.controller.toggleNodeSelection(nodeItem.index)
+                        } else {
+                            canvas.controller.selectNode(nodeItem.index)
+                        }
                     }
                 }
 
@@ -441,10 +446,12 @@ Rectangle {
                 return
             }
             canvas.selecting = true
+            canvas.selectionAdditive =
+                    (mouse.modifiers & (Qt.ControlModifier |
+                                        Qt.MetaModifier |
+                                        Qt.ShiftModifier)) !== 0
             canvas.selectionStart = Qt.point(mouse.x, mouse.y)
             canvas.selectionEnd = canvas.selectionStart
-            canvas.selectedIndex = -1
-            canvas.controller.selectNode(-1)
         }
         onPositionChanged: function(mouse) {
             if (canvas.slicing) {
@@ -471,7 +478,19 @@ Rectangle {
                 mouse.accepted = true
                 return
             }
-            canvas.selecting = false
+            if (canvas.selecting) {
+                canvas.controller.selectNodesInRect(
+                    (canvas.selectionStart.x - canvas.panOffset.x) /
+                    canvas.zoomFactor,
+                    (canvas.selectionStart.y - canvas.panOffset.y) /
+                    canvas.zoomFactor,
+                    (canvas.selectionEnd.x - canvas.panOffset.x) /
+                    canvas.zoomFactor,
+                    (canvas.selectionEnd.y - canvas.panOffset.y) /
+                    canvas.zoomFactor,
+                    canvas.selectionAdditive)
+                canvas.selecting = false
+            }
         }
     }
 

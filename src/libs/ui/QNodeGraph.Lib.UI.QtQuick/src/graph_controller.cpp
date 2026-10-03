@@ -243,6 +243,15 @@ QVariantMap GraphController::connectionPreview() const {
 
 int GraphController::selectedRow() const noexcept { return m_selectedRow; }
 
+QVariantList GraphController::selectedRows() const {
+    QVariantList rows;
+    rows.reserve(static_cast<qsizetype>(m_selectedRows.size()));
+    for (const auto row : m_selectedRows) {
+        rows.push_back(row);
+    }
+    return rows;
+}
+
 bool GraphController::canUndo() const noexcept {
     return m_commandStack.canUndo();
 }
@@ -385,6 +394,9 @@ QVariant GraphController::data(const QModelIndex& index, int role) const {
         }
         return -1;
     }
+    case NodeSelectedRole:
+        return std::find(m_selectedRows.cbegin(), m_selectedRows.cend(),
+                          index.row()) != m_selectedRows.cend();
     default:
         return {};
     }
@@ -410,6 +422,7 @@ QHash<int, QByteArray> GraphController::roleNames() const {
         {NodeIsBackdropRole, "nodeIsBackdrop"},
         {NodeIsGroupRole, "nodeIsGroup"},
         {NodeGroupIdRole, "nodeGroupId"},
+        {NodeSelectedRole, "nodeSelected"},
     };
 }
 
@@ -503,11 +516,7 @@ bool GraphController::deleteNode(int row) {
     beginResetModel();
     m_nodeOrder = m_document.nodeIds();
     endResetModel();
-    if (m_selectedRow != -1) {
-        m_selectedRow = -1;
-        emit selectedRowChanged();
-        emit propertiesChanged();
-    }
+    setSelection({});
     if (nodeCount() != oldCount) {
         emit nodeCountChanged();
     }
@@ -517,11 +526,7 @@ bool GraphController::deleteNode(int row) {
 }
 
 void GraphController::clearGraph() {
-    if (m_selectedRow != -1) {
-        m_selectedRow = -1;
-        emit selectedRowChanged();
-        emit propertiesChanged();
-    }
+    setSelection({});
     if (m_nodeOrder.empty()) {
         return;
     }
@@ -784,12 +789,55 @@ bool GraphController::selectNode(int row) {
     if (row < -1 || row >= nodeCount()) {
         return false;
     }
-    if (m_selectedRow == row) {
-        return true;
+    if (row == -1) {
+        setSelection({});
+    } else {
+        setSelection({row});
     }
-    m_selectedRow = row;
-    emit selectedRowChanged();
-    emit propertiesChanged();
+    return true;
+}
+
+bool GraphController::toggleNodeSelection(int row) {
+    if (row < 0 || row >= nodeCount()) {
+        return false;
+    }
+    auto rows = m_selectedRows;
+    const auto found = std::find(rows.begin(), rows.end(), row);
+    if (found == rows.end()) {
+        rows.push_back(row);
+    } else {
+        rows.erase(found);
+    }
+    setSelection(std::move(rows));
+    return true;
+}
+
+bool GraphController::selectNodesInRect(double startX, double startY,
+                                        double endX, double endY,
+                                        bool additive) {
+    const auto left = std::min(startX, endX);
+    const auto top = std::min(startY, endY);
+    const auto right = std::max(startX, endX);
+    const auto bottom = std::max(startY, endY);
+    std::vector<int> rows = additive ? m_selectedRows : std::vector<int>{};
+    for (int row = 0; row < nodeCount(); ++row) {
+        const auto* node = m_document.node(
+            m_nodeOrder[static_cast<std::size_t>(row)]);
+        if (node == nullptr) {
+            continue;
+        }
+        const auto width = data(index(row, 0), NodeWidthRole).toDouble();
+        const auto height = data(index(row, 0), NodeHeightRole).toDouble();
+        const auto intersects = node->position.x <= right &&
+                                node->position.x + width >= left &&
+                                node->position.y <= bottom &&
+                                node->position.y + height >= top;
+        if (intersects && std::find(rows.cbegin(), rows.cend(), row) ==
+                              rows.cend()) {
+            rows.push_back(row);
+        }
+    }
+    setSelection(std::move(rows));
     return true;
 }
 
@@ -972,10 +1020,34 @@ void GraphController::syncModelOrder() {
     beginResetModel();
     m_nodeOrder = current;
     endResetModel();
-    if (m_selectedRow >= nodeCount()) {
-        m_selectedRow = -1;
-        emit selectedRowChanged();
+    std::vector<int> validRows;
+    for (const auto row : m_selectedRows) {
+        if (row >= 0 && row < nodeCount()) {
+            validRows.push_back(row);
+        }
     }
+    setSelection(std::move(validRows));
+}
+
+void GraphController::setSelection(std::vector<int> rows) {
+    std::sort(rows.begin(), rows.end());
+    rows.erase(std::unique(rows.begin(), rows.end()), rows.end());
+    rows.erase(std::remove_if(rows.begin(), rows.end(), [this](int row) {
+                   return row < 0 || row >= nodeCount();
+               }),
+               rows.end());
+    const auto newPrimary = rows.empty() ? -1 : rows.back();
+    if (rows == m_selectedRows && newPrimary == m_selectedRow) {
+        return;
+    }
+    m_selectedRows = std::move(rows);
+    m_selectedRow = newPrimary;
+    if (nodeCount() > 0) {
+        emit dataChanged(index(0, 0), index(nodeCount() - 1, 0),
+                         {NodeSelectedRole});
+    }
+    emit selectedRowChanged();
+    emit selectionChanged();
     emit propertiesChanged();
 }
 

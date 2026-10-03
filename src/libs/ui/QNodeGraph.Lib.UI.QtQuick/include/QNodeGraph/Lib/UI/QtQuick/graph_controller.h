@@ -21,6 +21,7 @@ class GraphController : public QAbstractListModel {
     Q_PROPERTY(bool connectionPending READ connectionPending NOTIFY connectionPendingChanged)
     Q_PROPERTY(QVariantMap connectionPreview READ connectionPreview NOTIFY connectionPreviewChanged)
     Q_PROPERTY(int selectedRow READ selectedRow NOTIFY selectedRowChanged)
+    Q_PROPERTY(QVariantList selectedRows READ selectedRows NOTIFY selectionChanged)
     Q_PROPERTY(QVariantList selectedProperties READ selectedProperties NOTIFY propertiesChanged)
     Q_PROPERTY(bool canUndo READ canUndo NOTIFY historyChanged)
     Q_PROPERTY(bool canRedo READ canRedo NOTIFY historyChanged)
@@ -45,6 +46,7 @@ public:
         NodeIsBackdropRole,
         NodeIsGroupRole,
         NodeGroupIdRole,
+        NodeSelectedRole,
     };
     Q_ENUM(NodeRole)
 
@@ -60,6 +62,7 @@ public:
     [[nodiscard]] bool connectionPending() const noexcept;
     [[nodiscard]] QVariantMap connectionPreview() const;
     [[nodiscard]] int selectedRow() const noexcept;
+    [[nodiscard]] QVariantList selectedRows() const;
     [[nodiscard]] QVariantList selectedProperties() const;
     [[nodiscard]] bool canUndo() const noexcept;
     [[nodiscard]] bool canRedo() const noexcept;
@@ -79,6 +82,10 @@ public:
     Q_INVOKABLE bool completeConnectionAt(double worldX, double worldY);
     Q_INVOKABLE void cancelConnection();
     Q_INVOKABLE bool selectNode(int row);
+    Q_INVOKABLE bool toggleNodeSelection(int row);
+    Q_INVOKABLE bool selectNodesInRect(double startX, double startY,
+                                       double endX, double endY,
+                                       bool additive = false);
     Q_INVOKABLE bool setNodeProperty(int row, QString name, QVariant value);
     Q_INVOKABLE bool assignNodeToGroup(int nodeRow, int groupRow);
     Q_INVOKABLE bool clearNodeGroup(int nodeRow);
@@ -91,10 +98,12 @@ signals:
     void connectionPendingChanged();
     void connectionPreviewChanged();
     void selectedRowChanged();
+    void selectionChanged();
     void propertiesChanged();
     void historyChanged();
 
 private:
+    void setSelection(std::vector<int> rows);
     void syncModelOrder();
     [[nodiscard]] Core::PortId portFor(Core::NodeId nodeId,
                                        Core::PortDirection direction) const;
@@ -105,6 +114,7 @@ private:
     QNodeGraph::Graph::NodeRegistry m_registry;
     Core::GraphCommandStack m_commandStack;
     std::vector<Core::NodeId> m_nodeOrder;
+    std::vector<int> m_selectedRows;
     int m_pendingOutputRow = -1;
     Core::Point m_previewPoint;
     int m_selectedRow = -1;

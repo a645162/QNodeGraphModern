@@ -15,6 +15,7 @@ private slots:
     void reportsPortHitTestingResults();
     void exposesAndClearsConnectionPreview();
     void selectsNodeAndListsProperties();
+    void selectsNodesByRectangleAndTogglesSelection();
     void editsSelectedNodeProperty();
     void addsRegisteredNodeType();
     void deletesNodeAndRestoresWithUndo();
@@ -119,6 +120,24 @@ void GraphControllerTest::selectsNodeAndListsProperties() {
     const auto first = properties.constFirst().toMap();
     QVERIFY(first.contains(QStringLiteral("name")));
     QVERIFY(first.contains(QStringLiteral("valueType")));
+}
+
+void GraphControllerTest::selectsNodesByRectangleAndTogglesSelection() {
+    QNodeGraph::UI::GraphController controller;
+    controller.addDemoNode(false);
+    controller.addDemoNode(false);
+    QVERIFY(controller.selectNodesInRect(60.0, 70.0, 600.0, 190.0));
+    const QVariantList bothRows{0, 1};
+    QCOMPARE(controller.selectedRows(), bothRows);
+    QVERIFY(controller.toggleNodeSelection(0));
+    const QVariantList secondRow{1};
+    QCOMPARE(controller.selectedRows(), secondRow);
+    QVERIFY(controller.index(1, 0)
+                .data(QNodeGraph::UI::GraphController::NodeSelectedRole)
+                .toBool());
+    QVERIFY(!controller.index(0, 0)
+                 .data(QNodeGraph::UI::GraphController::NodeSelectedRole)
+                 .toBool());
 }
 
 void GraphControllerTest::editsSelectedNodeProperty() {

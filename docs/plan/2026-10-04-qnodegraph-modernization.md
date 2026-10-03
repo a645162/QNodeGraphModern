@@ -64,6 +64,7 @@
   - [x] Add topology-based automatic layout through the reusable GraphController and canvas menu.
   - [x] Add Shift-drag pipe slicing with curve intersection and undo support.
   - [x] Expose command-backed node deletion through the node context menu and Delete/Backspace shortcuts.
+  - [x] Add multi-node selection roles, Ctrl/Shift toggling, and rubber-band selection.
 - [x] Add an offscreen screenshot smoke checkpoint for the reusable canvas; auxiliary panels remain covered by example startup and model tests.
 
 ## Task 5: Persistence and Node Registry
