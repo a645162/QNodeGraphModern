@@ -17,6 +17,9 @@ Rectangle {
     property bool selecting: false
     property point selectionStart: Qt.point(0, 0)
     property point selectionEnd: Qt.point(0, 0)
+    property bool slicing: false
+    property point sliceStart: Qt.point(0, 0)
+    property point sliceEnd: Qt.point(0, 0)
 
     onZoomFactorChanged: {
         grid.requestPaint()
@@ -358,6 +361,26 @@ Rectangle {
         border.width: 1
     }
 
+    Canvas {
+        id: sliceGuide
+        anchors.fill: parent
+        visible: canvas.slicing
+        z: 2
+        onVisibleChanged: requestPaint()
+        onPaint: {
+            var context = getContext("2d")
+            context.reset()
+            context.strokeStyle = "#efb168"
+            context.lineWidth = 2
+            context.setLineDash([8, 5])
+            context.beginPath()
+            context.moveTo(canvas.sliceStart.x, canvas.sliceStart.y)
+            context.lineTo(canvas.sliceEnd.x, canvas.sliceEnd.y)
+            context.stroke()
+            context.setLineDash([])
+        }
+    }
+
     MouseArea {
         id: selectionArea
         anchors.fill: parent
@@ -371,6 +394,14 @@ Rectangle {
                 mouse.accepted = true
                 return
             }
+            if ((mouse.modifiers & Qt.ShiftModifier) !== 0) {
+                canvas.slicing = true
+                canvas.sliceStart = Qt.point(mouse.x, mouse.y)
+                canvas.sliceEnd = canvas.sliceStart
+                sliceGuide.requestPaint()
+                mouse.accepted = true
+                return
+            }
             canvas.selecting = true
             canvas.selectionStart = Qt.point(mouse.x, mouse.y)
             canvas.selectionEnd = canvas.selectionStart
@@ -378,10 +409,32 @@ Rectangle {
             canvas.controller.selectNode(-1)
         }
         onPositionChanged: function(mouse) {
+            if (canvas.slicing) {
+                canvas.sliceEnd = Qt.point(mouse.x, mouse.y)
+                sliceGuide.requestPaint()
+                return
+            }
             if (canvas.selecting)
                 canvas.selectionEnd = Qt.point(mouse.x, mouse.y)
         }
-        onReleased: canvas.selecting = false
+        onReleased: function(mouse) {
+            if (canvas.slicing) {
+                canvas.controller.sliceConnections(
+                    (canvas.sliceStart.x - canvas.panOffset.x) /
+                    canvas.zoomFactor,
+                    (canvas.sliceStart.y - canvas.panOffset.y) /
+                    canvas.zoomFactor,
+                    (canvas.sliceEnd.x - canvas.panOffset.x) /
+                    canvas.zoomFactor,
+                    (canvas.sliceEnd.y - canvas.panOffset.y) /
+                    canvas.zoomFactor)
+                canvas.slicing = false
+                sliceGuide.requestPaint()
+                mouse.accepted = true
+                return
+            }
+            canvas.selecting = false
+        }
     }
 
     WheelHandler {

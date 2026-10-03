@@ -61,6 +61,8 @@ public:
     Q_INVOKABLE void clearGraph();
     Q_INVOKABLE bool moveNode(int row, double x, double y);
     Q_INVOKABLE bool autoLayout();
+    Q_INVOKABLE int sliceConnections(double startX, double startY,
+                                     double endX, double endY);
     Q_INVOKABLE QVariantMap portAt(double worldX, double worldY) const;
     Q_INVOKABLE bool beginConnection(int outputRow);
     Q_INVOKABLE void updateConnectionPreview(double worldX, double worldY);

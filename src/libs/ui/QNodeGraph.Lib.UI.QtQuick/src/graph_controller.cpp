@@ -6,6 +6,7 @@
 #include <QVariantMap>
 
 #include <algorithm>
+#include <cmath>
 #include <queue>
 #include <string>
 #include <cstdint>
@@ -97,6 +98,64 @@ QString nodeAccent(const std::string& type) {
         return QStringLiteral("#71859a");
     }
     return QStringLiteral("#426b91");
+}
+
+double cross(const Core::Point& first, const Core::Point& second,
+             const Core::Point& third) {
+    return (second.x - first.x) * (third.y - first.y) -
+           (second.y - first.y) * (third.x - first.x);
+}
+
+bool onSegment(const Core::Point& first, const Core::Point& second,
+               const Core::Point& point) {
+    constexpr double epsilon = 1e-6;
+    return point.x >= std::min(first.x, second.x) - epsilon &&
+           point.x <= std::max(first.x, second.x) + epsilon &&
+           point.y >= std::min(first.y, second.y) - epsilon &&
+           point.y <= std::max(first.y, second.y) + epsilon;
+}
+
+bool segmentsIntersect(const Core::Point& first, const Core::Point& second,
+                       const Core::Point& third, const Core::Point& fourth) {
+    constexpr double epsilon = 1e-6;
+    const auto firstCross = cross(first, second, third);
+    const auto secondCross = cross(first, second, fourth);
+    const auto thirdCross = cross(third, fourth, first);
+    const auto fourthCross = cross(third, fourth, second);
+    if (((firstCross > epsilon && secondCross < -epsilon) ||
+         (firstCross < -epsilon && secondCross > epsilon)) &&
+        ((thirdCross > epsilon && fourthCross < -epsilon) ||
+         (thirdCross < -epsilon && fourthCross > epsilon))) {
+        return true;
+    }
+    return (std::abs(firstCross) <= epsilon && onSegment(first, second, third)) ||
+           (std::abs(secondCross) <= epsilon && onSegment(first, second, fourth)) ||
+           (std::abs(thirdCross) <= epsilon && onSegment(third, fourth, first)) ||
+           (std::abs(fourthCross) <= epsilon && onSegment(third, fourth, second));
+}
+
+bool cubicIntersects(const Core::Point& start, const Core::Point& controlStart,
+                     const Core::Point& controlEnd, const Core::Point& end,
+                     const Core::Point& sliceStart,
+                     const Core::Point& sliceEnd) {
+    constexpr int samples = 24;
+    auto previous = start;
+    for (int index = 1; index <= samples; ++index) {
+        const auto t = static_cast<double>(index) / samples;
+        const auto inverse = 1.0 - t;
+        const auto point = Core::Point{
+            inverse * inverse * inverse * start.x +
+                3.0 * inverse * inverse * t * controlStart.x +
+                3.0 * inverse * t * t * controlEnd.x + t * t * t * end.x,
+            inverse * inverse * inverse * start.y +
+                3.0 * inverse * inverse * t * controlStart.y +
+                3.0 * inverse * t * t * controlEnd.y + t * t * t * end.y};
+        if (segmentsIntersect(previous, point, sliceStart, sliceEnd)) {
+            return true;
+        }
+        previous = point;
+    }
+    return false;
 }
 
 } // namespace
@@ -469,6 +528,54 @@ bool GraphController::autoLayout() {
     }
     emit historyChanged();
     return true;
+}
+
+int GraphController::sliceConnections(double startX, double startY,
+                                      double endX, double endY) {
+    const Core::Point sliceStart{startX, startY};
+    const Core::Point sliceEnd{endX, endY};
+    std::vector<std::pair<Core::PortId, Core::PortId>> matches;
+    for (const auto& connection : m_document.connections()) {
+        const auto* outputPort = m_document.port(connection.outputPort);
+        const auto* inputPort = m_document.port(connection.inputPort);
+        if (outputPort == nullptr || inputPort == nullptr) {
+            continue;
+        }
+        const auto* outputNode = m_document.node(outputPort->nodeId);
+        const auto* inputNode = m_document.node(inputPort->nodeId);
+        if (outputNode == nullptr || inputNode == nullptr) {
+            continue;
+        }
+        const Core::Point curveStart{
+            outputNode->position.x + kDemoNodeWidth,
+            outputNode->position.y + kDemoNodeHeight / 2.0};
+        const Core::Point curveEnd{inputNode->position.x,
+                                   inputNode->position.y + kDemoNodeHeight / 2.0};
+        const auto distance =
+            std::max(40.0, std::abs(curveEnd.x - curveStart.x) * 0.5);
+        const Core::Point controlStart{curveStart.x + distance, curveStart.y};
+        const Core::Point controlEnd{curveEnd.x - distance, curveEnd.y};
+        if (cubicIntersects(curveStart, controlStart, controlEnd, curveEnd,
+                            sliceStart, sliceEnd)) {
+            matches.emplace_back(connection.outputPort, connection.inputPort);
+        }
+    }
+
+    int removed = 0;
+    for (const auto [outputPort, inputPort] : matches) {
+        const auto result = m_commandStack.execute(
+            std::make_unique<Core::DisconnectPortsCommand>(outputPort,
+                                                            inputPort),
+            m_document);
+        if (result) {
+            ++removed;
+        }
+    }
+    if (removed > 0) {
+        emit connectionsChanged();
+        emit historyChanged();
+    }
+    return removed;
 }
 
 QVariantMap GraphController::portAt(double worldX, double worldY) const {

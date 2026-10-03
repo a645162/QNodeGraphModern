@@ -20,6 +20,7 @@ private slots:
     void movesNodeWithUndoAndRedo();
     void exposesNodeVisualRolesAndDisabledState();
     void autoLayoutsConnectedNodes();
+    void slicesConnectionsAlongGesture();
     void movesNodeAndEmitsData();
     void clearsModel();
 };
@@ -208,6 +209,21 @@ void GraphControllerTest::autoLayoutsConnectedNodes() {
             controller.index(2, 0)
                 .data(QNodeGraph::UI::GraphController::NodeXRole)
                 .toDouble());
+}
+
+void GraphControllerTest::slicesConnectionsAlongGesture() {
+    QNodeGraph::UI::GraphController controller;
+    QVERIFY(controller.addNodeType(QStringLiteral("load_image"), false));
+    QVERIFY(controller.addNodeType(QStringLiteral("grayscale"), true));
+    QVERIFY(controller.addNodeType(QStringLiteral("edge_detect"), true));
+    QCOMPARE(controller.connections().size(), qsizetype{2});
+
+    const auto removed = controller.sliceConnections(295.0, 100.0, 295.0,
+                                                     200.0);
+    QCOMPARE(removed, 1);
+    QCOMPARE(controller.connections().size(), qsizetype{1});
+    QVERIFY(controller.undo());
+    QCOMPARE(controller.connections().size(), qsizetype{2});
 }
 
 void GraphControllerTest::movesNodeAndEmitsData() {
