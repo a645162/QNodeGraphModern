@@ -68,7 +68,7 @@
 
 - [x] Define `ImageFrame`, image metadata, and image error states.
 - [ ] Add cache ownership and lifetime policy for image frames.
-- [ ] Define an asynchronous `ImageNode` execution contract with cancellation and generation checks.
+- [x] Define an asynchronous image execution contract with cancellation and request-generation filtering.
 - [ ] Expose previews through a `QQuickImageProvider` or equivalent texture bridge.
 - [ ] Keep the first implementation compatible with `QImage`, while reserving an interface for tiled/large images.
 

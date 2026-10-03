@@ -9,6 +9,7 @@ namespace QNodeGraph::Image {
 
 class ImageFrame final {
 public:
+    ImageFrame() = default;
     static Core::GraphResult<ImageFrame> fromQImage(
         QImage image, QString source = {});
 
@@ -27,4 +28,3 @@ private:
 };
 
 } // namespace QNodeGraph::Image
-
