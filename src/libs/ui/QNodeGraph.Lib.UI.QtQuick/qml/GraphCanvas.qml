@@ -23,11 +23,9 @@ Rectangle {
 
     onZoomFactorChanged: {
         grid.requestPaint()
-        pipes.requestPaint()
     }
     onPanOffsetChanged: {
         grid.requestPaint()
-        pipes.requestPaint()
     }
     function clampZoom(value) {
         return Math.max(0.25, Math.min(2.5, value))
@@ -125,60 +123,14 @@ Rectangle {
         }
     }
 
-    Canvas {
+    GraphConnectionsItem {
         id: pipes
         anchors.fill: parent
         z: -1
-        property var connectionData: graphController.connections
-        property var previewData: graphController.connectionPreview
-
-        onConnectionDataChanged: requestPaint()
-        onPreviewDataChanged: requestPaint()
-        onPaint: {
-            var context = getContext("2d")
-            context.reset()
-            context.strokeStyle = "#7d9bb8"
-            context.lineWidth = 3
-            for (var i = 0; i < connectionData.length; ++i) {
-                var connection = connectionData[i]
-                var startX = canvas.panOffset.x +
-                             (connection.outputX + connection.outputWidth) * canvas.zoomFactor
-                var startY = canvas.panOffset.y + connection.outputY * canvas.zoomFactor
-                var endX = canvas.panOffset.x + connection.inputX * canvas.zoomFactor
-                var endY = canvas.panOffset.y + connection.inputY * canvas.zoomFactor
-                var distance = Math.max(40, Math.abs(endX - startX) * 0.5)
-                context.beginPath()
-                context.moveTo(startX, startY)
-                context.bezierCurveTo(startX + distance, startY,
-                                      endX - distance, endY, endX, endY)
-                context.stroke()
-            }
-
-            if (previewData && Object.keys(previewData).length > 0) {
-                var previewStartX = canvas.panOffset.x +
-                                    (previewData.outputX + previewData.outputWidth) *
-                                    canvas.zoomFactor
-                var previewStartY = canvas.panOffset.y +
-                                    previewData.outputY * canvas.zoomFactor
-                var previewEndX = canvas.panOffset.x +
-                                  previewData.inputX * canvas.zoomFactor
-                var previewEndY = canvas.panOffset.y +
-                                  previewData.inputY * canvas.zoomFactor
-                var previewDistance = Math.max(
-                    40, Math.abs(previewEndX - previewStartX) * 0.5)
-                context.strokeStyle = "#c8d9e8"
-                context.lineWidth = 2
-                context.setLineDash([7, 5])
-                context.beginPath()
-                context.moveTo(previewStartX, previewStartY)
-                context.bezierCurveTo(previewStartX + previewDistance,
-                                      previewStartY,
-                                      previewEndX - previewDistance,
-                                      previewEndY, previewEndX, previewEndY)
-                context.stroke()
-                context.setLineDash([])
-            }
-        }
+        connections: graphController.connections
+        preview: graphController.connectionPreview
+        panOffset: canvas.panOffset
+        zoomFactor: canvas.zoomFactor
     }
 
     Item {

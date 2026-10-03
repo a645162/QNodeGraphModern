@@ -1,9 +1,11 @@
 add_library(QNodeGraph.Lib.UI.QtQuick STATIC
     include/QNodeGraph/Lib/UI/QtQuick/graph_controller.h
+    include/QNodeGraph/Lib/UI/QtQuick/graph_connections_item.h
     include/QNodeGraph/Lib/UI/QtQuick/image_frame_provider.h
     include/QNodeGraph/Lib/UI/QtQuick/node_palette_model.h
     include/QNodeGraph/Lib/UI/QtQuick/qml_registration.h
     src/graph_controller.cpp
+    src/graph_connections_item.cpp
     src/image_frame_provider.cpp
     src/node_palette_model.cpp
     src/qml_registration.cpp
@@ -16,6 +18,7 @@ qt_add_qml_module(QNodeGraph.Lib.UI.QtQuick
     VERSION 1.0
     SOURCES
         include/QNodeGraph/Lib/UI/QtQuick/graph_controller.h
+        include/QNodeGraph/Lib/UI/QtQuick/graph_connections_item.h
         include/QNodeGraph/Lib/UI/QtQuick/node_palette_model.h
     QML_FILES
         qml/GraphCanvas.qml

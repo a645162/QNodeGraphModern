@@ -61,3 +61,19 @@ target_link_libraries(QNodeGraph.UI.Visual.Tests
 
 add_test(NAME QNodeGraph.UI.Visual.Tests
          COMMAND QNodeGraph.UI.Visual.Tests)
+
+add_executable(QNodeGraph.UI.ConnectionItem.Tests
+    graph_connections_item_test.cpp
+)
+
+target_link_libraries(QNodeGraph.UI.ConnectionItem.Tests
+    PRIVATE
+        QNodeGraph.Lib.UI.QtQuick
+        Qt6::Core
+        Qt6::Gui
+        Qt6::Quick
+        Qt6::Test
+)
+
+add_test(NAME QNodeGraph.UI.ConnectionItem.Tests
+         COMMAND QNodeGraph.UI.ConnectionItem.Tests)
