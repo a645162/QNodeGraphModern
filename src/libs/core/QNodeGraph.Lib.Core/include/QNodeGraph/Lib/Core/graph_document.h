@@ -38,6 +38,7 @@ enum class GraphErrorCode {
     DuplicateConnection,
     CycleDetected,
     InvalidImage,
+    ImageIoError,
     CommandStackEmpty,
     DuplicateNodeType,
     UnknownNodeType,

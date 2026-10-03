@@ -84,8 +84,8 @@
 **Files:** `examples/QNodeGraph.ImagePipelineDemo/*`, `tests/image/*`
 
 - [x] Add a runnable visual demo shell with Load Image, Grayscale, and Preview placeholders.
-- [ ] Implement `LoadImageNode`, `GrayscaleNode`, `BlurNode`, `EdgeDetectNode`, `ImagePreviewNode`, and `SaveImageNode`.
-  - [x] Provide reusable grayscale, blur, edge-detect processors and an asynchronous `ImagePipeline` executor.
+- [x] Implement `LoadImageNode`, `GrayscaleNode`, `BlurNode`, `EdgeDetectNode`, `ImagePreviewNode`, and `SaveImageNode`.
+  - [x] Provide reusable node executors, grayscale/blur/edge-detect processors, and an asynchronous `ImagePipeline` executor.
 - [x] Demonstrate `Load -> Grayscale -> Edge Detect -> Preview -> Save` with a generated image.
 - [x] Show image thumbnail, dimensions, channels, processing status, and save errors in the demo node cards.
 

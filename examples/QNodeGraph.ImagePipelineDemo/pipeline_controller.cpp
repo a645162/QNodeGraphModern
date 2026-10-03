@@ -1,6 +1,6 @@
 #include "pipeline_controller.h"
 
-#include <QNodeGraph/Lib/Image/image_processors.h>
+#include <QNodeGraph/Lib/Execution/image_nodes.h>
 
 #include <QDir>
 #include <QLinearGradient>
@@ -31,7 +31,8 @@ PipelineController::PipelineController(
                 emit imageMetadataChanged();
                 const auto savedPath = QDir::temp().filePath(
                     QStringLiteral("qnodegraph-image-pipeline-preview.png"));
-                if (!result.image().save(savedPath)) {
+                if (!QNodeGraph::Execution::SaveImageNode::execute(
+                         result, savedPath)) {
                     setProcessing(false);
                     setStatus(QStringLiteral(
                         "Load Image -> Grayscale -> Edge Detect -> Preview complete; "
@@ -76,10 +77,15 @@ void PipelineController::runDemo() {
     if (m_processing || m_provider == nullptr) {
         return;
     }
-    const auto frame = QNodeGraph::Image::ImageFrame::fromQImage(
-        createDemoImage(), QStringLiteral("generated-demo"));
-    if (!frame) {
+    const auto inputPath = QDir::temp().filePath(
+        QStringLiteral("qnodegraph-image-pipeline-input.png"));
+    if (!createDemoImage().save(inputPath)) {
         setStatus(QStringLiteral("Unable to create demo image"));
+        return;
+    }
+    const auto frame = QNodeGraph::Execution::LoadImageNode::execute(inputPath);
+    if (!frame) {
+        setStatus(QStringLiteral("Unable to load demo image"));
         return;
     }
     setProcessing(true);
@@ -93,9 +99,9 @@ void PipelineController::runDemo() {
     setStatus(QStringLiteral("Load Image -> Grayscale -> Edge Detect -> Preview -> Save..."));
     auto pipeline = std::make_shared<QNodeGraph::Execution::ImagePipeline>();
     pipeline->addStep(QStringLiteral("Grayscale").toStdString(),
-                      QNodeGraph::Image::ImageProcessors::grayscale);
+                      QNodeGraph::Execution::GrayscaleNode::execute);
     pipeline->addStep(QStringLiteral("Edge Detect").toStdString(),
-                      QNodeGraph::Image::ImageProcessors::edgeDetect);
+                      QNodeGraph::Execution::EdgeDetectNode::execute);
     m_requestId = m_executor.submit(
         *frame, [pipeline](const auto& input) { return pipeline->process(input); });
     if (m_requestId == 0) {
