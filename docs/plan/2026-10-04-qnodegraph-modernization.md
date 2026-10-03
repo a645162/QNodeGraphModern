@@ -67,6 +67,7 @@
   - [x] Add multi-node selection roles, Ctrl/Shift toggling, and rubber-band selection.
   - [x] Add graph bounds, Fit/Home view framing, and a reusable canvas toolbar action.
   - [x] Make scene-graph pipe rendering selectable as curved, angled, or straight.
+  - [x] Add dynamic Group assignment/removal actions to the node context menu.
 - [x] Add an offscreen screenshot smoke checkpoint for the reusable canvas; auxiliary panels remain covered by example startup and model tests.
   - [x] Verify a node-bound image preview source reaches the rendered canvas.
 

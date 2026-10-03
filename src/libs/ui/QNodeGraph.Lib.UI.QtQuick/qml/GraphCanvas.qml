@@ -111,11 +111,40 @@ Rectangle {
     Menu {
         id: nodeContextMenu
 
+        Menu {
+            title: qsTr("Assign to Group")
+
+            Repeater {
+                model: graphController
+
+                delegate: MenuItem {
+                    required property int index
+                    required property string nodeName
+                    required property bool nodeIsGroup
+                    visible: nodeIsGroup && index !== canvas.contextNodeRow
+                    text: nodeName
+                    onTriggered: graphController.assignNodeToGroup(
+                                     canvas.contextNodeRow, index)
+                }
+            }
+        }
+
+        MenuSeparator {}
+
         MenuItem {
             text: qsTr("Delete Node")
             onTriggered: {
                 if (canvas.contextNodeRow >= 0)
                     canvas.controller.deleteNode(canvas.contextNodeRow)
+            }
+        }
+
+        MenuItem {
+            text: qsTr("Remove from Group")
+            enabled: canvas.contextNodeRow >= 0
+            onTriggered: {
+                if (canvas.contextNodeRow >= 0)
+                    graphController.clearNodeGroup(canvas.contextNodeRow)
             }
         }
 
