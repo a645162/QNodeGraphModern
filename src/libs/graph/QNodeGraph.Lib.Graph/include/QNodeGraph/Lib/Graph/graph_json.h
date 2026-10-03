@@ -13,8 +13,12 @@ public:
 
     [[nodiscard]] static Core::GraphResult<QJsonObject> toJson(
         const Core::GraphDocument& document);
+    [[nodiscard]] static Core::GraphResult<QJsonObject> migrate(
+        const QJsonObject& object);
     [[nodiscard]] static Core::GraphResult<Core::GraphDocument> fromJson(
         const QJsonObject& object);
+    [[nodiscard]] static Core::GraphResult<void> validateExternalAssets(
+        const Core::GraphDocument& document, const QString& baseDirectory);
     [[nodiscard]] static Core::GraphResult<void> save(
         const Core::GraphDocument& document, const QString& filePath);
     [[nodiscard]] static Core::GraphResult<Core::GraphDocument> load(

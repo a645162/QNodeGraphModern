@@ -2,6 +2,8 @@
 #include <QNodeGraph/Lib/Graph/node_registry.h>
 
 #include <QJsonObject>
+#include <QFile>
+#include <QDir>
 #include <QTemporaryDir>
 #include <QtTest/QtTest>
 
@@ -41,6 +43,7 @@ private slots:
     void rejectsUnsupportedSchemaVersion();
     void reportsMissingJsonFile();
     void registersAndInstantiatesBuiltInImageNodes();
+    void migratesInitialSchemaAndReportsMissingExternalAssets();
 };
 
 void GraphPersistenceTest::roundTripsDocumentAndProperties() {
@@ -119,6 +122,27 @@ void GraphPersistenceTest::registersAndInstantiatesBuiltInImageNodes() {
     QVERIFY(!unknown.has_value());
     QCOMPARE(unknown.error().code,
              QNodeGraph::Core::GraphErrorCode::UnknownNodeType);
+}
+
+void GraphPersistenceTest::migratesInitialSchemaAndReportsMissingExternalAssets() {
+    QJsonObject legacy{
+        {QStringLiteral("schemaVersion"), 0},
+        {QStringLiteral("name"), QStringLiteral("Legacy")},
+        {QStringLiteral("nodes"), QJsonArray{}},
+        {QStringLiteral("connections"), QJsonArray{}}};
+    const auto migrated = QNodeGraph::Graph::GraphJson::migrate(legacy);
+    QVERIFY(migrated.has_value());
+    QCOMPARE(migrated->value(QStringLiteral("schemaVersion")).toInt(), 1);
+    QVERIFY(QNodeGraph::Graph::GraphJson::fromJson(*migrated).has_value());
+
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto missing =
+        QNodeGraph::Graph::GraphJson::validateExternalAssets(
+            createImageGraph(), directory.path());
+    QVERIFY(!missing.has_value());
+    QCOMPARE(missing.error().code,
+             QNodeGraph::Core::GraphErrorCode::ExternalAssetMissing);
 }
 
 QTEST_MAIN(GraphPersistenceTest)

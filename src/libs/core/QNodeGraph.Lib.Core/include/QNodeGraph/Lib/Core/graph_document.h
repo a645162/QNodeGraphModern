@@ -45,6 +45,7 @@ enum class GraphErrorCode {
     InvalidDocument,
     UnsupportedSchemaVersion,
     SerializationError,
+    ExternalAssetMissing,
 };
 
 struct GraphError {

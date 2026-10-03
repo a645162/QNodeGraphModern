@@ -1,6 +1,8 @@
 #include <QNodeGraph/Lib/Graph/graph_json.h>
 
 #include <QFile>
+#include <QFileInfo>
+#include <QDir>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonParseError>
@@ -229,6 +231,36 @@ Core::GraphResult<QJsonObject> GraphJson::toJson(
     return root;
 }
 
+Core::GraphResult<QJsonObject> GraphJson::migrate(const QJsonObject& object) {
+    const auto schemaVersion = object.value(QStringLiteral("schemaVersion"));
+    if (!schemaVersion.isDouble()) {
+        return std::unexpected(error(Core::GraphErrorCode::InvalidDocument,
+                                      "The document has no schema version."));
+    }
+    const auto version = schemaVersion.toInt();
+    if (version == kSchemaVersion) {
+        return object;
+    }
+    if (version != 0) {
+        return std::unexpected(error(
+            Core::GraphErrorCode::UnsupportedSchemaVersion,
+            QStringLiteral("Unsupported graph schema version %1.").arg(version)));
+    }
+
+    auto migrated = object;
+    migrated.insert(QStringLiteral("schemaVersion"), kSchemaVersion);
+    if (!migrated.value(QStringLiteral("name")).isString()) {
+        migrated.insert(QStringLiteral("name"), QStringLiteral("Untitled"));
+    }
+    if (!migrated.value(QStringLiteral("nodes")).isArray()) {
+        migrated.insert(QStringLiteral("nodes"), QJsonArray{});
+    }
+    if (!migrated.value(QStringLiteral("connections")).isArray()) {
+        migrated.insert(QStringLiteral("connections"), QJsonArray{});
+    }
+    return migrated;
+}
+
 Core::GraphResult<Core::GraphDocument> GraphJson::fromJson(
     const QJsonObject& object) {
     const auto schemaVersion = object.value(QStringLiteral("schemaVersion"));
@@ -364,6 +396,40 @@ Core::GraphResult<Core::GraphDocument> GraphJson::fromJson(
         }
     }
     return document;
+}
+
+Core::GraphResult<void> GraphJson::validateExternalAssets(
+    const Core::GraphDocument& document, const QString& baseDirectory) {
+    const QDir base(baseDirectory);
+    for (const auto nodeId : document.nodeIds()) {
+        const auto* node = document.node(nodeId);
+        if (node == nullptr) {
+            continue;
+        }
+        for (const auto& [name, value] : node->properties) {
+            if (name != "path" && name != "assetPath") {
+                continue;
+            }
+            if (!std::holds_alternative<std::string>(value)) {
+                continue;
+            }
+            const auto path = QString::fromStdString(
+                std::get<std::string>(value));
+            if (path.isEmpty()) {
+                continue;
+            }
+            const QFileInfo fileInfo(QDir::isAbsolutePath(path)
+                                         ? path
+                                         : base.filePath(path));
+            if (!fileInfo.exists() || !fileInfo.isFile()) {
+                return std::unexpected(error(
+                    Core::GraphErrorCode::ExternalAssetMissing,
+                    QStringLiteral("External asset is missing: %1")
+                        .arg(fileInfo.filePath())));
+            }
+        }
+    }
+    return {};
 }
 
 Core::GraphResult<void> GraphJson::save(const Core::GraphDocument& document,
