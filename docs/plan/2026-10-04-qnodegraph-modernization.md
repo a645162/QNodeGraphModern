@@ -99,5 +99,5 @@
 - [x] Run CMake configure and Debug build on the supported Qt kit.
 - [x] Run CTest with failure output enabled (8/8 tests passed).
 - [x] Run the image pipeline demo manually with the offscreen Qt platform.
-- [ ] Add Release build verification before performance work.
-- [ ] Document build, run, test, QML module layout, node authoring, and image-node extension points.
+- [x] Add Release build verification before performance work.
+- [x] Document build, run, test, QML module layout, node authoring, and image-node extension points.
