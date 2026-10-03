@@ -34,7 +34,7 @@
 - [x] Add a minimal `GraphDocument` library and tests to prove the target graph boundary builds independently of QML.
 - [x] Replace the node counter with `Node`, `Port`, `Connection`, `NodeProperty`, and `GraphDocument` entities.
 - [x] Add explicit validation errors for duplicate IDs, invalid ports, incompatible data types, and illegal cycles.
-- [ ] Add command objects for create, delete, move, connect, disconnect, and property edits.
+- [x] Add command objects for create, delete, move, connect, disconnect, and property edits.
 
 ## Task 3: Reusable QtQuick/QML Library
 

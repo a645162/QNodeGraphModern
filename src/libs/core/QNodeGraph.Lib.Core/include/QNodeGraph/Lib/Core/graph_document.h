@@ -37,6 +37,7 @@ enum class GraphErrorCode {
     InputAlreadyConnected,
     DuplicateConnection,
     CycleDetected,
+    CommandStackEmpty,
 };
 
 struct GraphError {
@@ -75,6 +76,12 @@ struct Connection {
     PortId inputPort = 0;
 };
 
+struct NodeSnapshot {
+    Node node;
+    std::vector<Port> ports;
+    std::vector<Connection> connections;
+};
+
 class GraphDocument {
 public:
     explicit GraphDocument(std::string name = "Untitled");
@@ -95,12 +102,17 @@ public:
                                 PortId id = 0);
     GraphResult<void> connect(PortId outputPort, PortId inputPort);
     GraphResult<void> disconnect(PortId outputPort, PortId inputPort);
+    GraphResult<NodeSnapshot> removeNode(NodeId nodeId);
+    GraphResult<void> restoreNode(NodeSnapshot snapshot);
     GraphResult<void> setNodePosition(NodeId nodeId, Point position);
     GraphResult<void> setProperty(NodeId nodeId, std::string name,
                                   PropertyValue value);
+    GraphResult<void> clearProperty(NodeId nodeId, const std::string& name);
 
     [[nodiscard]] const Node* node(NodeId id) const noexcept;
     [[nodiscard]] const Port* port(PortId id) const noexcept;
+    [[nodiscard]] const PropertyValue* property(
+        NodeId nodeId, const std::string& name) const noexcept;
 
     void clear();
 

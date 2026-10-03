@@ -173,6 +173,17 @@ GraphResult<void> GraphDocument::setProperty(NodeId nodeId, std::string name,
     return {};
 }
 
+GraphResult<void> GraphDocument::clearProperty(NodeId nodeId,
+                                                const std::string& name) {
+    if (!m_nodes.contains(nodeId)) {
+        return std::unexpected(error(GraphErrorCode::NodeNotFound,
+                                      "Node id " + idText(nodeId) +
+                                          " does not exist."));
+    }
+    m_nodes.at(nodeId).properties.erase(name);
+    return {};
+}
+
 const Node* GraphDocument::node(NodeId id) const noexcept {
     const auto iterator = m_nodes.find(id);
     return iterator == m_nodes.end() ? nullptr : &iterator->second;
@@ -181,6 +192,85 @@ const Node* GraphDocument::node(NodeId id) const noexcept {
 const Port* GraphDocument::port(PortId id) const noexcept {
     const auto iterator = m_ports.find(id);
     return iterator == m_ports.end() ? nullptr : &iterator->second;
+}
+
+const PropertyValue* GraphDocument::property(
+    NodeId nodeId, const std::string& name) const noexcept {
+    const auto* value = node(nodeId);
+    if (value == nullptr) {
+        return nullptr;
+    }
+    const auto iterator = value->properties.find(name);
+    return iterator == value->properties.end() ? nullptr : &iterator->second;
+}
+
+GraphResult<NodeSnapshot> GraphDocument::removeNode(NodeId nodeId) {
+    const auto iterator = m_nodes.find(nodeId);
+    if (iterator == m_nodes.end()) {
+        return std::unexpected(error(GraphErrorCode::NodeNotFound,
+                                      "Node id " + idText(nodeId) +
+                                          " does not exist."));
+    }
+
+    NodeSnapshot snapshot;
+    snapshot.node = iterator->second;
+    snapshot.ports.reserve(snapshot.node.ports.size());
+    for (const auto portId : snapshot.node.ports) {
+        if (const auto* value = port(portId); value != nullptr) {
+            snapshot.ports.push_back(*value);
+        }
+    }
+    const auto touchesNode = [this, nodeId](const Connection& connection) {
+        const auto* output = port(connection.outputPort);
+        const auto* input = port(connection.inputPort);
+        return (output != nullptr && output->nodeId == nodeId) ||
+               (input != nullptr && input->nodeId == nodeId);
+    };
+    for (const auto& connection : m_connections) {
+        if (touchesNode(connection)) {
+            snapshot.connections.push_back(connection);
+        }
+    }
+
+    m_connections.erase(
+        std::remove_if(m_connections.begin(), m_connections.end(), touchesNode),
+        m_connections.end());
+    for (const auto& value : snapshot.ports) {
+        m_ports.erase(value.id);
+    }
+    m_nodes.erase(iterator);
+    return snapshot;
+}
+
+GraphResult<void> GraphDocument::restoreNode(NodeSnapshot snapshot) {
+    if (m_nodes.contains(snapshot.node.id)) {
+        return std::unexpected(error(GraphErrorCode::DuplicateNodeId,
+                                      "The node snapshot id is already used."));
+    }
+    for (const auto& value : snapshot.ports) {
+        if (m_ports.contains(value.id)) {
+            return std::unexpected(error(GraphErrorCode::DuplicatePortId,
+                                          "The port snapshot id is already used."));
+        }
+        if (value.nodeId != snapshot.node.id) {
+            return std::unexpected(error(
+                GraphErrorCode::NodeNotFound,
+                "The port snapshot references another node."));
+        }
+    }
+
+    m_nodes.emplace(snapshot.node.id, snapshot.node);
+    for (const auto& value : snapshot.ports) {
+        m_ports.emplace(value.id, value);
+    }
+    m_nextNodeId = std::max(m_nextNodeId, snapshot.node.id + 1);
+    for (const auto& value : snapshot.ports) {
+        m_nextPortId = std::max(m_nextPortId, value.id + 1);
+    }
+    for (const auto& connection : snapshot.connections) {
+        m_connections.push_back(connection);
+    }
+    return {};
 }
 
 void GraphDocument::clear() {

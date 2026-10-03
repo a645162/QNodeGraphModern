@@ -1,5 +1,7 @@
 add_library(QNodeGraph.Lib.Core STATIC
+    include/QNodeGraph/Lib/Core/graph_commands.h
     include/QNodeGraph/Lib/Core/graph_document.h
+    src/graph_commands.cpp
     src/graph_document.cpp
 )
 
@@ -13,4 +15,3 @@ target_compile_features(QNodeGraph.Lib.Core PUBLIC cxx_std_23)
 set_target_properties(QNodeGraph.Lib.Core PROPERTIES
     OUTPUT_NAME QNodeGraphCore
 )
-
