@@ -10,30 +10,8 @@
 
 #include <utility>
 
-DemoImageProvider::DemoImageProvider()
-    : QQuickImageProvider(QQuickImageProvider::Image) {}
-
-QImage DemoImageProvider::requestImage(const QString& id, QSize* size,
-                                       const QSize& requestedSize) {
-    const auto key = id.section(QLatin1Char('?'), 0, 0);
-    QMutexLocker locker(&m_mutex);
-    auto image = m_images.value(key);
-    if (!requestedSize.isEmpty() && !image.isNull()) {
-        image = image.scaled(requestedSize, Qt::KeepAspectRatio,
-                             Qt::SmoothTransformation);
-    }
-    if (size != nullptr) {
-        *size = image.size();
-    }
-    return image;
-}
-
-void DemoImageProvider::setImage(QString id, QImage image) {
-    QMutexLocker locker(&m_mutex);
-    m_images.insert(std::move(id), std::move(image));
-}
-
-PipelineController::PipelineController(DemoImageProvider* provider,
+PipelineController::PipelineController(
+    QNodeGraph::UI::ImageFrameProvider* provider,
                                        QObject* parent)
     : QObject(parent), m_provider(provider), m_executor(this) {
     Q_ASSERT(m_provider != nullptr);
@@ -43,7 +21,7 @@ PipelineController::PipelineController(DemoImageProvider* provider,
                 if (requestId != m_requestId || m_provider == nullptr) {
                     return;
                 }
-                m_provider->setImage(QStringLiteral("preview"), result.image());
+                m_provider->setFrame(QStringLiteral("preview"), result);
                 m_previewUrl = QStringLiteral("image://pipeline/preview?revision=%1")
                                    .arg(++m_revision);
                 emit previewUrlChanged();

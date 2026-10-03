@@ -12,7 +12,7 @@ private slots:
 };
 
 void PipelineControllerTest::producesPreviewAfterProcessing() {
-    DemoImageProvider provider;
+    QNodeGraph::UI::ImageFrameProvider provider;
     PipelineController controller(&provider);
     QSignalSpy previewChanged(&controller,
                               &PipelineController::previewUrlChanged);

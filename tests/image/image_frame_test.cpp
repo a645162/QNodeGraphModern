@@ -1,4 +1,5 @@
 #include <QNodeGraph/Lib/Image/image_frame.h>
+#include <QNodeGraph/Lib/Image/image_frame_cache.h>
 #include <QNodeGraph/Lib/Image/image_processors.h>
 
 #include <QtTest/QtTest>
@@ -12,6 +13,7 @@ private slots:
     void convertsToGrayscale();
     void blursImage();
     void detectsEdges();
+    void cachesFramesWithBoundedOwnership();
 };
 
 void ImageFrameTest::rejectsNullImage() {
@@ -79,6 +81,31 @@ void ImageFrameTest::detectsEdges() {
     QCOMPARE(result->channels(), 1);
     QVERIFY(result->image().pixelColor(2, 2).red() > 100);
     QVERIFY(result->image().pixelColor(0, 2).red() < 20);
+}
+
+void ImageFrameTest::cachesFramesWithBoundedOwnership() {
+    QNodeGraph::Image::ImageFrameCache cache(1);
+    const auto first = QNodeGraph::Image::ImageFrame::fromQImage(
+        QImage(2, 2, QImage::Format_RGB32), QStringLiteral("first"));
+    const auto second = QNodeGraph::Image::ImageFrame::fromQImage(
+        QImage(3, 1, QImage::Format_RGB32), QStringLiteral("second"));
+    QVERIFY(first.has_value());
+    QVERIFY(second.has_value());
+
+    cache.put(QStringLiteral("preview"), *first);
+    QVERIFY(cache.contains(QStringLiteral("preview")));
+    QCOMPARE(cache.get(QStringLiteral("preview"))->source(),
+             QStringLiteral("first"));
+
+    cache.put(QStringLiteral("preview"), *second);
+    const auto replacement = cache.get(QStringLiteral("preview"));
+    QVERIFY(replacement.has_value());
+    QCOMPARE(replacement->width(), 3);
+    QCOMPARE(cache.size(), 1);
+
+    cache.clear();
+    QVERIFY(!cache.contains(QStringLiteral("preview")));
+    QCOMPARE(cache.size(), 0);
 }
 
 QTEST_MAIN(ImageFrameTest)

@@ -27,3 +27,19 @@ target_link_libraries(QNodeGraph.UI.Palette.Tests
 )
 
 add_test(NAME QNodeGraph.UI.Palette.Tests COMMAND QNodeGraph.UI.Palette.Tests)
+
+add_executable(QNodeGraph.UI.ImageProvider.Tests
+    image_frame_provider_test.cpp
+)
+
+target_link_libraries(QNodeGraph.UI.ImageProvider.Tests
+    PRIVATE
+        QNodeGraph.Lib.UI.QtQuick
+        Qt6::Core
+        Qt6::Gui
+        Qt6::Quick
+        Qt6::Test
+)
+
+add_test(NAME QNodeGraph.UI.ImageProvider.Tests
+         COMMAND QNodeGraph.UI.ImageProvider.Tests)

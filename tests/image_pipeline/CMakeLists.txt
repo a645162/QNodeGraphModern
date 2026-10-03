@@ -12,6 +12,7 @@ target_link_libraries(QNodeGraph.ImagePipeline.Tests
     PRIVATE
         QNodeGraph.Lib.Execution
         QNodeGraph.Lib.Image
+        QNodeGraph.Lib.UI.QtQuick
         Qt6::Core
         Qt6::Concurrent
         Qt6::Gui
@@ -20,4 +21,3 @@ target_link_libraries(QNodeGraph.ImagePipeline.Tests
 )
 
 add_test(NAME QNodeGraph.ImagePipeline.Tests COMMAND QNodeGraph.ImagePipeline.Tests)
-

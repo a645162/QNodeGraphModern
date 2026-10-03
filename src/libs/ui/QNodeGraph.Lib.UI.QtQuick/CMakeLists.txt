@@ -1,8 +1,10 @@
 add_library(QNodeGraph.Lib.UI.QtQuick STATIC
     include/QNodeGraph/Lib/UI/QtQuick/graph_controller.h
+    include/QNodeGraph/Lib/UI/QtQuick/image_frame_provider.h
     include/QNodeGraph/Lib/UI/QtQuick/node_palette_model.h
     include/QNodeGraph/Lib/UI/QtQuick/qml_registration.h
     src/graph_controller.cpp
+    src/image_frame_provider.cpp
     src/node_palette_model.cpp
     src/qml_registration.cpp
 )
@@ -29,6 +31,7 @@ target_link_libraries(QNodeGraph.Lib.UI.QtQuick
     PUBLIC
         QNodeGraph.Lib.Core
         QNodeGraph.Lib.Graph
+        QNodeGraph.Lib.Image
         Qt6::Core
         Qt6::Qml
         Qt6::Quick

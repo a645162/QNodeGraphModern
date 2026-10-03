@@ -1,7 +1,9 @@
 add_library(QNodeGraph.Lib.Image STATIC
     include/QNodeGraph/Lib/Image/image_frame.h
+    include/QNodeGraph/Lib/Image/image_frame_cache.h
     include/QNodeGraph/Lib/Image/image_processors.h
     src/image_frame.cpp
+    src/image_frame_cache.cpp
     src/image_processors.cpp
 )
 
@@ -17,4 +19,3 @@ target_link_libraries(QNodeGraph.Lib.Image
 )
 
 target_compile_features(QNodeGraph.Lib.Image PUBLIC cxx_std_23)
-

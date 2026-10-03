@@ -12,7 +12,7 @@ int main(int argc, char* argv[]) {
 
     QNodeGraph::UI::registerQNodeGraphQmlTypes();
 
-    DemoImageProvider provider;
+    QNodeGraph::UI::ImageFrameProvider provider;
     PipelineController controller(&provider);
     QQmlApplicationEngine engine;
     engine.addImageProvider(QStringLiteral("pipeline"), &provider);

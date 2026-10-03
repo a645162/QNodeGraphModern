@@ -2,25 +2,10 @@
 
 #include <QNodeGraph/Lib/Execution/image_execution_service.h>
 #include <QNodeGraph/Lib/Execution/image_pipeline.h>
+#include <QNodeGraph/Lib/UI/QtQuick/image_frame_provider.h>
 
-#include <QHash>
 #include <QImage>
-#include <QMutex>
 #include <QObject>
-#include <QQuickImageProvider>
-
-class DemoImageProvider final : public QQuickImageProvider {
-public:
-    DemoImageProvider();
-
-    QImage requestImage(const QString& id, QSize* size,
-                        const QSize& requestedSize) override;
-    void setImage(QString id, QImage image);
-
-private:
-    QMutex m_mutex;
-    QHash<QString, QImage> m_images;
-};
 
 class PipelineController final : public QObject {
     Q_OBJECT
@@ -33,7 +18,7 @@ class PipelineController final : public QObject {
     Q_PROPERTY(QString outputPath READ outputPath NOTIFY outputPathChanged)
 
 public:
-    explicit PipelineController(DemoImageProvider* provider,
+    explicit PipelineController(QNodeGraph::UI::ImageFrameProvider* provider,
                                 QObject* parent = nullptr);
 
     [[nodiscard]] QString previewUrl() const;
@@ -60,7 +45,7 @@ private:
     void setOutputPath(QString value);
     [[nodiscard]] QImage createDemoImage() const;
 
-    DemoImageProvider* m_provider = nullptr;
+    QNodeGraph::UI::ImageFrameProvider* m_provider = nullptr;
     QNodeGraph::Execution::ImageExecutionService m_executor;
     quint64 m_requestId = 0;
     quint64 m_revision = 0;

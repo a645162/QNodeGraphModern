@@ -74,9 +74,9 @@
 **Files:** `src/libs/image/*`, `src/libs/execution/*`, `src/libs/ui/QNodeGraph.Lib.UI.QtQuick/*`
 
 - [x] Define `ImageFrame`, image metadata, and image error states.
-- [ ] Add cache ownership and lifetime policy for image frames.
+- [x] Add cache ownership and lifetime policy for image frames.
 - [x] Define an asynchronous image execution contract with cancellation and request-generation filtering.
-- [ ] Expose previews through a `QQuickImageProvider` or equivalent texture bridge.
+- [x] Expose previews through a reusable `QQuickImageProvider` backed by the bounded frame cache.
 - [ ] Keep the first implementation compatible with `QImage`, while reserving an interface for tiled/large images.
 
 ## Task 7: Image Pipeline Demo
