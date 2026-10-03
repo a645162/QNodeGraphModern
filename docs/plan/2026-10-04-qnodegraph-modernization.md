@@ -59,6 +59,7 @@
   - [x] Reusable Tab Search popup (Ctrl+P) and canvas context menu actions.
 - [ ] Implement Group Node, Backdrop Node, subgraph proxy ports, automatic layout, and pipe slicing.
   - [x] Add reusable Group and Backdrop node descriptors with distinct visual roles, dimensions, and z-order.
+  - [x] Add Group image proxy ports and command-backed node-to-group membership.
   - [x] Add topology-based automatic layout through the reusable GraphController and canvas menu.
   - [x] Add Shift-drag pipe slicing with curve intersection and undo support.
 - [ ] Add screenshot-based visual checkpoints for the canvas and each auxiliary panel.

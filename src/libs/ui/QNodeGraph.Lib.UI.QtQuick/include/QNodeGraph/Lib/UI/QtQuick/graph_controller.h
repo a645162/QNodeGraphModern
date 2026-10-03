@@ -41,6 +41,7 @@ public:
         NodeColorRole,
         NodeIsBackdropRole,
         NodeIsGroupRole,
+        NodeGroupIdRole,
     };
     Q_ENUM(NodeRole)
 
@@ -75,6 +76,8 @@ public:
     Q_INVOKABLE void cancelConnection();
     Q_INVOKABLE bool selectNode(int row);
     Q_INVOKABLE bool setNodeProperty(int row, QString name, QVariant value);
+    Q_INVOKABLE bool assignNodeToGroup(int nodeRow, int groupRow);
+    Q_INVOKABLE bool clearNodeGroup(int nodeRow);
     Q_INVOKABLE bool undo();
     Q_INVOKABLE bool redo();
 

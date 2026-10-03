@@ -22,6 +22,7 @@ private slots:
     void autoLayoutsConnectedNodes();
     void slicesConnectionsAlongGesture();
     void exposesGroupAndBackdropVisualRoles();
+    void assignsNodeToGroupAndExposesProxyPorts();
     void movesNodeAndEmitsData();
     void clearsModel();
 };
@@ -247,6 +248,31 @@ void GraphControllerTest::exposesGroupAndBackdropVisualRoles() {
                 .toBool());
     QVERIFY(!group.data(QNodeGraph::UI::GraphController::NodeIsBackdropRole)
                  .toBool());
+}
+
+void GraphControllerTest::assignsNodeToGroupAndExposesProxyPorts() {
+    QNodeGraph::UI::GraphController controller;
+    QVERIFY(controller.addNodeType(QStringLiteral("group"), false));
+    QVERIFY(controller.addNodeType(QStringLiteral("grayscale"), false));
+    QCOMPARE(controller.index(0, 0)
+                 .data(QNodeGraph::UI::GraphController::InputPortCountRole)
+                 .toInt(),
+             1);
+    QCOMPARE(controller.index(0, 0)
+                 .data(QNodeGraph::UI::GraphController::OutputPortCountRole)
+                 .toInt(),
+             1);
+
+    QVERIFY(controller.assignNodeToGroup(1, 0));
+    QCOMPARE(controller.index(1, 0)
+                 .data(QNodeGraph::UI::GraphController::NodeGroupIdRole)
+                 .toInt(),
+             0);
+    QVERIFY(controller.clearNodeGroup(1));
+    QCOMPARE(controller.index(1, 0)
+                 .data(QNodeGraph::UI::GraphController::NodeGroupIdRole)
+                 .toInt(),
+             -1);
 }
 
 void GraphControllerTest::movesNodeAndEmitsData() {

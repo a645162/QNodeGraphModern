@@ -204,6 +204,7 @@ Rectangle {
                 required property string nodeColor
                 required property bool nodeIsBackdrop
                 required property bool nodeIsGroup
+                required property int nodeGroupId
                 required property real nodeX
                 required property real nodeY
                 required property int inputPortCount
@@ -213,7 +214,11 @@ Rectangle {
                 y: nodeItem.nodeY
                 width: nodeItem.nodeWidth
                 height: nodeItem.nodeHeight
-                z: nodeItem.nodeIsBackdrop ? -0.5 : 0
+                z: nodeItem.nodeIsBackdrop
+                   ? -0.5
+                   : (nodeItem.nodeIsGroup
+                      ? -0.25
+                      : (nodeItem.nodeGroupId >= 0 ? 0.1 : 0))
                 color: nodeItem.nodeIsBackdrop
                        ? nodeItem.nodeColor
                        : (nodeItem.selected ? "#394b5d" : "#2a333d")

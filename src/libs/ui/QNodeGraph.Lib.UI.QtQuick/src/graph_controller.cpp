@@ -362,6 +362,16 @@ QVariant GraphController::data(const QModelIndex& index, int role) const {
         return node->type == "backdrop";
     case NodeIsGroupRole:
         return node->type == "group";
+    case NodeGroupIdRole: {
+        const auto iterator = node->properties.find("groupId");
+        if (iterator != node->properties.end() &&
+            std::holds_alternative<std::int64_t>(iterator->second)) {
+            const auto groupId = static_cast<Core::NodeId>(
+                std::get<std::int64_t>(iterator->second));
+            return rowFor(groupId);
+        }
+        return -1;
+    }
     default:
         return {};
     }
@@ -385,6 +395,7 @@ QHash<int, QByteArray> GraphController::roleNames() const {
         {NodeColorRole, "nodeColor"},
         {NodeIsBackdropRole, "nodeIsBackdrop"},
         {NodeIsGroupRole, "nodeIsGroup"},
+        {NodeGroupIdRole, "nodeGroupId"},
     };
 }
 
@@ -800,6 +811,55 @@ bool GraphController::setNodeProperty(int row, QString name, QVariant value) {
     return true;
 }
 
+bool GraphController::assignNodeToGroup(int nodeRow, int groupRow) {
+    if (nodeRow < 0 || groupRow < 0 || nodeRow >= nodeCount() ||
+        groupRow >= nodeCount() || nodeRow == groupRow) {
+        return false;
+    }
+    const auto group = m_document.node(
+        m_nodeOrder[static_cast<std::size_t>(groupRow)]);
+    const auto node = m_document.node(
+        m_nodeOrder[static_cast<std::size_t>(nodeRow)]);
+    if (group == nullptr || node == nullptr || group->type != "group") {
+        return false;
+    }
+    const auto result = m_commandStack.execute(
+        std::make_unique<Core::SetPropertyCommand>(
+            node->id, "groupId", static_cast<std::int64_t>(group->id)),
+        m_document);
+    if (!result) {
+        return false;
+    }
+    const auto modelIndex = index(nodeRow, 0);
+    emit dataChanged(modelIndex, modelIndex, {NodeGroupIdRole});
+    emit propertiesChanged();
+    emit historyChanged();
+    return true;
+}
+
+bool GraphController::clearNodeGroup(int nodeRow) {
+    if (nodeRow < 0 || nodeRow >= nodeCount()) {
+        return false;
+    }
+    const auto node = m_document.node(
+        m_nodeOrder[static_cast<std::size_t>(nodeRow)]);
+    if (node == nullptr || node->properties.find("groupId") == node->properties.end()) {
+        return false;
+    }
+    const auto result = m_commandStack.execute(
+        std::make_unique<Core::SetPropertyCommand>(
+            node->id, "groupId", static_cast<std::int64_t>(-1)),
+        m_document);
+    if (!result) {
+        return false;
+    }
+    const auto modelIndex = index(nodeRow, 0);
+    emit dataChanged(modelIndex, modelIndex, {NodeGroupIdRole});
+    emit propertiesChanged();
+    emit historyChanged();
+    return true;
+}
+
 bool GraphController::undo() {
     const auto result = m_commandStack.undo(m_document);
     if (!result) {
@@ -810,7 +870,7 @@ bool GraphController::undo() {
                          {NodeXRole, NodeYRole, NodeIconRole, NodeAccentRole,
                           NodeEnabledRole, NodeLabelRole, NodeWidthRole,
                           NodeHeightRole, NodeColorRole, NodeIsBackdropRole,
-                          NodeIsGroupRole});
+                          NodeIsGroupRole, NodeGroupIdRole});
     }
     emit connectionsChanged();
     emit propertiesChanged();
@@ -828,7 +888,7 @@ bool GraphController::redo() {
                          {NodeXRole, NodeYRole, NodeIconRole, NodeAccentRole,
                           NodeEnabledRole, NodeLabelRole, NodeWidthRole,
                           NodeHeightRole, NodeColorRole, NodeIsBackdropRole,
-                          NodeIsGroupRole});
+                          NodeIsGroupRole, NodeGroupIdRole});
     }
     emit connectionsChanged();
     emit propertiesChanged();
