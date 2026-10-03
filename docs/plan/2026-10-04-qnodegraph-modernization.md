@@ -80,7 +80,7 @@
 - [x] Add cache ownership and lifetime policy for image frames.
 - [x] Define an asynchronous image execution contract with cancellation and request-generation filtering.
 - [x] Expose previews through a reusable `QQuickImageProvider` backed by the bounded frame cache.
-- [ ] Keep the first implementation compatible with `QImage`, while reserving an interface for tiled/large images.
+- [x] Keep the first implementation compatible with `QImage`, while reserving an `ImageSource` interface for tiled/large images.
 
 ## Task 7: Image Pipeline Demo
 

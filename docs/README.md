@@ -4,7 +4,8 @@
 
 `QNodeGraph.Lib.Core` 不依赖 Qt，负责节点、端口、连接、属性和命令栈。
 `QNodeGraph.Lib.Graph` 提供内置节点描述和版本化 JSON。`QNodeGraph.Lib.Image`
-提供 `ImageFrame`、处理器和有界 `ImageFrameCache`。`QNodeGraph.Lib.Execution`
+提供 `ImageFrame`、处理器、有界 `ImageFrameCache` 和可替换的 `ImageSource` tile 接口。
+`QNodeGraph.Lib.Execution`
 提供 `ImageExecutionService`、`ImagePipeline` 以及六个内置图像节点执行器。
 `QNodeGraph.Lib.UI.QtQuick` 提供 `GraphController`、可复用 QML 组件和
 `ImageFrameProvider`。

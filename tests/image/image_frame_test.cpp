@@ -1,5 +1,6 @@
 #include <QNodeGraph/Lib/Image/image_frame.h>
 #include <QNodeGraph/Lib/Image/image_frame_cache.h>
+#include <QNodeGraph/Lib/Image/image_source.h>
 #include <QNodeGraph/Lib/Image/image_processors.h>
 
 #include <QtTest/QtTest>
@@ -14,6 +15,7 @@ private slots:
     void blursImage();
     void detectsEdges();
     void cachesFramesWithBoundedOwnership();
+    void supportsTileSourceContract();
 };
 
 void ImageFrameTest::rejectsNullImage() {
@@ -106,6 +108,23 @@ void ImageFrameTest::cachesFramesWithBoundedOwnership() {
     cache.clear();
     QVERIFY(!cache.contains(QStringLiteral("preview")));
     QCOMPARE(cache.size(), 0);
+}
+
+void ImageFrameTest::supportsTileSourceContract() {
+    QImage image(8, 6, QImage::Format_RGB32);
+    image.fill(Qt::blue);
+    QNodeGraph::Image::QImageSource source(image);
+    QCOMPARE(source.size(), QSize(8, 6));
+
+    const auto tile = source.readTile(QRect(2, 1, 3, 2));
+    QVERIFY(tile.has_value());
+    QCOMPARE(tile->size(), QSize(3, 2));
+    QCOMPARE(tile->pixelColor(0, 0), QColor(Qt::blue));
+
+    const auto invalid = source.readTile(QRect(7, 5, 2, 2));
+    QVERIFY(!invalid.has_value());
+    QCOMPARE(invalid.error().code,
+             QNodeGraph::Core::GraphErrorCode::InvalidImage);
 }
 
 QTEST_MAIN(ImageFrameTest)
