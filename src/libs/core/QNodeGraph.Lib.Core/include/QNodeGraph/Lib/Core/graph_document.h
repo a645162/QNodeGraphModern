@@ -37,6 +37,7 @@ enum class GraphErrorCode {
     InputAlreadyConnected,
     DuplicateConnection,
     CycleDetected,
+    InvalidImage,
     CommandStackEmpty,
 };
 

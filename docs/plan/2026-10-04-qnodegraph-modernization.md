@@ -66,7 +66,8 @@
 
 **Files:** `src/libs/image/*`, `src/libs/execution/*`, `src/libs/ui/QNodeGraph.Lib.UI.QtQuick/*`
 
-- [ ] Define `ImageFrame`, image metadata, cache ownership, and error states.
+- [x] Define `ImageFrame`, image metadata, and image error states.
+- [ ] Add cache ownership and lifetime policy for image frames.
 - [ ] Define an asynchronous `ImageNode` execution contract with cancellation and generation checks.
 - [ ] Expose previews through a `QQuickImageProvider` or equivalent texture bridge.
 - [ ] Keep the first implementation compatible with `QImage`, while reserving an interface for tiled/large images.
