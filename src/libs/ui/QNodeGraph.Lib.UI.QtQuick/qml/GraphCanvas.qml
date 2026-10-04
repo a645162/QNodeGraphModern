@@ -19,6 +19,9 @@ Rectangle {
     }
     property real zoomFactor: 1.0
     property int pipeLayout: 0
+    // Host applications may override the wire color without changing the
+    // shared theme singleton used by other graph canvases.
+    property color wireColor: Theme.wire
     property point panOffset: Qt.point(0, 0)
     property int selectedIndex: -1
     property bool selecting: false
@@ -92,6 +95,7 @@ Rectangle {
 
     GraphController {
         id: graphController
+        objectName: "workflowGraphController"
     }
 
     DropArea {
@@ -211,16 +215,22 @@ Rectangle {
     Shortcut {
         sequence: "Delete"
         onActivated: {
-            if (canvas.selectedIndex >= 0)
+            if (canvas.controller.removeSelectedConnection()) {
+                canvas.forceActiveFocus()
+            } else if (canvas.selectedIndex >= 0) {
                 canvas.controller.deleteNode(canvas.selectedIndex)
+            }
         }
     }
 
     Shortcut {
         sequence: "Backspace"
         onActivated: {
-            if (canvas.selectedIndex >= 0)
+            if (canvas.controller.removeSelectedConnection()) {
+                canvas.forceActiveFocus()
+            } else if (canvas.selectedIndex >= 0) {
                 canvas.controller.deleteNode(canvas.selectedIndex)
+            }
         }
     }
 
@@ -277,6 +287,7 @@ Rectangle {
         panOffset: canvas.panOffset
         zoomFactor: canvas.zoomFactor
         layoutMode: canvas.pipeLayout
+        wireColor: canvas.wireColor
     }
 
     Item {
@@ -361,8 +372,10 @@ Rectangle {
                 }
 
                 Rectangle {
+                    id: nodeHeader
                     width: parent.width
                     height: 28
+                    z: 1
                     color: nodeItem.nodeAccent
                     radius: Theme.nodeRadius
 
@@ -403,6 +416,56 @@ Rectangle {
                         color: "#f1f6fa"
                         font.bold: true
                         elide: Text.ElideRight
+                    }
+
+                    DragHandler {
+                        acceptedButtons: Qt.LeftButton
+                        target: null
+                        property point startPosition: Qt.point(0, 0)
+                        onActiveChanged: {
+                            if (active) {
+                                if (canvas.controller.selectedRow !==
+                                    nodeItem.index)
+                                    canvas.controller.selectNode(nodeItem.index)
+                                startPosition = Qt.point(nodeItem.nodeX,
+                                                         nodeItem.nodeY)
+                            }
+                        }
+                        onTranslationChanged: {
+                            if (active)
+                                canvas.controller.moveSelectedNodes(
+                                    nodeItem.index,
+                                    startPosition.x + translation.x /
+                                        canvas.zoomFactor,
+                                    startPosition.y + translation.y /
+                                        canvas.zoomFactor)
+                        }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        onClicked: function(mouse) {
+                            canvas.forceActiveFocus()
+                            if (mouse.button === Qt.RightButton) {
+                                canvas.contextNodeRow = nodeItem.index
+                                canvas.selectedIndex = nodeItem.index
+                                canvas.controller.selectNode(nodeItem.index)
+                                var menuPoint = nodeItem.mapToItem(
+                                    canvas, mouse.x, mouse.y)
+                                nodeContextMenu.popup(menuPoint.x,
+                                                       menuPoint.y)
+                                mouse.accepted = true
+                                return
+                            }
+                            if ((mouse.modifiers & (Qt.ControlModifier |
+                                                    Qt.MetaModifier |
+                                                    Qt.ShiftModifier)) !== 0)
+                                canvas.controller.toggleNodeSelection(
+                                    nodeItem.index)
+                            else
+                                canvas.controller.selectNode(nodeItem.index)
+                        }
                     }
                 }
 
@@ -580,6 +643,7 @@ Rectangle {
                     y: nodeItem.height / 2 - 6
                     width: 12
                     height: 12
+                    visible: nodeItem.inputPortCount > 0
                     radius: 6
                     color: Theme.portInput
                     border.color: Theme.panelBg
@@ -592,6 +656,7 @@ Rectangle {
                     y: nodeItem.height / 2 - 6
                     width: 12
                     height: 12
+                    visible: nodeItem.outputPortCount > 0
                     radius: 6
                     color: canvas.controller.connectionPending &&
                            canvas.controller.pendingOutputRow === nodeItem.index
@@ -633,6 +698,7 @@ Rectangle {
 
                 MouseArea {
                     anchors.fill: parent
+                    anchors.topMargin: nodeHeader.height
                     acceptedButtons: Qt.LeftButton | Qt.RightButton
                     onClicked: function(mouse) {
                         canvas.forceActiveFocus()
@@ -640,9 +706,9 @@ Rectangle {
                             canvas.contextNodeRow = nodeItem.index
                             canvas.selectedIndex = nodeItem.index
                             canvas.controller.selectNode(nodeItem.index)
-                            nodeContextMenu.x = mouse.x
-                            nodeContextMenu.y = mouse.y
-                            nodeContextMenu.open()
+                            var menuPoint = nodeItem.mapToItem(canvas,
+                                                               mouse.x, mouse.y)
+                            nodeContextMenu.popup(menuPoint.x, menuPoint.y)
                             mouse.accepted = true
                             return
                         }
@@ -671,23 +737,6 @@ Rectangle {
                         nodeItem.index, "enabled", checked)
                 }
 
-                DragHandler {
-                    acceptedButtons: Qt.LeftButton
-                    target: null
-                    property point startPosition: Qt.point(0, 0)
-                    onActiveChanged: {
-                        if (active)
-                            startPosition = Qt.point(nodeItem.nodeX, nodeItem.nodeY)
-                    }
-                    onTranslationChanged: {
-                        if (active)
-                            canvas.controller.moveSelectedNodes(
-                                nodeItem.index,
-                                startPosition.x + translation.x / canvas.zoomFactor,
-                                startPosition.y + translation.y / canvas.zoomFactor)
-                    }
-                }
-
                 // 四角 resize。此前只有右下角一个手柄，且 resizeNode(row,w,h)
                 // 的签名表达不了「同时改变左上角」—— 从左/上侧拖拽必须同时移动
                 // origin，因此改用 resizeNodeAt(row, x, y, w, h)。
@@ -706,7 +755,9 @@ Rectangle {
                         id: resizeHandle
                         required property var modelData
 
-                        visible: !nodeItem.nodeIsBackdrop && !nodeItem.nodeIsGroup
+                        visible: nodeItem.nodeSelected &&
+                                 !nodeItem.nodeIsBackdrop &&
+                                 !nodeItem.nodeIsGroup
                         x: modelData.cx === 0 ? -7 : parent.width - 7
                         y: modelData.cy === 0 ? -7 : parent.height - 7
                         width: 14
@@ -817,6 +868,22 @@ Rectangle {
                 sliceGuide.requestPaint()
                 mouse.accepted = true
                 return
+            }
+            var worldX = (mouse.x - canvas.panOffset.x) / canvas.zoomFactor
+            var worldY = (mouse.y - canvas.panOffset.y) / canvas.zoomFactor
+            if (canvas.controller.selectConnectionAt(worldX, worldY)) {
+                canvas.controller.selectNode(-1)
+                canvas.selectedIndex = -1
+                canvas.selecting = false
+                mouse.accepted = true
+                return
+            }
+            if ((mouse.modifiers & (Qt.ControlModifier |
+                                    Qt.MetaModifier |
+                                    Qt.ShiftModifier)) === 0) {
+                canvas.controller.selectNode(-1)
+                canvas.selectedIndex = -1
+                canvas.contextNodeRow = -1
             }
             canvas.selecting = true
             canvas.selectionAdditive =

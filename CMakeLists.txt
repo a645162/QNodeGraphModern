@@ -13,6 +13,13 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# The library contains UTF-8 Chinese comments and is consumed by MSVC projects
+# whose console code page may still be cp936. Keep source decoding explicit so
+# standalone library builds do not emit C4819 warnings or misread source text.
+if(MSVC)
+    add_compile_options(/utf-8)
+endif()
+
 option(QNODEGRAPH_BUILD_EXAMPLES "Build QNodeGraph examples" ON)
 option(QNODEGRAPH_BUILD_TESTS "Build QNodeGraph tests" ON)
 option(QNODEGRAPH_DEPLOY_QT_RUNTIME

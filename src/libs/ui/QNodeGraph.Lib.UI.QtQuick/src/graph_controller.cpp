@@ -1,3 +1,4 @@
+#include "graph_controller_helpers.h"
 #include <QNodeGraph/Lib/UI/QtQuick/graph_controller.h>
 
 #include <QFileInfo>
@@ -9,1644 +10,855 @@
 
 #include <algorithm>
 #include <cmath>
-#include <queue>
-#include <string>
 #include <cstdint>
 #include <memory>
+#include <limits>
+#include <queue>
+#include <string>
 #include <type_traits>
 #include <utility>
 #include <variant>
 
 namespace QNodeGraph::UI {
 
-namespace {
+using namespace detail;
 
-constexpr double kDemoNodeWidth = 180.0;
-constexpr double kDemoNodeHeight = 108.0;
-constexpr double kPortHitRadius = 12.0;
-
-QVariant propertyVariant(const Core::PropertyValue& value) {
-    return std::visit(
-        [](const auto& typed) -> QVariant {
-            using Value = std::decay_t<decltype(typed)>;
-            if constexpr (std::is_same_v<Value, std::int64_t>) {
-                return QVariant::fromValue<qlonglong>(
-                    static_cast<qlonglong>(typed));
-            } else if constexpr (std::is_same_v<Value, std::string>) {
-                return QString::fromStdString(typed);
-            } else {
-                return QVariant::fromValue(typed);
-            }
-        },
-        value);
+GraphController::GraphController(QObject *parent)
+    : QAbstractListModel(parent), m_document("QNodeGraphModern"),
+      m_registry(QNodeGraph::Graph::NodeRegistry::withBuiltins()) {
+  bindDocumentObserver();
 }
 
-QString propertyType(const Core::PropertyValue& value) {
-    return std::visit(
-        [](const auto& typed) {
-            using Value = std::decay_t<decltype(typed)>;
-            if constexpr (std::is_same_v<Value, bool>) {
-                return QStringLiteral("bool");
-            } else if constexpr (std::is_same_v<Value, double>) {
-                return QStringLiteral("double");
-            } else if constexpr (std::is_same_v<Value, std::int64_t>) {
-                return QStringLiteral("int64");
-            } else {
-                return QStringLiteral("string");
-            }
-        },
-        value);
+void GraphController::bindDocumentObserver() {
+  m_document.setChangeObserver([this](const Core::GraphChange &change) {
+    emit graphChanged(static_cast<qulonglong>(change.nodeId),
+                      static_cast<int>(change.kind));
+  });
 }
 
-// 控件类型名（QML 侧按此字符串分派编辑器）。与 PropertyEditor 枚举一一对应。
-QString propertyEditorName(QNodeGraph::Graph::PropertyEditor editor) {
-    switch (editor) {
-    case QNodeGraph::Graph::PropertyEditor::Automatic:
-        return QStringLiteral("automatic");
-    case QNodeGraph::Graph::PropertyEditor::CheckBox:
-        return QStringLiteral("checkbox");
-    case QNodeGraph::Graph::PropertyEditor::Slider:
-        return QStringLiteral("slider");
-    case QNodeGraph::Graph::PropertyEditor::SpinBox:
-        return QStringLiteral("spinbox");
-    case QNodeGraph::Graph::PropertyEditor::LineEdit:
-        return QStringLiteral("lineedit");
-    case QNodeGraph::Graph::PropertyEditor::FilePath:
-        return QStringLiteral("filepath");
-    case QNodeGraph::Graph::PropertyEditor::Directory:
-        return QStringLiteral("directory");
-    case QNodeGraph::Graph::PropertyEditor::ComboBox:
-        return QStringLiteral("combobox");
-    }
-    return QStringLiteral("automatic");
+void GraphController::setDocument(Core::GraphDocument document) {
+  const auto oldCount = nodeCount();
+  cancelConnection();
+  beginResetModel();
+  m_document = std::move(document);
+  bindDocumentObserver();
+  m_nodeOrder = m_document.nodeIds();
+  m_nodePreviews.clear();
+  m_commandStack.clear();
+  endResetModel();
+  setSelection({});
+  if (nodeCount() != oldCount) {
+    emit nodeCountChanged();
+  }
+  notifyTopologyChanged();
+  emit historyChanged();
+  emit propertiesChanged();
 }
-
-// 在描述符中查找某属性的控件元数据，未声明时返回 nullptr。
-const QNodeGraph::Graph::PropertyDescriptor* findPropertyDescriptor(
-    const QNodeGraph::Graph::NodeDescriptor* descriptor,
-    const std::string& name) {
-    if (descriptor == nullptr) {
-        return nullptr;
-    }
-    for (const auto& property : descriptor->properties) {
-        if (property.name == name) {
-            return &property;
-        }
-    }
-    return nullptr;
-}
-
-// 把控件元数据附加到属性条目上，供 QML 选择编辑器。未声明元数据时写入
-// automatic/0，QML 会退回按 valueType 推断。
-void appendPropertyEditorMetadata(
-    QVariantMap& entry, const QNodeGraph::Graph::NodeDescriptor* descriptor,
-    const std::string& name) {
-    const auto* property = findPropertyDescriptor(descriptor, name);
-    entry.insert(QStringLiteral("editor"),
-                 propertyEditorName(property != nullptr
-                                        ? property->editor
-                                        : QNodeGraph::Graph::PropertyEditor::Automatic));
-    entry.insert(QStringLiteral("minimum"),
-                 property != nullptr ? property->minimum : 0.0);
-    entry.insert(QStringLiteral("maximum"),
-                 property != nullptr ? property->maximum : 0.0);
-    entry.insert(QStringLiteral("step"),
-                 property != nullptr ? property->step : 0.0);
-    QVariantList choices;
-    if (property != nullptr) {
-        for (const auto& choice : property->choices) {
-            choices.push_back(QString::fromStdString(choice));
-        }
-    }
-    entry.insert(QStringLiteral("choices"), choices);
-}
-
-// 以下三个函数返回描述符未声明外观时的兜底值。此前这里是一整张按 typeId
-// 的 if 链硬编码表，现由 NodeDescriptor 的 iconGlyph/iconSource/accent 声明，
-// 宿主注册自定义节点时即可一并给出外观，无需修改库代码。
-QString fallbackIconGlyph() { return QStringLiteral("NODE"); }
-
-QString fallbackIconSource() {
-    return QStringLiteral("qrc:/qt/qml/QNodeGraph/UI/qml/icons/node.svg");
-}
-
-QString fallbackAccent() { return QStringLiteral("#426b91"); }
-
-double nodeNumberProperty(const Core::Node& node, const char* name,
-                          double fallback) {
-    const auto iterator = node.properties.find(name);
-    if (iterator == node.properties.end()) {
-        return fallback;
-    }
-    if (std::holds_alternative<double>(iterator->second)) {
-        return std::get<double>(iterator->second);
-    }
-    if (std::holds_alternative<std::int64_t>(iterator->second)) {
-        return static_cast<double>(std::get<std::int64_t>(iterator->second));
-    }
-    return fallback;
-}
-
-// 节点实际尺寸。必须与 data() 的 NodeWidthRole/NodeHeightRole 保持同一语义，
-// 否则连线端点会按默认尺寸计算、与画布上的真实节点错位。
-//
-// 兜底值刻意用 kDemoNodeWidth/Height 而非描述符默认尺寸：连接几何必须是
-// const 上下文的纯函数（portAt 也被 const 方法使用），而注册表查询在节点刚
-// 创建、属性尚未写入的瞬间可能拿不到描述符；画布尺寸与连线端点走同一个
-// 兜底值，才不会出现两者基准不一致。
-double nodeWidth(const Core::Node& node) {
-    return nodeNumberProperty(node, "width", kDemoNodeWidth);
-}
-
-double nodeHeight(const Core::Node& node) {
-    return nodeNumberProperty(node, "height", kDemoNodeHeight);
-}
-
-// 输出端口的世界坐标（节点右侧中点）。连线、命中测试、切片与预览共用同一
-// 计算，避免任何一处漏改导致端点漂移。
-Core::Point outputPortPoint(const Core::Node& node) {
-    return Core::Point{node.position.x + nodeWidth(node),
-                       node.position.y + nodeHeight(node) / 2.0};
-}
-
-// 输入端口的世界坐标（节点左侧中点）。
-Core::Point inputPortPoint(const Core::Node& node) {
-    return Core::Point{node.position.x,
-                       node.position.y + nodeHeight(node) / 2.0};
-}
-
-QString nodeStringProperty(const Core::Node& node, const char* name,
-                           QString fallback) {
-    const auto iterator = node.properties.find(name);
-    if (iterator != node.properties.end() &&
-        std::holds_alternative<std::string>(iterator->second)) {
-        return QString::fromStdString(std::get<std::string>(iterator->second));
-    }
-    return fallback;
-}
-
-QString portDataTypeName(Core::PortDataType type) {
-    switch (type) {
-    case Core::PortDataType::Any:
-        return QStringLiteral("any");
-    case Core::PortDataType::Image:
-        return QStringLiteral("image");
-    case Core::PortDataType::Number:
-        return QStringLiteral("number");
-    case Core::PortDataType::Text:
-        return QStringLiteral("text");
-    case Core::PortDataType::Boolean:
-        return QStringLiteral("boolean");
-    }
-    return {};
-}
-
-QVariantList nodePorts(const Core::Node& node,
-                       const Core::GraphDocument& document,
-                       Core::PortDirection direction) {
-    QVariantList ports;
-    for (const auto portId : node.ports) {
-        const auto* port = document.port(portId);
-        if (port == nullptr || port->direction != direction) {
-            continue;
-        }
-        ports.push_back(QVariantMap{
-            {QStringLiteral("name"), QString::fromStdString(port->name)},
-            {QStringLiteral("dataType"), portDataTypeName(port->dataType)},
-            {QStringLiteral("acceptsMultiple"),
-             port->acceptsMultipleConnections}});
-    }
-    return ports;
-}
-
-double cross(const Core::Point& first, const Core::Point& second,
-             const Core::Point& third) {
-    return (second.x - first.x) * (third.y - first.y) -
-           (second.y - first.y) * (third.x - first.x);
-}
-
-bool onSegment(const Core::Point& first, const Core::Point& second,
-               const Core::Point& point) {
-    constexpr double epsilon = 1e-6;
-    return point.x >= std::min(first.x, second.x) - epsilon &&
-           point.x <= std::max(first.x, second.x) + epsilon &&
-           point.y >= std::min(first.y, second.y) - epsilon &&
-           point.y <= std::max(first.y, second.y) + epsilon;
-}
-
-bool segmentsIntersect(const Core::Point& first, const Core::Point& second,
-                       const Core::Point& third, const Core::Point& fourth) {
-    constexpr double epsilon = 1e-6;
-    const auto firstCross = cross(first, second, third);
-    const auto secondCross = cross(first, second, fourth);
-    const auto thirdCross = cross(third, fourth, first);
-    const auto fourthCross = cross(third, fourth, second);
-    if (((firstCross > epsilon && secondCross < -epsilon) ||
-         (firstCross < -epsilon && secondCross > epsilon)) &&
-        ((thirdCross > epsilon && fourthCross < -epsilon) ||
-         (thirdCross < -epsilon && fourthCross > epsilon))) {
-        return true;
-    }
-    return (std::abs(firstCross) <= epsilon && onSegment(first, second, third)) ||
-           (std::abs(secondCross) <= epsilon && onSegment(first, second, fourth)) ||
-           (std::abs(thirdCross) <= epsilon && onSegment(third, fourth, first)) ||
-           (std::abs(fourthCross) <= epsilon && onSegment(third, fourth, second));
-}
-
-bool cubicIntersects(const Core::Point& start, const Core::Point& controlStart,
-                     const Core::Point& controlEnd, const Core::Point& end,
-                     const Core::Point& sliceStart,
-                     const Core::Point& sliceEnd) {
-    constexpr int samples = 24;
-    auto previous = start;
-    for (int index = 1; index <= samples; ++index) {
-        const auto t = static_cast<double>(index) / samples;
-        const auto inverse = 1.0 - t;
-        const auto point = Core::Point{
-            inverse * inverse * inverse * start.x +
-                3.0 * inverse * inverse * t * controlStart.x +
-                3.0 * inverse * t * t * controlEnd.x + t * t * t * end.x,
-            inverse * inverse * inverse * start.y +
-                3.0 * inverse * inverse * t * controlStart.y +
-                3.0 * inverse * t * t * controlEnd.y + t * t * t * end.y};
-        if (segmentsIntersect(previous, point, sliceStart, sliceEnd)) {
-            return true;
-        }
-        previous = point;
-    }
-    return false;
-}
-
-} // namespace
-
-GraphController::GraphController(QObject* parent)
-    : QAbstractListModel(parent),
-      m_document("QNodeGraphModern"),
-      m_registry(QNodeGraph::Graph::NodeRegistry::withBuiltins()) {}
 
 void GraphController::setRegistry(QNodeGraph::Graph::NodeRegistry registry) {
-    m_registry = std::move(registry);
-    // 改注册表后图内已有节点的图标/强调色/默认尺寸可能全部变化，需整表刷新。
-    refreshRegistryDependentRoles();
+  m_registry = std::move(registry);
+  // 改注册表后图内已有节点的图标/强调色/默认尺寸可能全部变化，需整表刷新。
+  refreshRegistryDependentRoles();
 }
 
-const QNodeGraph::Graph::NodeRegistry& GraphController::registry() const noexcept {
-    return m_registry;
+const QNodeGraph::Graph::NodeRegistry &
+GraphController::registry() const noexcept {
+  return m_registry;
 }
 
 void GraphController::refreshRegistryDependentRoles() {
-    if (!m_nodeOrder.empty()) {
-        emit dataChanged(index(0, 0), index(nodeCount() - 1, 0),
-                         {NodeIconRole, NodeIconSourceRole, NodeAccentRole,
-                          NodeWidthRole, NodeHeightRole, NodeIsBackdropRole,
-                          NodeIsGroupRole, NodeContentUrlRole,
-                          NodeOnNodePropertiesRole});
-    }
-    notifyTopologyChanged();
-    emit propertiesChanged();
+  if (!m_nodeOrder.empty()) {
+    emit dataChanged(index(0, 0), index(nodeCount() - 1, 0),
+                     {NodeIconRole, NodeIconSourceRole, NodeAccentRole,
+                      NodeWidthRole, NodeHeightRole, NodeIsBackdropRole,
+                      NodeIsGroupRole, NodeContentUrlRole,
+                      NodeOnNodePropertiesRole});
+  }
+  notifyTopologyChanged();
+  emit propertiesChanged();
 }
 
 int GraphController::nodeCount() const noexcept {
-    return static_cast<int>(m_nodeOrder.size());
+  return static_cast<int>(m_nodeOrder.size());
 }
 
 bool GraphController::connectionPending() const noexcept {
-    return m_pendingOutputRow >= 0;
+  return m_pendingOutputRow >= 0;
 }
 
 int GraphController::pendingOutputRow() const noexcept {
-    return m_pendingOutputRow;
+  return m_pendingOutputRow;
 }
 
 QVariantMap GraphController::connectionPreview() const {
-    if (!connectionPending() || m_pendingOutputRow >= nodeCount()) {
-        return {};
-    }
-    const auto nodeId = m_nodeOrder[static_cast<std::size_t>(m_pendingOutputRow)];
-    const auto* node = m_document.node(nodeId);
-    if (node == nullptr) {
-        return {};
-    }
-    QVariantMap value;
-    value.insert(QStringLiteral("outputRow"), m_pendingOutputRow);
-    value.insert(QStringLiteral("outputX"), node->position.x);
-    value.insert(QStringLiteral("outputY"), outputPortPoint(*node).y);
-    value.insert(QStringLiteral("inputX"), m_previewPoint.x);
-    value.insert(QStringLiteral("inputY"), m_previewPoint.y);
-    value.insert(QStringLiteral("outputWidth"), nodeWidth(*node));
-    return value;
+  if (!connectionPending() || m_pendingOutputRow >= nodeCount()) {
+    return {};
+  }
+  const auto nodeId = m_nodeOrder[static_cast<std::size_t>(m_pendingOutputRow)];
+  const auto *node = m_document.node(nodeId);
+  if (node == nullptr) {
+    return {};
+  }
+  QVariantMap value;
+  value.insert(QStringLiteral("outputRow"), m_pendingOutputRow);
+  value.insert(QStringLiteral("outputX"), node->position.x);
+  value.insert(QStringLiteral("outputY"), outputPortPoint(*node).y);
+  value.insert(QStringLiteral("inputX"), m_previewPoint.x);
+  value.insert(QStringLiteral("inputY"), m_previewPoint.y);
+  value.insert(QStringLiteral("outputWidth"), nodeWidth(*node));
+  return value;
 }
 
 int GraphController::selectedRow() const noexcept { return m_selectedRow; }
 
 QVariantList GraphController::selectedRows() const {
-    QVariantList rows;
-    rows.reserve(static_cast<qsizetype>(m_selectedRows.size()));
-    for (const auto row : m_selectedRows) {
-        rows.push_back(row);
-    }
-    return rows;
+  QVariantList rows;
+  rows.reserve(static_cast<qsizetype>(m_selectedRows.size()));
+  for (const auto row : m_selectedRows) {
+    rows.push_back(row);
+  }
+  return rows;
 }
 
 bool GraphController::canUndo() const noexcept {
-    return m_commandStack.canUndo();
+  return m_commandStack.canUndo();
 }
 
 bool GraphController::canRedo() const noexcept {
-    return m_commandStack.canRedo();
+  return m_commandStack.canRedo();
 }
 
 QVariantList GraphController::selectedProperties() const {
-    QVariantList values;
-    if (m_selectedRow < 0 || m_selectedRow >= nodeCount()) {
-        return values;
-    }
-    const auto* node = m_document.node(
-        m_nodeOrder[static_cast<std::size_t>(m_selectedRow)]);
-    if (node == nullptr) {
-        return values;
-    }
-    for (const auto& [name, value] : node->properties) {
-        if (name.size() >= 8 &&
-            name.compare(name.size() - 8, 8, ".display") == 0) {
-            continue;
-        }
-        const auto display = nodeStringProperty(*node, (name + ".display").c_str(),
-                                                QStringLiteral("panel"));
-        if (display == QStringLiteral("node") ||
-            display == QStringLiteral("hidden")) {
-            continue;
-        }
-        values.push_back(QVariantMap{
-            {QStringLiteral("name"), QString::fromStdString(name)},
-            {QStringLiteral("value"), propertyVariant(value)},
-            {QStringLiteral("valueType"), propertyType(value)},
-            {QStringLiteral("editor"),
-             propertyEditorName(
-                 findPropertyDescriptor(m_registry.find(node->type), name) != nullptr
-                     ? findPropertyDescriptor(m_registry.find(node->type), name)
-                           ->editor
-                     : QNodeGraph::Graph::PropertyEditor::Automatic)}});
-    }
+  QVariantList values;
+  if (m_selectedRow < 0 || m_selectedRow >= nodeCount()) {
     return values;
+  }
+  const auto *node =
+      m_document.node(m_nodeOrder[static_cast<std::size_t>(m_selectedRow)]);
+  if (node == nullptr) {
+    return values;
+  }
+  for (const auto &[name, value] : node->properties) {
+    if (name.size() >= 8 && name.compare(name.size() - 8, 8, ".display") == 0) {
+      continue;
+    }
+    const auto display = nodeStringProperty(*node, (name + ".display").c_str(),
+                                            QStringLiteral("panel"));
+    if (display == QStringLiteral("node") ||
+        display == QStringLiteral("hidden")) {
+      continue;
+    }
+    QVariantMap entry{
+        {QStringLiteral("name"), QString::fromStdString(name)},
+        {QStringLiteral("value"), propertyVariant(value)},
+        {QStringLiteral("valueType"), propertyType(value)}};
+    appendPropertyEditorMetadata(entry, m_registry.find(node->type), name);
+    values.push_back(std::move(entry));
+  }
+  return values;
 }
 
 QString GraphController::lastError() const { return m_lastError; }
 
 QVariantList GraphController::connections() const {
+  QVariantList values;
+  for (const auto &connection : m_document.connections()) {
+    const auto *outputPort = m_document.port(connection.outputPort);
+    const auto *inputPort = m_document.port(connection.inputPort);
+    if (outputPort == nullptr || inputPort == nullptr) {
+      continue;
+    }
+    const auto *outputNode = m_document.node(outputPort->nodeId);
+    const auto *inputNode = m_document.node(inputPort->nodeId);
+    const auto outputRow = rowFor(outputPort->nodeId);
+    const auto inputRow = rowFor(inputPort->nodeId);
+    if (outputNode == nullptr || inputNode == nullptr || outputRow < 0 ||
+        inputRow < 0) {
+      continue;
+    }
+    QVariantMap value;
+    value.insert(QStringLiteral("outputRow"), outputRow);
+    value.insert(QStringLiteral("inputRow"), inputRow);
+    value.insert(QStringLiteral("outputX"), outputNode->position.x);
+    value.insert(QStringLiteral("outputY"), outputPortPoint(*outputNode).y);
+    value.insert(QStringLiteral("inputX"), inputNode->position.x);
+    value.insert(QStringLiteral("inputY"), inputPortPoint(*inputNode).y);
+    value.insert(QStringLiteral("outputWidth"), nodeWidth(*outputNode));
+    value.insert(QStringLiteral("selected"),
+                 outputRow == m_selectedConnectionOutputRow &&
+                     inputRow == m_selectedConnectionInputRow);
+    values.push_back(value);
+  }
+  return values;
+}
+
+int GraphController::selectedConnectionOutputRow() const noexcept {
+  return m_selectedConnectionOutputRow;
+}
+
+int GraphController::selectedConnectionInputRow() const noexcept {
+  return m_selectedConnectionInputRow;
+}
+
+int GraphController::rowCount(const QModelIndex &parent) const {
+  return parent.isValid() ? 0 : static_cast<int>(m_nodeOrder.size());
+}
+
+QVariant GraphController::data(const QModelIndex &index, int role) const {
+  if (!index.isValid() || index.row() < 0 ||
+      index.row() >= static_cast<int>(m_nodeOrder.size())) {
+    return {};
+  }
+  const auto *node =
+      m_document.node(m_nodeOrder[static_cast<std::size_t>(index.row())]);
+  if (node == nullptr) {
+    return {};
+  }
+  switch (role) {
+  case Qt::DisplayRole:
+  case NodeNameRole:
+    return QString::fromStdString(node->name);
+  case NodeIdRole:
+    return QVariant::fromValue<qulonglong>(node->id);
+  case NodeTypeRole:
+    return QString::fromStdString(node->type);
+  case NodeXRole:
+    return node->position.x;
+  case NodeYRole:
+    return node->position.y;
+  case InputPortCountRole: {
+    int count = 0;
+    for (const auto portId : node->ports) {
+      const auto *port = m_document.port(portId);
+      if (port != nullptr && port->direction == Core::PortDirection::Input) {
+        ++count;
+      }
+    }
+    return count;
+  }
+  case OutputPortCountRole: {
+    int count = 0;
+    for (const auto portId : node->ports) {
+      const auto *port = m_document.port(portId);
+      if (port != nullptr && port->direction == Core::PortDirection::Output) {
+        ++count;
+      }
+    }
+    return count;
+  }
+  case NodeIconRole: {
+    const auto *descriptor = m_registry.find(node->type);
+    return descriptor != nullptr && !descriptor->iconGlyph.empty()
+               ? QString::fromStdString(descriptor->iconGlyph)
+               : fallbackIconGlyph();
+  }
+  case NodeIconSourceRole: {
+    const auto *descriptor = m_registry.find(node->type);
+    return descriptor != nullptr && !descriptor->iconSource.empty()
+               ? QString::fromStdString(descriptor->iconSource)
+               : fallbackIconSource();
+  }
+  case NodeAccentRole: {
+    const auto *descriptor = m_registry.find(node->type);
+    return descriptor != nullptr && !descriptor->accent.empty()
+               ? QString::fromStdString(descriptor->accent)
+               : fallbackAccent();
+  }
+  case NodeEnabledRole: {
+    const auto *enabled = m_document.property(node->id, "enabled");
+    return enabled != nullptr && std::holds_alternative<bool>(*enabled)
+               ? QVariant(std::get<bool>(*enabled))
+               : QVariant(true);
+  }
+  case NodeLabelRole: {
+    const auto *label = m_document.property(node->id, "label");
+    if (label != nullptr && std::holds_alternative<std::string>(*label)) {
+      return QString::fromStdString(std::get<std::string>(*label));
+    }
+    return QString::fromStdString(node->name);
+  }
+  case NodeWidthRole:
+    return nodeNumberProperty(*node, "width",
+                              m_registry.find(node->type) != nullptr
+                                  ? m_registry.find(node->type)->defaultWidth
+                                  : kDemoNodeWidth);
+  case NodeHeightRole:
+    return nodeNumberProperty(*node, "height",
+                              m_registry.find(node->type) != nullptr
+                                  ? m_registry.find(node->type)->defaultHeight
+                                  : kDemoNodeHeight);
+  case NodeColorRole:
+    return nodeStringProperty(*node, "color", QStringLiteral("#2a333d"));
+  case NodeIsBackdropRole: {
+    const auto *descriptor = m_registry.find(node->type);
+    return descriptor != nullptr &&
+           descriptor->visualRole ==
+               QNodeGraph::Graph::NodeVisualRole::Backdrop;
+  }
+  case NodeIsGroupRole: {
+    const auto *descriptor = m_registry.find(node->type);
+    return descriptor != nullptr &&
+           descriptor->visualRole == QNodeGraph::Graph::NodeVisualRole::Group;
+  }
+  case NodeGroupIdRole: {
+    const auto iterator = node->properties.find("groupId");
+    if (iterator != node->properties.end() &&
+        std::holds_alternative<std::int64_t>(iterator->second)) {
+      const auto groupId =
+          static_cast<Core::NodeId>(std::get<std::int64_t>(iterator->second));
+      return rowFor(groupId);
+    }
+    return -1;
+  }
+  case NodeSelectedRole:
+    return std::find(m_selectedRows.cbegin(), m_selectedRows.cend(),
+                     index.row()) != m_selectedRows.cend();
+  case NodeInputPortsRole:
+    return nodePorts(*node, m_document, Core::PortDirection::Input);
+  case NodeOutputPortsRole:
+    return nodePorts(*node, m_document, Core::PortDirection::Output);
+  case NodeFixedRole: {
+    const auto iterator = node->properties.find("fixed");
+    return iterator != node->properties.end() &&
+                   std::holds_alternative<bool>(iterator->second)
+               ? QVariant(std::get<bool>(iterator->second))
+               : QVariant(false);
+  }
+  case NodeContentUrlRole: {
+    if (const auto *descriptor = m_registry.find(node->type);
+        descriptor != nullptr && !descriptor->qmlContentUrl.empty()) {
+      return QString::fromStdString(descriptor->qmlContentUrl);
+    }
+    return QString{};
+  }
+  case NodeOnNodePropertiesRole: {
     QVariantList values;
-    for (const auto& connection : m_document.connections()) {
-        const auto* outputPort = m_document.port(connection.outputPort);
-        const auto* inputPort = m_document.port(connection.inputPort);
-        if (outputPort == nullptr || inputPort == nullptr) {
-            continue;
-        }
-        const auto* outputNode = m_document.node(outputPort->nodeId);
-        const auto* inputNode = m_document.node(inputPort->nodeId);
-        const auto outputRow = rowFor(outputPort->nodeId);
-        const auto inputRow = rowFor(inputPort->nodeId);
-        if (outputNode == nullptr || inputNode == nullptr || outputRow < 0 ||
-            inputRow < 0) {
-            continue;
-        }
-        QVariantMap value;
-        value.insert(QStringLiteral("outputRow"), outputRow);
-        value.insert(QStringLiteral("inputRow"), inputRow);
-        value.insert(QStringLiteral("outputX"), outputNode->position.x);
-        value.insert(QStringLiteral("outputY"), outputPortPoint(*outputNode).y);
-        value.insert(QStringLiteral("inputX"), inputNode->position.x);
-        value.insert(QStringLiteral("inputY"), inputPortPoint(*inputNode).y);
-        value.insert(QStringLiteral("outputWidth"), nodeWidth(*outputNode));
-        values.push_back(value);
+    const auto *descriptor = m_registry.find(node->type);
+    for (const auto &[name, value] : node->properties) {
+      if (name.size() >= 8 &&
+          name.compare(name.size() - 8, 8, ".display") == 0) {
+        continue;
+      }
+      const auto display = nodeStringProperty(
+          *node, (name + ".display").c_str(), QStringLiteral("panel"));
+      if (display != QStringLiteral("node") &&
+          display != QStringLiteral("both")) {
+        continue;
+      }
+      // 带上 valueType 与控件元数据，QML 才能按描述符选择控件（滑块 /
+      // 勾选框 / 输入框），而不是把非 bool 一律当文本处理。
+      QVariantMap entry{{QStringLiteral("name"), QString::fromStdString(name)},
+                        {QStringLiteral("value"), propertyVariant(value)},
+                        {QStringLiteral("valueType"), propertyType(value)}};
+      appendPropertyEditorMetadata(entry, descriptor, name);
+      values.push_back(std::move(entry));
     }
     return values;
-}
-
-int GraphController::rowCount(const QModelIndex& parent) const {
-    return parent.isValid() ? 0 : static_cast<int>(m_nodeOrder.size());
-}
-
-QVariant GraphController::data(const QModelIndex& index, int role) const {
-    if (!index.isValid() || index.row() < 0 ||
-        index.row() >= static_cast<int>(m_nodeOrder.size())) {
-        return {};
+  }
+  case NodeOutputUsedRole:
+    return m_outputUsed.contains(node->id);
+  case NodeEffectiveRole:
+    // 输出无人使用 → 该节点对最终结果无贡献，UI 降级显示。
+    return m_outputUsed.contains(node->id);
+  case NodePreviewSourceRole:
+  case NodePreviewWidthRole:
+  case NodePreviewHeightRole:
+  case NodePreviewChannelsRole: {
+    const auto preview = m_nodePreviews.find(node->id);
+    if (preview == m_nodePreviews.end()) {
+      return role == NodePreviewSourceRole ? QVariant(QString{}) : QVariant(0);
     }
-    const auto* node = m_document.node(m_nodeOrder[static_cast<std::size_t>(index.row())]);
-    if (node == nullptr) {
-        return {};
+    if (role == NodePreviewSourceRole) {
+      return preview->second.source;
     }
-    switch (role) {
-    case Qt::DisplayRole:
-    case NodeNameRole:
-        return QString::fromStdString(node->name);
-    case NodeIdRole:
-        return QVariant::fromValue<qulonglong>(node->id);
-    case NodeTypeRole:
-        return QString::fromStdString(node->type);
-    case NodeXRole:
-        return node->position.x;
-    case NodeYRole:
-        return node->position.y;
-    case InputPortCountRole: {
-        int count = 0;
-        for (const auto portId : node->ports) {
-            const auto* port = m_document.port(portId);
-            if (port != nullptr && port->direction == Core::PortDirection::Input) {
-                ++count;
-            }
-        }
-        return count;
+    if (role == NodePreviewWidthRole) {
+      return preview->second.width;
     }
-    case OutputPortCountRole: {
-        int count = 0;
-        for (const auto portId : node->ports) {
-            const auto* port = m_document.port(portId);
-            if (port != nullptr && port->direction == Core::PortDirection::Output) {
-                ++count;
-            }
-        }
-        return count;
+    if (role == NodePreviewHeightRole) {
+      return preview->second.height;
     }
-    case NodeIconRole: {
-        const auto* descriptor = m_registry.find(node->type);
-        return descriptor != nullptr && !descriptor->iconGlyph.empty()
-                   ? QString::fromStdString(descriptor->iconGlyph)
-                   : fallbackIconGlyph();
-    }
-    case NodeIconSourceRole: {
-        const auto* descriptor = m_registry.find(node->type);
-        return descriptor != nullptr && !descriptor->iconSource.empty()
-                   ? QString::fromStdString(descriptor->iconSource)
-                   : fallbackIconSource();
-    }
-    case NodeAccentRole: {
-        const auto* descriptor = m_registry.find(node->type);
-        return descriptor != nullptr && !descriptor->accent.empty()
-                   ? QString::fromStdString(descriptor->accent)
-                   : fallbackAccent();
-    }
-    case NodeEnabledRole: {
-        const auto* enabled = m_document.property(node->id, "enabled");
-        return enabled != nullptr && std::holds_alternative<bool>(*enabled)
-                   ? QVariant(std::get<bool>(*enabled))
-                   : QVariant(true);
-    }
-    case NodeLabelRole: {
-        const auto* label = m_document.property(node->id, "label");
-        if (label != nullptr && std::holds_alternative<std::string>(*label)) {
-            return QString::fromStdString(std::get<std::string>(*label));
-        }
-        return QString::fromStdString(node->name);
-    }
-    case NodeWidthRole:
-        return nodeNumberProperty(
-            *node, "width",
-            m_registry.find(node->type) != nullptr
-                ? m_registry.find(node->type)->defaultWidth
-                : kDemoNodeWidth);
-    case NodeHeightRole:
-        return nodeNumberProperty(
-            *node, "height",
-            m_registry.find(node->type) != nullptr
-                ? m_registry.find(node->type)->defaultHeight
-                : kDemoNodeHeight);
-    case NodeColorRole:
-        return nodeStringProperty(*node, "color", QStringLiteral("#2a333d"));
-    case NodeIsBackdropRole: {
-        const auto* descriptor = m_registry.find(node->type);
-        return descriptor != nullptr &&
-               descriptor->visualRole == QNodeGraph::Graph::NodeVisualRole::Backdrop;
-    }
-    case NodeIsGroupRole: {
-        const auto* descriptor = m_registry.find(node->type);
-        return descriptor != nullptr &&
-               descriptor->visualRole == QNodeGraph::Graph::NodeVisualRole::Group;
-    }
-    case NodeGroupIdRole: {
-        const auto iterator = node->properties.find("groupId");
-        if (iterator != node->properties.end() &&
-            std::holds_alternative<std::int64_t>(iterator->second)) {
-            const auto groupId = static_cast<Core::NodeId>(
-                std::get<std::int64_t>(iterator->second));
-            return rowFor(groupId);
-        }
-        return -1;
-    }
-    case NodeSelectedRole:
-        return std::find(m_selectedRows.cbegin(), m_selectedRows.cend(),
-                          index.row()) != m_selectedRows.cend();
-    case NodeInputPortsRole:
-        return nodePorts(*node, m_document, Core::PortDirection::Input);
-    case NodeOutputPortsRole:
-        return nodePorts(*node, m_document, Core::PortDirection::Output);
-    case NodeFixedRole: {
-        const auto iterator = node->properties.find("fixed");
-        return iterator != node->properties.end() &&
-               std::holds_alternative<bool>(iterator->second)
-                   ? QVariant(std::get<bool>(iterator->second))
-                   : QVariant(false);
-    }
-    case NodeContentUrlRole: {
-        if (const auto* descriptor = m_registry.find(node->type);
-            descriptor != nullptr && !descriptor->qmlContentUrl.empty()) {
-            return QString::fromStdString(descriptor->qmlContentUrl);
-        }
-        return QString{};
-    }
-    case NodeOnNodePropertiesRole: {
-        QVariantList values;
-        const auto* descriptor = m_registry.find(node->type);
-        for (const auto& [name, value] : node->properties) {
-            if (name.size() >= 8 &&
-                name.compare(name.size() - 8, 8, ".display") == 0) {
-                continue;
-            }
-            const auto display = nodeStringProperty(
-                *node, (name + ".display").c_str(), QStringLiteral("panel"));
-            if (display != QStringLiteral("node") &&
-                display != QStringLiteral("both")) {
-                continue;
-            }
-            // 带上 valueType 与控件元数据，QML 才能按描述符选择控件（滑块 /
-            // 勾选框 / 输入框），而不是把非 bool 一律当文本处理。
-            QVariantMap entry{
-                {QStringLiteral("name"), QString::fromStdString(name)},
-                {QStringLiteral("value"), propertyVariant(value)},
-                {QStringLiteral("valueType"), propertyType(value)}};
-            appendPropertyEditorMetadata(entry, descriptor, name);
-            values.push_back(std::move(entry));
-        }
-        return values;
-    }
-    case NodeOutputUsedRole:
-        return m_outputUsed.contains(node->id);
-    case NodeEffectiveRole:
-        // 输出无人使用 → 该节点对最终结果无贡献，UI 降级显示。
-        return m_outputUsed.contains(node->id);
-    case NodePreviewSourceRole:
-    case NodePreviewWidthRole:
-    case NodePreviewHeightRole:
-    case NodePreviewChannelsRole: {
-        const auto preview = m_nodePreviews.find(node->id);
-        if (preview == m_nodePreviews.end()) {
-            return role == NodePreviewSourceRole ? QVariant(QString{})
-                                                 : QVariant(0);
-        }
-        if (role == NodePreviewSourceRole) {
-            return preview->second.source;
-        }
-        if (role == NodePreviewWidthRole) {
-            return preview->second.width;
-        }
-        if (role == NodePreviewHeightRole) {
-            return preview->second.height;
-        }
-        return preview->second.channels;
-    }
-    default:
-        return {};
-    }
+    return preview->second.channels;
+  }
+  default:
+    return {};
+  }
 }
 
 QHash<int, QByteArray> GraphController::roleNames() const {
-    return {
-        {NodeIdRole, "nodeId"},
-        {NodeNameRole, "nodeName"},
-        {NodeTypeRole, "nodeType"},
-        {NodeXRole, "nodeX"},
-        {NodeYRole, "nodeY"},
-        {InputPortCountRole, "inputPortCount"},
-        {OutputPortCountRole, "outputPortCount"},
-        {NodeIconRole, "nodeIcon"},
-        {NodeIconSourceRole, "nodeIconSource"},
-        {NodeAccentRole, "nodeAccent"},
-        {NodeEnabledRole, "nodeEnabled"},
-        {NodeLabelRole, "nodeLabel"},
-        {NodeWidthRole, "nodeWidth"},
-        {NodeHeightRole, "nodeHeight"},
-        {NodeColorRole, "nodeColor"},
-        {NodeIsBackdropRole, "nodeIsBackdrop"},
-        {NodeIsGroupRole, "nodeIsGroup"},
-        {NodeGroupIdRole, "nodeGroupId"},
-        {NodeSelectedRole, "nodeSelected"},
-        {NodePreviewSourceRole, "nodePreviewSource"},
-        {NodePreviewWidthRole, "nodePreviewWidth"},
-        {NodePreviewHeightRole, "nodePreviewHeight"},
-        {NodePreviewChannelsRole, "nodePreviewChannels"},
-        {NodeInputPortsRole, "nodeInputPorts"},
-        {NodeOutputPortsRole, "nodeOutputPorts"},
-        {NodeFixedRole, "nodeFixed"},
-        {NodeContentUrlRole, "nodeContentUrl"},
-        {NodeOnNodePropertiesRole, "nodeOnNodeProperties"},
-        {NodeOutputUsedRole, "nodeOutputUsed"},
-        {NodeEffectiveRole, "nodeEffective"},
-    };
+  return {
+      {NodeIdRole, "nodeId"},
+      {NodeNameRole, "nodeName"},
+      {NodeTypeRole, "nodeType"},
+      {NodeXRole, "nodeX"},
+      {NodeYRole, "nodeY"},
+      {InputPortCountRole, "inputPortCount"},
+      {OutputPortCountRole, "outputPortCount"},
+      {NodeIconRole, "nodeIcon"},
+      {NodeIconSourceRole, "nodeIconSource"},
+      {NodeAccentRole, "nodeAccent"},
+      {NodeEnabledRole, "nodeEnabled"},
+      {NodeLabelRole, "nodeLabel"},
+      {NodeWidthRole, "nodeWidth"},
+      {NodeHeightRole, "nodeHeight"},
+      {NodeColorRole, "nodeColor"},
+      {NodeIsBackdropRole, "nodeIsBackdrop"},
+      {NodeIsGroupRole, "nodeIsGroup"},
+      {NodeGroupIdRole, "nodeGroupId"},
+      {NodeSelectedRole, "nodeSelected"},
+      {NodePreviewSourceRole, "nodePreviewSource"},
+      {NodePreviewWidthRole, "nodePreviewWidth"},
+      {NodePreviewHeightRole, "nodePreviewHeight"},
+      {NodePreviewChannelsRole, "nodePreviewChannels"},
+      {NodeInputPortsRole, "nodeInputPorts"},
+      {NodeOutputPortsRole, "nodeOutputPorts"},
+      {NodeFixedRole, "nodeFixed"},
+      {NodeContentUrlRole, "nodeContentUrl"},
+      {NodeOnNodePropertiesRole, "nodeOnNodeProperties"},
+      {NodeOutputUsedRole, "nodeOutputUsed"},
+      {NodeEffectiveRole, "nodeEffective"},
+  };
 }
 
-void GraphController::addDemoNode(bool connectToPrevious) {
-    const auto row = static_cast<int>(m_nodeOrder.size());
-    const auto node = m_document.addNode(
-        "demo", "Demo Node " + std::to_string(row + 1));
-    if (!node) {
-        return;
+int GraphController::sliceConnections(double startX, double startY, double endX,
+                                      double endY) {
+  const Core::Point sliceStart{startX, startY};
+  const Core::Point sliceEnd{endX, endY};
+  std::vector<std::pair<Core::PortId, Core::PortId>> matches;
+  for (const auto &connection : m_document.connections()) {
+    const auto *outputPort = m_document.port(connection.outputPort);
+    const auto *inputPort = m_document.port(connection.inputPort);
+    if (outputPort == nullptr || inputPort == nullptr) {
+      continue;
     }
-    const auto input = m_document.addPort(
-        *node, "in", Core::PortDirection::Input, Core::PortDataType::Any);
-    const auto output = m_document.addPort(
-        *node, "out", Core::PortDirection::Output, Core::PortDataType::Any);
-    if (!input || !output ||
-        !m_document.setNodePosition(*node, {80.0 + (row % 3) * 250.0,
-                                             90.0 + (row / 3) * 180.0})) {
-        m_document.removeNode(*node);
-        return;
+    const auto *outputNode = m_document.node(outputPort->nodeId);
+    const auto *inputNode = m_document.node(inputPort->nodeId);
+    if (outputNode == nullptr || inputNode == nullptr) {
+      continue;
     }
-    m_document.setProperty(*node, "enabled", true);
-    m_document.setProperty(*node, "label",
-                           "Demo Node " + std::to_string(row + 1));
-    beginInsertRows(QModelIndex(), row, row);
-    m_nodeOrder.push_back(*node);
-    endInsertRows();
-    if (connectToPrevious && row > 0) {
-        const auto previousNode = m_nodeOrder[static_cast<std::size_t>(row - 1)];
-        const auto previousOutput = portFor(previousNode, Core::PortDirection::Output);
-        if (previousOutput != 0) {
-            m_document.connect(previousOutput, *input);
-        }
+    const Core::Point curveStart = outputPortPoint(*outputNode);
+    const Core::Point curveEnd = inputPortPoint(*inputNode);
+    const auto distance =
+        std::max(40.0, std::abs(curveEnd.x - curveStart.x) * 0.5);
+    const Core::Point controlStart{curveStart.x + distance, curveStart.y};
+    const Core::Point controlEnd{curveEnd.x - distance, curveEnd.y};
+    if (cubicIntersects(curveStart, controlStart, controlEnd, curveEnd,
+                        sliceStart, sliceEnd)) {
+      matches.emplace_back(connection.outputPort, connection.inputPort);
     }
-    emit nodeCountChanged();
-    notifyTopologyChanged();
-}
+  }
 
-bool GraphController::addNodeType(QString typeId, bool connectToPrevious) {
-    const auto* descriptor = m_registry.find(typeId.toStdString());
-    if (descriptor == nullptr) {
-        return false;
-    }
-    // 唯一节点（如《图像输入》《图像输出》）在同一文档中只允许存在一个。
-    if (descriptor->unique &&
-        Graph::NodeRegistry::countNodesOfType(m_document, descriptor->typeId) >
-            0) {
-        setError(QString::fromStdString(descriptor->displayName) +
-                 QStringLiteral(" already exists; only one instance is allowed."));
-        return false;
-    }
-    const auto row = static_cast<int>(m_nodeOrder.size());
-    const auto name = descriptor->displayName + " " + std::to_string(row + 1);
-    const auto node = m_registry.createNode(
-        m_document, descriptor->typeId, name,
-        {80.0 + (row % 3) * 250.0, 90.0 + (row / 3) * 180.0});
-    if (!node) {
-        return false;
-    }
-    m_document.setProperty(*node, "enabled", true);
-    m_document.setProperty(*node, "label", name);
-    // 尺寸与背景色改由描述符声明，取代此前按 backdrop/group 的 typeId 特判。
-    m_document.setProperty(*node, "width",
-                           std::int64_t{static_cast<std::int64_t>(
-                               descriptor->defaultWidth)});
-    m_document.setProperty(*node, "height",
-                           std::int64_t{static_cast<std::int64_t>(
-                               descriptor->defaultHeight)});
-    if (const auto* existing = m_document.property(*node, "color");
-        existing == nullptr &&
-        descriptor->visualRole != Graph::NodeVisualRole::Standard) {
-        static_cast<void>(m_document.setProperty(
-            *node, "color",
-            std::string{descriptor->visualRole == Graph::NodeVisualRole::Backdrop
-                            ? "#304554"
-                            : "#384b5b"}));
-    }
-    const auto input = portFor(*node, Core::PortDirection::Input);
-    if (connectToPrevious && row > 0 && input != 0) {
-        const auto previousNode = m_nodeOrder[static_cast<std::size_t>(row - 1)];
-        const auto previousOutput = portFor(previousNode, Core::PortDirection::Output);
-        if (previousOutput != 0) {
-            static_cast<void>(m_document.connect(previousOutput, input));
-        }
-    }
-    beginInsertRows(QModelIndex(), row, row);
-    m_nodeOrder.push_back(*node);
-    endInsertRows();
-    emit nodeCountChanged();
-    notifyTopologyChanged();
-    return true;
-}
-
-bool GraphController::addNodeTypeAt(QString typeId, double x, double y,
-                                    bool connectToPrevious) {
-    if (!addNodeType(std::move(typeId), connectToPrevious)) {
-        return false;
-    }
-    const auto row = nodeCount() - 1;
-    return moveNode(row, x - kDemoNodeWidth / 2.0,
-                    y - kDemoNodeHeight / 2.0);
-}
-
-bool GraphController::deleteNode(int row) {
-    if (row < 0 || row >= nodeCount()) {
-        return false;
-    }
-    const auto nodeId = m_nodeOrder[static_cast<std::size_t>(row)];
-    if (isFixedNode(nodeId)) {
-        setError(QStringLiteral("This node is fixed and cannot be deleted."));
-        return false;
-    }
+  int removed = 0;
+  for (const auto [outputPort, inputPort] : matches) {
     const auto result = m_commandStack.execute(
-        std::make_unique<Core::DeleteNodeCommand>(nodeId), m_document);
-    if (!result) {
-        return false;
-    }
-
-    cancelConnection();
-    const auto oldCount = nodeCount();
-    beginResetModel();
-    m_nodeOrder = m_document.nodeIds();
-    endResetModel();
-    setSelection({});
-    if (nodeCount() != oldCount) {
-        emit nodeCountChanged();
-    }
-    notifyTopologyChanged();
-    emit historyChanged();
-    return true;
-}
-
-bool GraphController::saveGraph(QString filePath) {
-    filePath = filePath.trimmed();
-    if (filePath.isEmpty()) {
-        setError(QStringLiteral("A graph file path is required."));
-        return false;
-    }
-    const auto result = Graph::GraphJson::save(m_document, filePath);
-    if (!result) {
-        setError(QString::fromStdString(result.error().message));
-        return false;
-    }
-    setError({});
-    return true;
-}
-
-bool GraphController::loadGraph(QString filePath) {
-    filePath = filePath.trimmed();
-    if (filePath.isEmpty()) {
-        setError(QStringLiteral("A graph file path is required."));
-        return false;
-    }
-    const auto result = Graph::GraphJson::load(filePath);
-    if (!result) {
-        setError(QString::fromStdString(result.error().message));
-        return false;
-    }
-    const auto assets = Graph::GraphJson::validateExternalAssets(
-        *result, QFileInfo(filePath).absolutePath());
-    if (!assets) {
-        setError(QString::fromStdString(assets.error().message));
-        return false;
-    }
-
-    const auto oldCount = nodeCount();
-    cancelConnection();
-    beginResetModel();
-    m_document = std::move(*result);
-    m_nodeOrder = m_document.nodeIds();
-    m_nodePreviews.clear();
-    m_commandStack.clear();
-    endResetModel();
-    setSelection({});
-    if (nodeCount() != oldCount) {
-        emit nodeCountChanged();
-    }
-    notifyTopologyChanged();
-    emit historyChanged();
-    setError({});
-    return true;
-}
-
-QVariantMap GraphController::graphBounds() const {
-    if (m_nodeOrder.empty()) {
-        return {};
-    }
-    auto first = m_document.node(m_nodeOrder.front());
-    if (first == nullptr) {
-        return {};
-    }
-    auto left = first->position.x;
-    auto top = first->position.y;
-    auto right = left + nodeNumberProperty(*first, "width", kDemoNodeWidth);
-    auto bottom = top + nodeNumberProperty(*first, "height", kDemoNodeHeight);
-    for (std::size_t row = 1; row < m_nodeOrder.size(); ++row) {
-        const auto* node = m_document.node(m_nodeOrder[row]);
-        if (node == nullptr) {
-            continue;
-        }
-        left = std::min(left, node->position.x);
-        top = std::min(top, node->position.y);
-        right = std::max(right, node->position.x +
-                                   nodeNumberProperty(*node, "width",
-                                                      kDemoNodeWidth));
-        bottom = std::max(bottom, node->position.y +
-                                    nodeNumberProperty(*node, "height",
-                                                       kDemoNodeHeight));
-    }
-    return {{QStringLiteral("x"), left},
-            {QStringLiteral("y"), top},
-            {QStringLiteral("width"), std::max(1.0, right - left)},
-            {QStringLiteral("height"), std::max(1.0, bottom - top)}};
-}
-
-bool GraphController::setNodePreview(int row, QString source, int width,
-                                     int height, int channels) {
-    if (row < 0 || row >= nodeCount() || width < 0 || height < 0 ||
-        channels < 0) {
-        return false;
-    }
-    const auto nodeId = m_nodeOrder[static_cast<std::size_t>(row)];
-    m_nodePreviews.insert_or_assign(
-        nodeId, NodePreview{std::move(source), width, height, channels});
-    const auto modelIndex = index(row, 0);
-    emit dataChanged(modelIndex, modelIndex,
-                     {NodePreviewSourceRole, NodePreviewWidthRole,
-                      NodePreviewHeightRole, NodePreviewChannelsRole});
-    return true;
-}
-
-bool GraphController::clearNodePreview(int row) {
-    if (row < 0 || row >= nodeCount()) {
-        return false;
-    }
-    const auto nodeId = m_nodeOrder[static_cast<std::size_t>(row)];
-    if (m_nodePreviews.erase(nodeId) == 0) {
-        return false;
-    }
-    const auto modelIndex = index(row, 0);
-    emit dataChanged(modelIndex, modelIndex,
-                     {NodePreviewSourceRole, NodePreviewWidthRole,
-                      NodePreviewHeightRole, NodePreviewChannelsRole});
-    return true;
-}
-
-void GraphController::clearGraph() {
-    setSelection({});
-    if (m_nodeOrder.empty()) {
-        return;
-    }
-    cancelConnection();
-    beginResetModel();
-    m_nodeOrder.clear();
-    m_document.clear();
-    m_nodePreviews.clear();
-    m_commandStack.clear();
-    endResetModel();
-    emit nodeCountChanged();
-    notifyTopologyChanged();
-    emit historyChanged();
-}
-
-bool GraphController::moveNode(int row, double x, double y) {
-    if (row < 0 || row >= static_cast<int>(m_nodeOrder.size())) {
-        return false;
-    }
-    const auto nodeId = m_nodeOrder[static_cast<std::size_t>(row)];
-    const auto result = m_commandStack.execute(
-        std::make_unique<Core::MoveNodeCommand>(nodeId, Core::Point{x, y}),
+        std::make_unique<Core::DisconnectPortsCommand>(outputPort, inputPort),
         m_document);
-    if (!result) {
-        return false;
+    if (result) {
+      ++removed;
     }
-    const auto modelIndex = index(row, 0);
-    emit dataChanged(modelIndex, modelIndex, {NodeXRole, NodeYRole});
-    notifyTopologyChanged();
-    if (connectionPending()) {
-        emit connectionPreviewChanged();
-    }
-    emit historyChanged();
-    return true;
-}
-
-bool GraphController::moveSelectedNodes(int anchorRow, double x, double y) {
-    if (anchorRow < 0 || anchorRow >= nodeCount() ||
-        std::find(m_selectedRows.cbegin(), m_selectedRows.cend(), anchorRow) ==
-            m_selectedRows.cend()) {
-        return moveNode(anchorRow, x, y);
-    }
-    const auto* anchor = m_document.node(
-        m_nodeOrder[static_cast<std::size_t>(anchorRow)]);
-    if (anchor == nullptr) {
-        return false;
-    }
-    const auto dx = x - anchor->position.x;
-    const auto dy = y - anchor->position.y;
-    std::vector<std::pair<Core::NodeId, Core::Point>> targets;
-    targets.reserve(m_selectedRows.size());
-    for (const auto row : m_selectedRows) {
-        const auto* node = m_document.node(
-            m_nodeOrder[static_cast<std::size_t>(row)]);
-        if (node == nullptr) {
-            return false;
-        }
-        targets.emplace_back(node->id,
-                             Core::Point{node->position.x + dx,
-                                         node->position.y + dy});
-    }
-    const auto result = m_commandStack.execute(
-        std::make_unique<Core::MoveNodesCommand>(std::move(targets)),
-        m_document);
-    if (!result) {
-        return false;
-    }
-    for (const auto row : m_selectedRows) {
-        const auto modelIndex = index(row, 0);
-        emit dataChanged(modelIndex, modelIndex, {NodeXRole, NodeYRole});
-    }
+  }
+  if (removed > 0) {
     notifyTopologyChanged();
     emit historyChanged();
-    return true;
-}
-
-bool GraphController::autoLayout() {
-    const auto count = nodeCount();
-    if (count == 0) {
-        return false;
-    }
-
-    std::vector<std::vector<int>> successors(static_cast<std::size_t>(count));
-    std::vector<int> indegree(static_cast<std::size_t>(count), 0);
-    for (const auto& connection : m_document.connections()) {
-        const auto* output = m_document.port(connection.outputPort);
-        const auto* input = m_document.port(connection.inputPort);
-        if (output == nullptr || input == nullptr) {
-            continue;
-        }
-        const auto outputRow = rowFor(output->nodeId);
-        const auto inputRow = rowFor(input->nodeId);
-        if (outputRow < 0 || inputRow < 0 || outputRow == inputRow) {
-            continue;
-        }
-        successors[static_cast<std::size_t>(outputRow)].push_back(inputRow);
-        ++indegree[static_cast<std::size_t>(inputRow)];
-    }
-
-    std::vector<int> columns(static_cast<std::size_t>(count), 0);
-    std::queue<int> ready;
-    for (int row = 0; row < count; ++row) {
-        if (indegree[static_cast<std::size_t>(row)] == 0) {
-            ready.push(row);
-        }
-    }
-    int visited = 0;
-    while (!ready.empty()) {
-        const auto row = ready.front();
-        ready.pop();
-        ++visited;
-        for (const auto successor : successors[static_cast<std::size_t>(row)]) {
-            auto& successorColumn = columns[static_cast<std::size_t>(successor)];
-            successorColumn =
-                std::max(successorColumn, columns[static_cast<std::size_t>(row)] + 1);
-            if (--indegree[static_cast<std::size_t>(successor)] == 0) {
-                ready.push(successor);
-            }
-        }
-    }
-    if (visited != count) {
-        // Keep cyclic/disconnected leftovers visible in the first column.
-        for (int row = 0; row < count; ++row) {
-            if (indegree[static_cast<std::size_t>(row)] > 0) {
-                columns[static_cast<std::size_t>(row)] = 0;
-            }
-        }
-    }
-
-    const auto maxColumn = *std::max_element(columns.begin(), columns.end());
-    std::vector<int> rowsPerColumn(static_cast<std::size_t>(maxColumn + 1), 0);
-    bool changed = false;
-    for (int row = 0; row < count; ++row) {
-        const auto column = columns[static_cast<std::size_t>(row)];
-        const auto line = rowsPerColumn[static_cast<std::size_t>(column)]++;
-        const Core::Point position{80.0 + column * 260.0,
-                                   90.0 + line * 180.0};
-        const auto* node = m_document.node(
-            m_nodeOrder[static_cast<std::size_t>(row)]);
-        if (node == nullptr ||
-            (node->position.x == position.x && node->position.y == position.y)) {
-            continue;
-        }
-        const auto result = m_commandStack.execute(
-            std::make_unique<Core::MoveNodeCommand>(node->id, position),
-            m_document);
-        if (!result) {
-            return false;
-        }
-        changed = true;
-    }
-    if (!changed) {
-        return false;
-    }
-    emit dataChanged(index(0, 0), index(count - 1, 0),
-                     {NodeXRole, NodeYRole});
-    notifyTopologyChanged();
-    if (connectionPending()) {
-        emit connectionPreviewChanged();
-    }
-    emit historyChanged();
-    return true;
-}
-
-int GraphController::sliceConnections(double startX, double startY,
-                                      double endX, double endY) {
-    const Core::Point sliceStart{startX, startY};
-    const Core::Point sliceEnd{endX, endY};
-    std::vector<std::pair<Core::PortId, Core::PortId>> matches;
-    for (const auto& connection : m_document.connections()) {
-        const auto* outputPort = m_document.port(connection.outputPort);
-        const auto* inputPort = m_document.port(connection.inputPort);
-        if (outputPort == nullptr || inputPort == nullptr) {
-            continue;
-        }
-        const auto* outputNode = m_document.node(outputPort->nodeId);
-        const auto* inputNode = m_document.node(inputPort->nodeId);
-        if (outputNode == nullptr || inputNode == nullptr) {
-            continue;
-        }
-        const Core::Point curveStart = outputPortPoint(*outputNode);
-        const Core::Point curveEnd = inputPortPoint(*inputNode);
-        const auto distance =
-            std::max(40.0, std::abs(curveEnd.x - curveStart.x) * 0.5);
-        const Core::Point controlStart{curveStart.x + distance, curveStart.y};
-        const Core::Point controlEnd{curveEnd.x - distance, curveEnd.y};
-        if (cubicIntersects(curveStart, controlStart, controlEnd, curveEnd,
-                            sliceStart, sliceEnd)) {
-            matches.emplace_back(connection.outputPort, connection.inputPort);
-        }
-    }
-
-    int removed = 0;
-    for (const auto [outputPort, inputPort] : matches) {
-        const auto result = m_commandStack.execute(
-            std::make_unique<Core::DisconnectPortsCommand>(outputPort,
-                                                            inputPort),
-            m_document);
-        if (result) {
-            ++removed;
-        }
-    }
-    if (removed > 0) {
-        notifyTopologyChanged();
-        emit historyChanged();
-    }
-    return removed;
+  }
+  return removed;
 }
 
 QVariantMap GraphController::portAt(double worldX, double worldY) const {
-    const auto hitRadiusSquared = kPortHitRadius * kPortHitRadius;
-    for (std::size_t row = 0; row < m_nodeOrder.size(); ++row) {
-        const auto* node = m_document.node(m_nodeOrder[row]);
-        if (node == nullptr) {
-            continue;
-        }
-        const auto centerY = inputPortPoint(*node).y;
-        const auto matches = [worldX, worldY, centerY,
-                              hitRadiusSquared](double x) {
-            const auto dx = worldX - x;
-            const auto dy = worldY - centerY;
-            return dx * dx + dy * dy <= hitRadiusSquared;
-        };
-        if (portFor(node->id, Core::PortDirection::Input) != 0 &&
-            matches(node->position.x)) {
-            return {{QStringLiteral("row"), static_cast<int>(row)},
-                    {QStringLiteral("direction"), QStringLiteral("input")},
-                    {QStringLiteral("x"), node->position.x},
-                    {QStringLiteral("y"), centerY}};
-        }
-        if (portFor(node->id, Core::PortDirection::Output) != 0 &&
-            matches(outputPortPoint(*node).x)) {
-            return {{QStringLiteral("row"), static_cast<int>(row)},
-                    {QStringLiteral("direction"), QStringLiteral("output")},
-                    {QStringLiteral("x"), outputPortPoint(*node).x},
-                    {QStringLiteral("y"), centerY}};
-        }
+  const auto hitRadiusSquared = kPortHitRadius * kPortHitRadius;
+  for (std::size_t row = 0; row < m_nodeOrder.size(); ++row) {
+    const auto *node = m_document.node(m_nodeOrder[row]);
+    if (node == nullptr) {
+      continue;
     }
-    return {};
+    const auto centerY = inputPortPoint(*node).y;
+    const auto matches = [worldX, worldY, centerY, hitRadiusSquared](double x) {
+      const auto dx = worldX - x;
+      const auto dy = worldY - centerY;
+      return dx * dx + dy * dy <= hitRadiusSquared;
+    };
+    if (portFor(node->id, Core::PortDirection::Input) != 0 &&
+        matches(node->position.x)) {
+      return {{QStringLiteral("row"), static_cast<int>(row)},
+              {QStringLiteral("direction"), QStringLiteral("input")},
+              {QStringLiteral("x"), node->position.x},
+              {QStringLiteral("y"), centerY}};
+    }
+    if (portFor(node->id, Core::PortDirection::Output) != 0 &&
+        matches(outputPortPoint(*node).x)) {
+      return {{QStringLiteral("row"), static_cast<int>(row)},
+              {QStringLiteral("direction"), QStringLiteral("output")},
+              {QStringLiteral("x"), outputPortPoint(*node).x},
+              {QStringLiteral("y"), centerY}};
+    }
+  }
+  return {};
+}
+
+QVariantMap GraphController::connectionAt(double worldX, double worldY) const {
+  constexpr int kSamples = 32;
+  constexpr double kHitDistance = 10.0;
+  const Core::Point point{worldX, worldY};
+  double closest = std::numeric_limits<double>::max();
+  QVariantMap result;
+  for (const auto &connection : m_document.connections()) {
+    const auto *outputPort = m_document.port(connection.outputPort);
+    const auto *inputPort = m_document.port(connection.inputPort);
+    if (outputPort == nullptr || inputPort == nullptr) {
+      continue;
+    }
+    const auto *outputNode = m_document.node(outputPort->nodeId);
+    const auto *inputNode = m_document.node(inputPort->nodeId);
+    const auto outputRow = rowFor(outputPort->nodeId);
+    const auto inputRow = rowFor(inputPort->nodeId);
+    if (outputNode == nullptr || inputNode == nullptr || outputRow < 0 ||
+        inputRow < 0) {
+      continue;
+    }
+    const auto start = outputPortPoint(*outputNode);
+    const auto end = inputPortPoint(*inputNode);
+    const auto distance =
+        std::max(40.0, std::abs(end.x - start.x) * 0.5);
+    const Core::Point controlStart{start.x + distance, start.y};
+    const Core::Point controlEnd{end.x - distance, end.y};
+    Core::Point previous = start;
+    for (int sample = 1; sample <= kSamples; ++sample) {
+      const double t = static_cast<double>(sample) / kSamples;
+      const double inverse = 1.0 - t;
+      const Core::Point current{
+          inverse * inverse * inverse * start.x +
+              3.0 * inverse * inverse * t * controlStart.x +
+              3.0 * inverse * t * t * controlEnd.x + t * t * t * end.x,
+          inverse * inverse * inverse * start.y +
+              3.0 * inverse * inverse * t * controlStart.y +
+              3.0 * inverse * t * t * controlEnd.y + t * t * t * end.y};
+      const auto segmentX = current.x - previous.x;
+      const auto segmentY = current.y - previous.y;
+      const auto lengthSquared = segmentX * segmentX + segmentY * segmentY;
+      const auto projection = lengthSquared > 0.0
+                                  ? std::clamp(((point.x - previous.x) *
+                                                segmentX +
+                                            (point.y - previous.y) * segmentY) /
+                                                   lengthSquared,
+                                               0.0, 1.0)
+                                  : 0.0;
+      const auto nearestX = previous.x + projection * segmentX;
+      const auto nearestY = previous.y + projection * segmentY;
+      const auto dx = point.x - nearestX;
+      const auto dy = point.y - nearestY;
+      const auto currentDistance = std::sqrt(dx * dx + dy * dy);
+      if (currentDistance < closest) {
+        closest = currentDistance;
+        result = {{QStringLiteral("outputRow"), outputRow},
+                  {QStringLiteral("inputRow"), inputRow}};
+      }
+      previous = current;
+    }
+  }
+  return closest <= kHitDistance ? result : QVariantMap{};
+}
+
+bool GraphController::selectConnectionAt(double worldX, double worldY) {
+  const auto hit = connectionAt(worldX, worldY);
+  const auto outputRow = hit.value(QStringLiteral("outputRow"), -1).toInt();
+  const auto inputRow = hit.value(QStringLiteral("inputRow"), -1).toInt();
+  if (outputRow < 0 || inputRow < 0) {
+    if (m_selectedConnectionOutputRow >= 0 || m_selectedConnectionInputRow >= 0) {
+      m_selectedConnectionOutputRow = -1;
+      m_selectedConnectionInputRow = -1;
+      emit connectionsChanged();
+      emit selectionChanged();
+    }
+    return false;
+  }
+  if (m_selectedConnectionOutputRow == outputRow &&
+      m_selectedConnectionInputRow == inputRow) {
+    return true;
+  }
+  m_selectedConnectionOutputRow = outputRow;
+  m_selectedConnectionInputRow = inputRow;
+  emit connectionsChanged();
+  emit selectionChanged();
+  return true;
+}
+
+bool GraphController::removeSelectedConnection() {
+  if (m_selectedConnectionOutputRow < 0 || m_selectedConnectionInputRow < 0) {
+    return false;
+  }
+  const auto removed = removeConnectionBetween(m_selectedConnectionOutputRow,
+                                                m_selectedConnectionInputRow);
+  if (removed) {
+    m_selectedConnectionOutputRow = -1;
+    m_selectedConnectionInputRow = -1;
+    emit selectionChanged();
+  }
+  return removed;
 }
 
 bool GraphController::beginConnection(int outputRow) {
-    if (outputRow < 0 || outputRow >= nodeCount()) {
-        return false;
-    }
-    const auto nodeId = m_nodeOrder[static_cast<std::size_t>(outputRow)];
-    if (portFor(nodeId, Core::PortDirection::Output) == 0) {
-        return false;
-    }
-    const auto* node = m_document.node(nodeId);
-    if (node == nullptr) {
-        return false;
-    }
-    m_previewPoint = outputPortPoint(*node);
-    m_pendingOutputRow = outputRow;
-    emit connectionPendingChanged();
-    emit connectionPreviewChanged();
-    return true;
+  if (outputRow < 0 || outputRow >= nodeCount()) {
+    return false;
+  }
+  const auto nodeId = m_nodeOrder[static_cast<std::size_t>(outputRow)];
+  if (portFor(nodeId, Core::PortDirection::Output) == 0) {
+    return false;
+  }
+  const auto *node = m_document.node(nodeId);
+  if (node == nullptr) {
+    return false;
+  }
+  m_previewPoint = outputPortPoint(*node);
+  m_pendingOutputRow = outputRow;
+  emit connectionPendingChanged();
+  emit connectionPreviewChanged();
+  return true;
 }
 
 void GraphController::updateConnectionPreview(double worldX, double worldY) {
-    if (!connectionPending()) {
-        return;
-    }
-    m_previewPoint = {worldX, worldY};
-    emit connectionPreviewChanged();
+  if (!connectionPending()) {
+    return;
+  }
+  m_previewPoint = {worldX, worldY};
+  emit connectionPreviewChanged();
 }
 
 bool GraphController::completeConnectionAt(double worldX, double worldY) {
-    if (!connectionPending()) {
-        return false;
-    }
-    const auto target = portAt(worldX, worldY);
-    if (target.isEmpty() ||
-        target.value(QStringLiteral("direction")).toString() !=
-            QStringLiteral("input")) {
-        return false;
-    }
-    const auto inputRow = target.value(QStringLiteral("row")).toInt();
-    if (!connectRows(m_pendingOutputRow, inputRow)) {
-        return false;
-    }
-    cancelConnection();
-    return true;
+  if (!connectionPending()) {
+    return false;
+  }
+  const auto target = portAt(worldX, worldY);
+  if (target.isEmpty() ||
+      target.value(QStringLiteral("direction")).toString() !=
+          QStringLiteral("input")) {
+    return false;
+  }
+  const auto inputRow = target.value(QStringLiteral("row")).toInt();
+  if (!connectRows(m_pendingOutputRow, inputRow)) {
+    return false;
+  }
+  cancelConnection();
+  return true;
 }
 
 bool GraphController::removeConnectionBetween(int outputRow, int inputRow) {
-    if (outputRow < 0 || inputRow < 0 || outputRow >= nodeCount() ||
-        inputRow >= nodeCount()) {
-        return false;
-    }
-    const auto outputPort = portFor(
-        m_nodeOrder[static_cast<std::size_t>(outputRow)],
-        Core::PortDirection::Output);
-    const auto inputPort = portFor(
-        m_nodeOrder[static_cast<std::size_t>(inputRow)],
-        Core::PortDirection::Input);
-    if (outputPort == 0 || inputPort == 0) {
-        return false;
-    }
-    if (const auto result = m_commandStack.execute(
-            std::make_unique<Core::DisconnectPortsCommand>(outputPort,
-                                                           inputPort),
-            m_document);
-        !result) {
-        return false;
-    }
-    notifyTopologyChanged();
-    emit historyChanged();
-    return true;
+  if (outputRow < 0 || inputRow < 0 || outputRow >= nodeCount() ||
+      inputRow >= nodeCount()) {
+    return false;
+  }
+  const auto outputPort =
+      portFor(m_nodeOrder[static_cast<std::size_t>(outputRow)],
+              Core::PortDirection::Output);
+  const auto inputPort =
+      portFor(m_nodeOrder[static_cast<std::size_t>(inputRow)],
+              Core::PortDirection::Input);
+  if (outputPort == 0 || inputPort == 0) {
+    return false;
+  }
+  if (const auto result = m_commandStack.execute(
+          std::make_unique<Core::DisconnectPortsCommand>(outputPort, inputPort),
+          m_document);
+      !result) {
+    return false;
+  }
+  notifyTopologyChanged();
+  emit historyChanged();
+  return true;
 }
 
 bool GraphController::isNodeEffective(Core::NodeId nodeId) const {
-    return m_outputUsed.contains(nodeId);
+  return m_outputUsed.contains(nodeId);
 }
 
-void GraphController::cancelConnection() {    if (!connectionPending()) {
-        return;
-    }
-    m_pendingOutputRow = -1;
-    emit connectionPendingChanged();
-    emit connectionPreviewChanged();
-}
-
-bool GraphController::selectNode(int row) {
-    if (row < -1 || row >= nodeCount()) {
-        return false;
-    }
-    if (row == -1) {
-        setSelection({});
-    } else {
-        setSelection({row});
-    }
-    return true;
-}
-
-bool GraphController::toggleNodeSelection(int row) {
-    if (row < 0 || row >= nodeCount()) {
-        return false;
-    }
-    auto rows = m_selectedRows;
-    const auto found = std::find(rows.begin(), rows.end(), row);
-    if (found == rows.end()) {
-        rows.push_back(row);
-    } else {
-        rows.erase(found);
-    }
-    setSelection(std::move(rows));
-    return true;
-}
-
-bool GraphController::selectNodesInRect(double startX, double startY,
-                                        double endX, double endY,
-                                        bool additive) {
-    const auto left = std::min(startX, endX);
-    const auto top = std::min(startY, endY);
-    const auto right = std::max(startX, endX);
-    const auto bottom = std::max(startY, endY);
-    std::vector<int> rows = additive ? m_selectedRows : std::vector<int>{};
-    for (int row = 0; row < nodeCount(); ++row) {
-        const auto* node = m_document.node(
-            m_nodeOrder[static_cast<std::size_t>(row)]);
-        if (node == nullptr) {
-            continue;
-        }
-        const auto width = data(index(row, 0), NodeWidthRole).toDouble();
-        const auto height = data(index(row, 0), NodeHeightRole).toDouble();
-        const auto intersects = node->position.x <= right &&
-                                node->position.x + width >= left &&
-                                node->position.y <= bottom &&
-                                node->position.y + height >= top;
-        if (intersects && std::find(rows.cbegin(), rows.cend(), row) ==
-                              rows.cend()) {
-            rows.push_back(row);
-        }
-    }
-    setSelection(std::move(rows));
-    return true;
-}
-
-bool GraphController::setNodeProperty(int row, QString name, QVariant value) {
-    if (row < 0 || row >= nodeCount() || name.isEmpty()) {
-        return false;
-    }
-    const auto nodeId = m_nodeOrder[static_cast<std::size_t>(row)];
-    const auto* current = m_document.property(nodeId, name.toStdString());
-    if (current == nullptr) {
-        return false;
-    }
-
-    Core::PropertyValue converted;
-    if (std::holds_alternative<bool>(*current)) {
-        if (value.metaType() == QMetaType::fromType<bool>()) {
-            converted = value.toBool();
-        } else {
-            const auto text = value.toString().trimmed().toLower();
-            if (text == QStringLiteral("true") || text == QStringLiteral("1")) {
-                converted = true;
-            } else if (text == QStringLiteral("false") ||
-                       text == QStringLiteral("0")) {
-                converted = false;
-            } else {
-                return false;
-            }
-        }
-    } else if (std::holds_alternative<double>(*current)) {
-        bool ok = false;
-        const auto number = value.toDouble(&ok);
-        if (!ok) {
-            return false;
-        }
-        converted = number;
-    } else if (std::holds_alternative<std::int64_t>(*current)) {
-        bool ok = false;
-        const auto number = value.toLongLong(&ok);
-        if (!ok) {
-            return false;
-        }
-        converted = static_cast<std::int64_t>(number);
-    } else {
-        converted = value.toString().toStdString();
-    }
-
-    const auto result = m_commandStack.execute(
-        std::make_unique<Core::SetPropertyCommand>(
-            nodeId, name.toStdString(), std::move(converted)),
-        m_document);
-    if (!result) {
-        return false;
-    }
-    const auto modelIndex = index(row, 0);
-    if (name == QStringLiteral("enabled")) {
-        emit dataChanged(modelIndex, modelIndex, {NodeEnabledRole});
-    } else if (name == QStringLiteral("label")) {
-        emit dataChanged(modelIndex, modelIndex, {NodeLabelRole, NodeNameRole});
-    } else if (name == QStringLiteral("fixed")) {
-        emit dataChanged(modelIndex, modelIndex, {NodeFixedRole});
-    }
-    emit propertiesChanged();
-    emit historyChanged();
-    return true;
-}
-
-bool GraphController::resizeNode(int row, double width, double height) {
-    // 兼容旧签名：保持左上角不动（右下角拖拽语义）。
-    if (row < 0 || row >= nodeCount()) {
-        return false;
-    }
-    const auto* node = m_document.node(m_nodeOrder[static_cast<std::size_t>(row)]);
-    if (node == nullptr) {
-        return false;
-    }
-    return resizeNodeAt(row, node->position.x, node->position.y, width, height);
-}
-
-bool GraphController::resizeNodeAt(int row, double x, double y, double width,
-                                   double height) {
-    if (row < 0 || row >= nodeCount() || width <= 0.0 || height <= 0.0) {
-        return false;
-    }
-    const auto nodeId = m_nodeOrder[static_cast<std::size_t>(row)];
-    // 单条原子命令：宽、高与左上角一起写入同一次撤销快照。之前用两条
-    // SetPropertyCommand 会导致撤销只回退一半尺寸。
-    if (const auto result = m_commandStack.execute(
-            std::make_unique<Core::ResizeNodeCommand>(nodeId, Core::Point{x, y},
-                                                      width, height),
-            m_document);
-        !result) {
-        return false;
-    }
-    const auto modelIndex = index(row, 0);
-    emit dataChanged(modelIndex, modelIndex,
-                     {NodeWidthRole, NodeHeightRole, NodeXRole, NodeYRole});
-    notifyTopologyChanged();
-    emit historyChanged();
-    return true;
-}
-
-bool GraphController::setNodeFixed(int row, bool fixed) {
-    return setNodeProperty(row, QStringLiteral("fixed"), fixed);
-}
-
-bool GraphController::assignNodeToGroup(int nodeRow, int groupRow) {
-    if (nodeRow < 0 || groupRow < 0 || nodeRow >= nodeCount() ||
-        groupRow >= nodeCount() || nodeRow == groupRow) {
-        return false;
-    }
-    const auto group = m_document.node(
-        m_nodeOrder[static_cast<std::size_t>(groupRow)]);
-    const auto node = m_document.node(
-        m_nodeOrder[static_cast<std::size_t>(nodeRow)]);
-    if (group == nullptr || node == nullptr || group->type != "group") {
-        return false;
-    }
-    const auto result = m_commandStack.execute(
-        std::make_unique<Core::SetPropertyCommand>(
-            node->id, "groupId", static_cast<std::int64_t>(group->id)),
-        m_document);
-    if (!result) {
-        return false;
-    }
-    const auto modelIndex = index(nodeRow, 0);
-    emit dataChanged(modelIndex, modelIndex, {NodeGroupIdRole});
-    emit propertiesChanged();
-    emit historyChanged();
-    return true;
-}
-
-bool GraphController::clearNodeGroup(int nodeRow) {
-    if (nodeRow < 0 || nodeRow >= nodeCount()) {
-        return false;
-    }
-    const auto node = m_document.node(
-        m_nodeOrder[static_cast<std::size_t>(nodeRow)]);
-    if (node == nullptr || node->properties.find("groupId") == node->properties.end()) {
-        return false;
-    }
-    const auto result = m_commandStack.execute(
-        std::make_unique<Core::SetPropertyCommand>(
-            node->id, "groupId", static_cast<std::int64_t>(-1)),
-        m_document);
-    if (!result) {
-        return false;
-    }
-    const auto modelIndex = index(nodeRow, 0);
-    emit dataChanged(modelIndex, modelIndex, {NodeGroupIdRole});
-    emit propertiesChanged();
-    emit historyChanged();
-    return true;
-}
-
-bool GraphController::undo() {
-    const auto result = m_commandStack.undo(m_document);
-    if (!result) {
-        return false;
-    }
-    const auto previousCount = nodeCount();
-    syncModelOrder();
-    if (nodeCount() != previousCount) {
-        emit nodeCountChanged();
-    }
-    if (rowCount() > 0) {
-        emit dataChanged(index(0, 0), index(rowCount() - 1, 0),
-                         {NodeXRole, NodeYRole, NodeIconRole, NodeAccentRole,
-                          NodeEnabledRole, NodeLabelRole, NodeWidthRole,
-                          NodeHeightRole, NodeColorRole, NodeIsBackdropRole,
-                          NodeIsGroupRole, NodeGroupIdRole});
-    }
-    notifyTopologyChanged();
-    emit propertiesChanged();
-    emit historyChanged();
-    return true;
-}
-
-bool GraphController::redo() {
-    const auto result = m_commandStack.redo(m_document);
-    if (!result) {
-        return false;
-    }
-    const auto previousCount = nodeCount();
-    syncModelOrder();
-    if (nodeCount() != previousCount) {
-        emit nodeCountChanged();
-    }
-    if (rowCount() > 0) {
-        emit dataChanged(index(0, 0), index(rowCount() - 1, 0),
-                         {NodeXRole, NodeYRole, NodeIconRole, NodeAccentRole,
-                          NodeEnabledRole, NodeLabelRole, NodeWidthRole,
-                          NodeHeightRole, NodeColorRole, NodeIsBackdropRole,
-                          NodeIsGroupRole, NodeGroupIdRole});
-    }
-    notifyTopologyChanged();
-    emit propertiesChanged();
-    emit historyChanged();
-    return true;
+void GraphController::cancelConnection() {
+  if (!connectionPending()) {
+    return;
+  }
+  m_pendingOutputRow = -1;
+  emit connectionPendingChanged();
+  emit connectionPreviewChanged();
 }
 
 Core::PortId GraphController::portFor(Core::NodeId nodeId,
                                       Core::PortDirection direction) const {
-    const auto* value = m_document.node(nodeId);
-    if (value == nullptr) {
-        return 0;
-    }
-    for (const auto portId : value->ports) {
-        const auto* port = m_document.port(portId);
-        if (port != nullptr && port->direction == direction) {
-            return portId;
-        }
-    }
+  const auto *value = m_document.node(nodeId);
+  if (value == nullptr) {
     return 0;
+  }
+  for (const auto portId : value->ports) {
+    const auto *port = m_document.port(portId);
+    if (port != nullptr && port->direction == direction) {
+      return portId;
+    }
+  }
+  return 0;
 }
 
 void GraphController::syncModelOrder() {
-    const auto current = m_document.nodeIds();
-    if (current == m_nodeOrder) {
-        return;
+  const auto current = m_document.nodeIds();
+  if (current == m_nodeOrder) {
+    return;
+  }
+  beginResetModel();
+  m_nodeOrder = current;
+  endResetModel();
+  std::vector<int> validRows;
+  for (const auto row : m_selectedRows) {
+    if (row >= 0 && row < nodeCount()) {
+      validRows.push_back(row);
     }
-    beginResetModel();
-    m_nodeOrder = current;
-    endResetModel();
-    std::vector<int> validRows;
-    for (const auto row : m_selectedRows) {
-        if (row >= 0 && row < nodeCount()) {
-            validRows.push_back(row);
-        }
-    }
-    setSelection(std::move(validRows));
+  }
+  setSelection(std::move(validRows));
 }
 
 void GraphController::setSelection(std::vector<int> rows) {
-    std::sort(rows.begin(), rows.end());
-    rows.erase(std::unique(rows.begin(), rows.end()), rows.end());
-    rows.erase(std::remove_if(rows.begin(), rows.end(), [this](int row) {
-                   return row < 0 || row >= nodeCount();
-               }),
-               rows.end());
-    const auto newPrimary = rows.empty() ? -1 : rows.back();
-    if (rows == m_selectedRows && newPrimary == m_selectedRow) {
-        return;
-    }
-    m_selectedRows = std::move(rows);
-    m_selectedRow = newPrimary;
-    if (nodeCount() > 0) {
-        emit dataChanged(index(0, 0), index(nodeCount() - 1, 0),
-                         {NodeSelectedRole});
-    }
-    emit selectedRowChanged();
-    emit selectionChanged();
-    emit propertiesChanged();
+  std::sort(rows.begin(), rows.end());
+  rows.erase(std::unique(rows.begin(), rows.end()), rows.end());
+  rows.erase(
+      std::remove_if(rows.begin(), rows.end(),
+                     [this](int row) { return row < 0 || row >= nodeCount(); }),
+      rows.end());
+  const auto newPrimary = rows.empty() ? -1 : rows.back();
+  if (rows == m_selectedRows && newPrimary == m_selectedRow) {
+    return;
+  }
+  m_selectedRows = std::move(rows);
+  m_selectedRow = newPrimary;
+  if (nodeCount() > 0) {
+    emit dataChanged(index(0, 0), index(nodeCount() - 1, 0),
+                     {NodeSelectedRole});
+  }
+  emit selectedRowChanged();
+  emit selectionChanged();
+  emit propertiesChanged();
 }
 
 void GraphController::recomputeOutputUsage() {
-    // 汇点 = 没有输出端口的节点（图像预览 / 保存 / 视口输出）。它们的输入
-    // 被消费，因此其上游「输出被使用」。沿连接反向做一次可达性遍历即可。
-    m_outputUsed.clear();
-    std::queue<Core::NodeId> pending;
-    for (const auto nodeId : m_document.nodeIds()) {
-        const auto* node = m_document.node(nodeId);
-        if (node == nullptr) {
-            continue;
-        }
-        if (portFor(nodeId, Core::PortDirection::Output) == 0) {
-            if (m_outputUsed.insert(nodeId).second) {
-                pending.push(nodeId);
-            }
-        }
+  // 汇点 = 没有输出端口的节点（图像预览 / 保存 / 视口输出）。它们的输入
+  // 被消费，因此其上游「输出被使用」。沿连接反向做一次可达性遍历即可。
+  m_outputUsed.clear();
+  std::queue<Core::NodeId> pending;
+  for (const auto nodeId : m_document.nodeIds()) {
+    const auto *node = m_document.node(nodeId);
+    if (node == nullptr) {
+      continue;
     }
-    // 反向遍历：输入端口所在节点 ← 上游输出端口所在节点。
-    while (!pending.empty()) {
-        const auto nodeId = pending.front();
-        pending.pop();
-        const auto* node = m_document.node(nodeId);
-        if (node == nullptr) {
-            continue;
-        }
-        for (const auto portId : node->ports) {
-            const auto* port = m_document.port(portId);
-            if (port == nullptr ||
-                port->direction != Core::PortDirection::Input) {
-                continue;
-            }
-            for (const auto& connection : m_document.connections()) {
-                if (connection.inputPort != portId) {
-                    continue;
-                }
-                const auto* upstreamPort =
-                    m_document.port(connection.outputPort);
-                if (upstreamPort == nullptr) {
-                    continue;
-                }
-                if (m_outputUsed.insert(upstreamPort->nodeId).second) {
-                    pending.push(upstreamPort->nodeId);
-                }
-            }
-        }
+    if (portFor(nodeId, Core::PortDirection::Output) == 0) {
+      if (m_outputUsed.insert(nodeId).second) {
+        pending.push(nodeId);
+      }
     }
+  }
+  // 反向遍历：输入端口所在节点 ← 上游输出端口所在节点。
+  while (!pending.empty()) {
+    const auto nodeId = pending.front();
+    pending.pop();
+    const auto *node = m_document.node(nodeId);
+    if (node == nullptr) {
+      continue;
+    }
+    for (const auto portId : node->ports) {
+      const auto *port = m_document.port(portId);
+      if (port == nullptr || port->direction != Core::PortDirection::Input) {
+        continue;
+      }
+      for (const auto &connection : m_document.connections()) {
+        if (connection.inputPort != portId) {
+          continue;
+        }
+        const auto *upstreamPort = m_document.port(connection.outputPort);
+        if (upstreamPort == nullptr) {
+          continue;
+        }
+        if (m_outputUsed.insert(upstreamPort->nodeId).second) {
+          pending.push(upstreamPort->nodeId);
+        }
+      }
+    }
+  }
 }
 
 void GraphController::notifyTopologyChanged() {
-    recomputeOutputUsage();
-    emit connectionsChanged();
-    if (!m_nodeOrder.empty()) {
-        emit dataChanged(index(0, 0), index(nodeCount() - 1, 0),
-                         {NodeOutputUsedRole, NodeEffectiveRole});
-    }
+  recomputeOutputUsage();
+  emit connectionsChanged();
+  if (!m_nodeOrder.empty()) {
+    emit dataChanged(index(0, 0), index(nodeCount() - 1, 0),
+                     {NodeOutputUsedRole, NodeEffectiveRole});
+  }
 }
 
 void GraphController::setError(QString message) {
-    if (m_lastError == message) {
-        return;
-    }
-    m_lastError = std::move(message);
-    emit errorChanged();
+  if (m_lastError == message) {
+    return;
+  }
+  m_lastError = std::move(message);
+  emit errorChanged();
 }
 
 int GraphController::rowFor(Core::NodeId nodeId) const {
-    for (std::size_t row = 0; row < m_nodeOrder.size(); ++row) {
-        if (m_nodeOrder[row] == nodeId) {
-            return static_cast<int>(row);
-        }
+  for (std::size_t row = 0; row < m_nodeOrder.size(); ++row) {
+    if (m_nodeOrder[row] == nodeId) {
+      return static_cast<int>(row);
     }
-    return -1;
+  }
+  return -1;
 }
 
 bool GraphController::connectRows(int outputRow, int inputRow) {
-    if (outputRow < 0 || inputRow < 0 || outputRow >= nodeCount() ||
-        inputRow >= nodeCount()) {
-        return false;
-    }
-    const auto outputNode = m_nodeOrder[static_cast<std::size_t>(outputRow)];
-    const auto inputNode = m_nodeOrder[static_cast<std::size_t>(inputRow)];
-    const auto outputPort = portFor(outputNode, Core::PortDirection::Output);
-    const auto inputPort = portFor(inputNode, Core::PortDirection::Input);
-    if (outputPort == 0 || inputPort == 0) {
-        setError(QStringLiteral("Both an output and an input port are required."));
-        return false;
-    }
-    const auto* input = m_document.port(inputPort);
-    if (input != nullptr && !input->acceptsMultipleConnections) {
-        const auto existing = std::find_if(
-            m_document.connections().begin(), m_document.connections().end(),
-            [inputPort](const Core::Connection& connection) {
-                return connection.inputPort == inputPort;
-            });
-        if (existing != m_document.connections().end()) {
-            const auto previousOutput = existing->outputPort;
-            int previousRow = -1;
-            if (const auto* previousPort = m_document.port(previousOutput);
-                previousPort != nullptr) {
-                previousRow = rowFor(previousPort->nodeId);
-            }
-            if (const auto result = m_commandStack.execute(
-                    std::make_unique<Core::DisconnectPortsCommand>(previousOutput,
-                                                                   inputPort),
-                    m_document);
-                !result) {
-                setError(QString::fromStdString(result.error().message));
-                return false;
-            }
-            emit nodeDisconnected(previousRow, inputRow);
-        }
-    }
-    const auto result = m_commandStack.execute(
-        std::make_unique<Core::ConnectPortsCommand>(outputPort, inputPort),
-        m_document);
-    if (!result) {
+  if (outputRow < 0 || inputRow < 0 || outputRow >= nodeCount() ||
+      inputRow >= nodeCount()) {
+    return false;
+  }
+  const auto outputNode = m_nodeOrder[static_cast<std::size_t>(outputRow)];
+  const auto inputNode = m_nodeOrder[static_cast<std::size_t>(inputRow)];
+  const auto outputPort = portFor(outputNode, Core::PortDirection::Output);
+  const auto inputPort = portFor(inputNode, Core::PortDirection::Input);
+  if (outputPort == 0 || inputPort == 0) {
+    setError(QStringLiteral("Both an output and an input port are required."));
+    return false;
+  }
+  const auto *input = m_document.port(inputPort);
+  if (input != nullptr && !input->acceptsMultipleConnections) {
+    const auto existing = std::find_if(
+        m_document.connections().begin(), m_document.connections().end(),
+        [inputPort](const Core::Connection &connection) {
+          return connection.inputPort == inputPort;
+        });
+    if (existing != m_document.connections().end()) {
+      const auto previousOutput = existing->outputPort;
+      int previousRow = -1;
+      if (const auto *previousPort = m_document.port(previousOutput);
+          previousPort != nullptr) {
+        previousRow = rowFor(previousPort->nodeId);
+      }
+      if (const auto result = m_commandStack.execute(
+              std::make_unique<Core::DisconnectPortsCommand>(previousOutput,
+                                                             inputPort),
+              m_document);
+          !result) {
         setError(QString::fromStdString(result.error().message));
         return false;
+      }
+      emit nodeDisconnected(previousRow, inputRow);
     }
-    setError({});
-    emit nodeConnected(outputRow, inputRow);
-    notifyTopologyChanged();
-    emit historyChanged();
-    return true;
+  }
+  const auto result = m_commandStack.execute(
+      std::make_unique<Core::ConnectPortsCommand>(outputPort, inputPort),
+      m_document);
+  if (!result) {
+    setError(QString::fromStdString(result.error().message));
+    return false;
+  }
+  setError({});
+  emit nodeConnected(outputRow, inputRow);
+  notifyTopologyChanged();
+  emit historyChanged();
+  return true;
 }
 
 bool GraphController::isFixedNode(Core::NodeId nodeId) const {
-    const auto* value = m_document.property(nodeId, "fixed");
-    return value != nullptr && std::holds_alternative<bool>(*value) &&
-           std::get<bool>(*value);
+  const auto *value = m_document.property(nodeId, "fixed");
+  return value != nullptr && std::holds_alternative<bool>(*value) &&
+         std::get<bool>(*value);
 }
 
 } // namespace QNodeGraph::UI

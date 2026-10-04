@@ -62,15 +62,43 @@ Rectangle {
                     Layout.fillWidth: true
 
                     CheckBox {
-                        visible: modelData.valueType === "bool"
+                        visible: modelData.editor === "checkbox" ||
+                                 modelData.valueType === "bool"
                         checked: Boolean(modelData.value)
                         onToggled: propertiesBin.controller.setNodeProperty(
                             propertiesBin.controller.selectedRow,
                             modelData.name, checked)
                     }
 
+                    Slider {
+                        visible: modelData.editor === "slider"
+                        Layout.fillWidth: true
+                        from: Number(modelData.minimum)
+                        to: Number(modelData.maximum)
+                        stepSize: Number(modelData.step) > 0
+                                  ? Number(modelData.step) : 1
+                        value: Number(modelData.value)
+                        onMoved: propertiesBin.controller.setNodeProperty(
+                                     propertiesBin.controller.selectedRow,
+                                     modelData.name, value)
+                    }
+
+                    ComboBox {
+                        visible: modelData.editor === "combobox"
+                        Layout.fillWidth: true
+                        model: modelData.choices
+                        currentIndex: Math.max(0, indexOfValue(
+                            String(modelData.value)))
+                        onActivated: propertiesBin.controller.setNodeProperty(
+                                         propertiesBin.controller.selectedRow,
+                                         modelData.name, currentText)
+                    }
+
                     TextField {
-                        visible: modelData.valueType !== "bool"
+                        visible: modelData.editor !== "checkbox" &&
+                                 modelData.editor !== "slider" &&
+                                 modelData.editor !== "combobox" &&
+                                 modelData.valueType !== "bool"
                         Layout.fillWidth: true
                         text: String(modelData.value)
                         selectByMouse: true

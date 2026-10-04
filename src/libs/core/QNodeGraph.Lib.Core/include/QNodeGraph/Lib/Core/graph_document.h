@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <expected>
+#include <functional>
 #include <map>
 #include <string>
 #include <variant>
@@ -90,9 +91,28 @@ struct NodeSnapshot {
     std::vector<Connection> connections;
 };
 
+enum class GraphChangeKind {
+    NodeAdded,
+    NodeRemoved,
+    PortAdded,
+    ConnectionChanged,
+    PropertyChanged,
+    NodeMoved,
+    Cleared,
+};
+
+struct GraphChange {
+    GraphChangeKind kind = GraphChangeKind::Cleared;
+    NodeId nodeId = 0;
+    PortId portId = 0;
+};
+
 class GraphDocument {
 public:
     explicit GraphDocument(std::string name = "Untitled");
+
+    using ChangeObserver = std::function<void(const GraphChange&)>;
+    void setChangeObserver(ChangeObserver observer);
 
     [[nodiscard]] const std::string& name() const noexcept;
     void setName(std::string name);
@@ -132,6 +152,7 @@ private:
     [[nodiscard]] bool wouldCreateCycle(NodeId outputNode,
                                         NodeId inputNode) const;
     [[nodiscard]] bool hasPath(NodeId from, NodeId target) const;
+    void notifyChange(GraphChange change);
 
     std::string m_name;
     std::map<NodeId, Node> m_nodes;
@@ -139,6 +160,7 @@ private:
     std::vector<Connection> m_connections;
     NodeId m_nextNodeId = 1;
     PortId m_nextPortId = 1;
+    ChangeObserver m_changeObserver;
 };
 
 } // namespace QNodeGraph::Core

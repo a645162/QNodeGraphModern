@@ -24,6 +24,8 @@ class GraphController : public QAbstractListModel {
     Q_PROPERTY(bool connectionPending READ connectionPending NOTIFY connectionPendingChanged)
     Q_PROPERTY(int pendingOutputRow READ pendingOutputRow NOTIFY connectionPendingChanged)
     Q_PROPERTY(QVariantMap connectionPreview READ connectionPreview NOTIFY connectionPreviewChanged)
+    Q_PROPERTY(int selectedConnectionOutputRow READ selectedConnectionOutputRow NOTIFY selectionChanged)
+    Q_PROPERTY(int selectedConnectionInputRow READ selectedConnectionInputRow NOTIFY selectionChanged)
     Q_PROPERTY(int selectedRow READ selectedRow NOTIFY selectedRowChanged)
     Q_PROPERTY(QVariantList selectedRows READ selectedRows NOTIFY selectionChanged)
     Q_PROPERTY(QVariantList selectedProperties READ selectedProperties NOTIFY propertiesChanged)
@@ -74,6 +76,10 @@ public:
     // 份类型定义。未注入时使用 NodeRegistry::withBuiltins()（保持既有行为）。
     void setRegistry(QNodeGraph::Graph::NodeRegistry registry);
     [[nodiscard]] const QNodeGraph::Graph::NodeRegistry& registry() const noexcept;
+    [[nodiscard]] const Core::GraphDocument& document() const noexcept {
+        return m_document;
+    }
+    void setDocument(Core::GraphDocument document);
     // 注册表变更后需通知视图刷新（图标/强调色/尺寸等 role 全部来自描述符）。
     void refreshRegistryDependentRoles();
 
@@ -87,6 +93,8 @@ public:
     [[nodiscard]] bool connectionPending() const noexcept;
     [[nodiscard]] int pendingOutputRow() const noexcept;
     [[nodiscard]] QVariantMap connectionPreview() const;
+    [[nodiscard]] int selectedConnectionOutputRow() const noexcept;
+    [[nodiscard]] int selectedConnectionInputRow() const noexcept;
     [[nodiscard]] int selectedRow() const noexcept;
     [[nodiscard]] QVariantList selectedRows() const;
     [[nodiscard]] QVariantList selectedProperties() const;
@@ -113,6 +121,9 @@ public:
     Q_INVOKABLE int sliceConnections(double startX, double startY,
                                      double endX, double endY);
     Q_INVOKABLE QVariantMap portAt(double worldX, double worldY) const;
+    Q_INVOKABLE QVariantMap connectionAt(double worldX, double worldY) const;
+    Q_INVOKABLE bool selectConnectionAt(double worldX, double worldY);
+    Q_INVOKABLE bool removeSelectedConnection();
     Q_INVOKABLE bool beginConnection(int outputRow);
     Q_INVOKABLE void updateConnectionPreview(double worldX, double worldY);
     Q_INVOKABLE bool completeConnectionAt(double worldX, double worldY);
@@ -150,8 +161,11 @@ signals:
     void historyChanged();
     void nodeConnected(int outputRow, int inputRow);
     void nodeDisconnected(int outputRow, int inputRow);
+    // Core 图模型的细粒度变更转发给宿主，宿主据此构造脏传播变更集。
+    void graphChanged(qulonglong nodeId, int changeKind);
 
 private:
+    void bindDocumentObserver();
     void setError(QString message);
     void setSelection(std::vector<int> rows);
     void syncModelOrder();
@@ -187,6 +201,8 @@ private:
     int m_pendingOutputRow = -1;
     Core::Point m_previewPoint;
     int m_selectedRow = -1;
+    int m_selectedConnectionOutputRow = -1;
+    int m_selectedConnectionInputRow = -1;
 };
 
 } // namespace QNodeGraph::UI

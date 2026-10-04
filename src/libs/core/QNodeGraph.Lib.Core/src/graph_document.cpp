@@ -27,6 +27,16 @@ bool compatible(PortDataType output, PortDataType input) {
 
 GraphDocument::GraphDocument(std::string name) : m_name(std::move(name)) {}
 
+void GraphDocument::setChangeObserver(ChangeObserver observer) {
+    m_changeObserver = std::move(observer);
+}
+
+void GraphDocument::notifyChange(GraphChange change) {
+    if (m_changeObserver) {
+        m_changeObserver(change);
+    }
+}
+
 const std::string& GraphDocument::name() const noexcept {
     return m_name;
 }
@@ -70,6 +80,7 @@ GraphResult<NodeId> GraphDocument::addNode(std::string type, std::string name,
     }
 
     m_nodes.emplace(id, Node{id, std::move(type), std::move(name), {}, {}, {}});
+    notifyChange(GraphChange{GraphChangeKind::NodeAdded, id, 0});
     return id;
 }
 
@@ -94,6 +105,7 @@ GraphResult<PortId> GraphDocument::addPort(
     m_ports.emplace(id, Port{id, nodeId, std::move(name), direction, dataType,
                              acceptsMultipleConnections});
     m_nodes.at(nodeId).ports.push_back(id);
+    notifyChange(GraphChange{GraphChangeKind::PortAdded, nodeId, id});
     return id;
 }
 
@@ -145,6 +157,8 @@ GraphResult<void> GraphDocument::connect(PortId outputPort, PortId inputPort) {
     }
 
     m_connections.push_back(Connection{outputPort, inputPort});
+    notifyChange(GraphChange{GraphChangeKind::ConnectionChanged,
+                             (*output)->nodeId, inputPort});
     return {};
 }
 
@@ -161,6 +175,10 @@ GraphResult<void> GraphDocument::disconnect(PortId outputPort,
                                       "The connection does not exist."));
     }
     m_connections.erase(iterator);
+    const auto* output = port(outputPort);
+    notifyChange(GraphChange{GraphChangeKind::ConnectionChanged,
+                             output != nullptr ? output->nodeId : 0,
+                             inputPort});
     return {};
 }
 
@@ -172,6 +190,7 @@ GraphResult<void> GraphDocument::setNodePosition(NodeId nodeId,
                                           " does not exist."));
     }
     m_nodes.at(nodeId).position = position;
+    notifyChange(GraphChange{GraphChangeKind::NodeMoved, nodeId, 0});
     return {};
 }
 
@@ -184,6 +203,7 @@ GraphResult<void> GraphDocument::setProperty(NodeId nodeId, std::string name,
     }
     m_nodes.at(nodeId).properties.insert_or_assign(std::move(name),
                                                    std::move(value));
+    notifyChange(GraphChange{GraphChangeKind::PropertyChanged, nodeId, 0});
     return {};
 }
 
@@ -195,6 +215,7 @@ GraphResult<void> GraphDocument::clearProperty(NodeId nodeId,
                                           " does not exist."));
     }
     m_nodes.at(nodeId).properties.erase(name);
+    notifyChange(GraphChange{GraphChangeKind::PropertyChanged, nodeId, 0});
     return {};
 }
 
@@ -253,6 +274,7 @@ GraphResult<NodeSnapshot> GraphDocument::removeNode(NodeId nodeId) {
         m_ports.erase(value.id);
     }
     m_nodes.erase(iterator);
+    notifyChange(GraphChange{GraphChangeKind::NodeRemoved, nodeId, 0});
     return snapshot;
 }
 
@@ -284,6 +306,7 @@ GraphResult<void> GraphDocument::restoreNode(NodeSnapshot snapshot) {
     for (const auto& connection : snapshot.connections) {
         m_connections.push_back(connection);
     }
+    notifyChange(GraphChange{GraphChangeKind::NodeAdded, snapshot.node.id, 0});
     return {};
 }
 
@@ -291,6 +314,7 @@ void GraphDocument::clear() {
     m_nodes.clear();
     m_ports.clear();
     m_connections.clear();
+    notifyChange(GraphChange{GraphChangeKind::Cleared, 0, 0});
 }
 
 GraphResult<const Node*> GraphDocument::requireNode(NodeId id) const {

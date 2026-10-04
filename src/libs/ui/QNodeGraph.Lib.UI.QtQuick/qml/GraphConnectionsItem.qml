@@ -9,6 +9,7 @@ Canvas {
     property real zoomFactor: 1.0
     property int layoutMode: 0
     property bool previewActive: false
+    property color wireColor: Theme.wire
 
     renderTarget: Canvas.Image
     antialiasing: true
@@ -18,6 +19,7 @@ Canvas {
     onPanOffsetChanged: requestPaint()
     onZoomFactorChanged: requestPaint()
     onLayoutModeChanged: requestPaint()
+    onWireColorChanged: requestPaint()
     onWidthChanged: requestPaint()
     onHeightChanged: requestPaint()
 
@@ -61,15 +63,18 @@ Canvas {
         context.lineCap = "round"
         context.lineJoin = "round"
 
-        context.strokeStyle = Theme.wire
         for (var index = 0; index < root.connections.length; ++index) {
-            if (tracePath(context, root.connections[index]))
+            var connection = root.connections[index]
+            context.strokeStyle = connection.selected
+                                 ? Theme.wireActive : root.wireColor
+            context.lineWidth = connection.selected ? 4 : 2
+            if (tracePath(context, connection))
                 context.stroke()
         }
 
         if (root.preview && root.preview.inputX !== undefined) {
             context.strokeStyle = root.previewActive ? Theme.wireActive
-                                                     : Theme.wire
+                                                     : root.wireColor
             if (tracePath(context, root.preview))
                 context.stroke()
         }

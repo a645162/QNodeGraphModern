@@ -5,6 +5,10 @@ add_library(QNodeGraph.Lib.UI.QtQuick STATIC
     include/QNodeGraph/Lib/UI/QtQuick/node_palette_model.h
     include/QNodeGraph/Lib/UI/QtQuick/qml_registration.h
     src/graph_controller.cpp
+    src/graph_controller_commands.cpp
+    src/graph_controller_edit.cpp
+    src/graph_controller_helpers.cpp
+    src/graph_controller_helpers.h
     src/graph_connections_item.cpp
     src/image_frame_provider.cpp
     src/node_palette_model.cpp
@@ -36,12 +40,14 @@ qt_add_qml_module(QNodeGraph.Lib.UI.QtQuick
     QML_FILES
         qml/GraphCanvas.qml
         qml/GraphConnectionsItem.qml
+        qml/WorkflowEditor.qml
         qml/PropertiesBin.qml
         qml/NodesPalette.qml
         qml/NodesTree.qml
         qml/TabSearch.qml
         qml/Theme.qml
         qml/content/NodeImageContent.qml
+        qml/content/NodePreviewContent.qml
 )
 
 target_include_directories(QNodeGraph.Lib.UI.QtQuick
