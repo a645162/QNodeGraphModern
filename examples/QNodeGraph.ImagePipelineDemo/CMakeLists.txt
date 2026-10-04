@@ -13,6 +13,7 @@ qt_add_qml_module(QNodeGraph.ImagePipelineDemo
 
 target_link_libraries(QNodeGraph.ImagePipelineDemo
     PRIVATE
+        QNodeGraph.Lib.UI.QtQuickplugin
         QNodeGraph.Lib.UI.QtQuick
         QNodeGraph.Lib.Execution
         QNodeGraph.Lib.Image

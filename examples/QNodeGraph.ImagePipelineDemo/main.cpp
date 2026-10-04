@@ -1,7 +1,5 @@
 #include "pipeline_controller.h"
 
-#include <QNodeGraph/Lib/UI/QtQuick/qml_registration.h>
-
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -9,8 +7,6 @@
 int main(int argc, char* argv[]) {
     QGuiApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("QNodeGraph Image Pipeline Demo"));
-
-    QNodeGraph::UI::registerQNodeGraphQmlTypes();
 
     QNodeGraph::UI::ImageFrameProvider provider;
     PipelineController controller(&provider);

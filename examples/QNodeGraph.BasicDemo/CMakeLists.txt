@@ -11,6 +11,7 @@ qt_add_qml_module(QNodeGraph.BasicDemo
 
 target_link_libraries(QNodeGraph.BasicDemo
     PRIVATE
+        QNodeGraph.Lib.UI.QtQuickplugin
         QNodeGraph.Lib.UI.QtQuick
         Qt6::Gui
         Qt6::Quick
@@ -23,4 +24,3 @@ target_compile_features(QNodeGraph.BasicDemo PRIVATE cxx_std_23)
 set_target_properties(QNodeGraph.BasicDemo PROPERTIES
     WIN32_EXECUTABLE TRUE
 )
-

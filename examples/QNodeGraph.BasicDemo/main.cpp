@@ -1,13 +1,9 @@
-#include <QNodeGraph/Lib/UI/QtQuick/qml_registration.h>
-
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 
 int main(int argc, char* argv[]) {
     QGuiApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("QNodeGraph Basic Demo"));
-    QNodeGraph::UI::registerQNodeGraphQmlTypes();
-
     QQmlApplicationEngine engine;
     engine.loadFromModule("QNodeGraph.BasicDemo", "Main");
     if (engine.rootObjects().isEmpty()) {
@@ -16,4 +12,3 @@ int main(int argc, char* argv[]) {
 
     return app.exec();
 }
-
