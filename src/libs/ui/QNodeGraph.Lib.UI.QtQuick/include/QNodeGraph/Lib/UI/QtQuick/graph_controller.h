@@ -119,7 +119,11 @@ public:
     Q_INVOKABLE void cancelConnection();
     Q_INVOKABLE bool selectNode(int row);
     Q_INVOKABLE bool toggleNodeSelection(int row);
-    Q_INVOKABLE bool selectNodesInRect(double startX, double startY,
+    // 断开第 outputRow 个节点到第 inputRow 个节点的连接（按行号定位端口）。
+    // 供上下文菜单 / 测试等「按节点而非按端口」的场景使用。
+    Q_INVOKABLE bool removeConnectionBetween(int outputRow, int inputRow);
+    // 某节点的输出是否被下游使用（即剪枝判定的取反）。
+    [[nodiscard]] bool isNodeEffective(Core::NodeId nodeId) const;    Q_INVOKABLE bool selectNodesInRect(double startX, double startY,
                                        double endX, double endY,
                                        bool additive = false);
     Q_INVOKABLE bool setNodeProperty(int row, QString name, QVariant value);

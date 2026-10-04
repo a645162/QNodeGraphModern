@@ -1173,8 +1173,37 @@ bool GraphController::completeConnectionAt(double worldX, double worldY) {
     return true;
 }
 
-void GraphController::cancelConnection() {
-    if (!connectionPending()) {
+bool GraphController::removeConnectionBetween(int outputRow, int inputRow) {
+    if (outputRow < 0 || inputRow < 0 || outputRow >= nodeCount() ||
+        inputRow >= nodeCount()) {
+        return false;
+    }
+    const auto outputPort = portFor(
+        m_nodeOrder[static_cast<std::size_t>(outputRow)],
+        Core::PortDirection::Output);
+    const auto inputPort = portFor(
+        m_nodeOrder[static_cast<std::size_t>(inputRow)],
+        Core::PortDirection::Input);
+    if (outputPort == 0 || inputPort == 0) {
+        return false;
+    }
+    if (const auto result = m_commandStack.execute(
+            std::make_unique<Core::DisconnectPortsCommand>(outputPort,
+                                                           inputPort),
+            m_document);
+        !result) {
+        return false;
+    }
+    notifyTopologyChanged();
+    emit historyChanged();
+    return true;
+}
+
+bool GraphController::isNodeEffective(Core::NodeId nodeId) const {
+    return m_outputUsed.contains(nodeId);
+}
+
+void GraphController::cancelConnection() {    if (!connectionPending()) {
         return;
     }
     m_pendingOutputRow = -1;

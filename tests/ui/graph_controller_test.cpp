@@ -739,16 +739,24 @@ void GraphControllerTest::marksPrunedNodesAsIneffective() {
     QCOMPARE(controller.index(2, 0).data(effectiveRole).toBool(), true);
 
     // demo0 → demo1 → preview 全链打通后，三者都有效。
+    // 端口命中测试走 portAt(row 顺序首个命中)，故按实际节点坐标探测：
+    // addNodeType 把第 row 个节点放在 (80 + (row%3)*250, 90 + (row/3)*180)。
+    // 端口命中的是节点左侧中点（node.y + height/2），不是节点原点。
+    const auto inputX = [](int row) { return 80.0 + (row % 3) * 250.0; };
+    const auto inputY = [](int row) {
+        return 90.0 + (row / 3) * 180.0 + 108.0 / 2.0;
+    };
     QVERIFY(controller.beginConnection(0));
-    QVERIFY(controller.completeConnectionAt(80.0 + 250.0, 90.0));
+    QVERIFY(controller.completeConnectionAt(inputX(1), inputY(1)));
     QVERIFY(controller.beginConnection(1));
-    QVERIFY(controller.completeConnectionAt(80.0 + 500.0, 90.0));
+    QVERIFY(controller.completeConnectionAt(inputX(2), inputY(2)));
+    QCOMPARE(controller.connections().size(), qsizetype{2});
     QCOMPARE(controller.index(0, 0).data(effectiveRole).toBool(), true);
     QCOMPARE(controller.index(1, 0).data(effectiveRole).toBool(), true);
 
-    // 剪掉中间一环，上游重新变为剪枝。
-    QVERIFY(controller.sliceConnections(0.0, 0.0, 5000.0, 5000.0) >= 0);
-    QCOMPARE(controller.index(0, 0).data(effectiveRole).toBool(), false);
+    // 断开 demo0 → demo1，让 demo1 及其下游不可达 demo0，demo0 重新被剪枝。
+    QVERIFY(controller.removeConnectionBetween(0, 1));
+    QCOMPARE(controller.isNodeEffective(0), false);
 }
 
 QTEST_MAIN(GraphControllerTest)
