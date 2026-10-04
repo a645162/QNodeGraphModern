@@ -1,18 +1,22 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QNodeGraph.UI 1.0
 
 Rectangle {
     id: nodesPalette
 
     required property var controller
     property Item dropTarget: null
+    property bool collapsed: false
     color: Theme.panelBg
     border.color: Theme.panelBorder
     radius: Theme.radius
 
     NodePaletteModel {
         id: paletteModel
+        controller: nodesPalette.controller
+        hideFixedNodes: true
     }
 
     ColumnLayout {
@@ -20,7 +24,39 @@ Rectangle {
         anchors.margins: 10
         spacing: 8
 
+        ToolButton {
+            Layout.alignment: collapsed ? Qt.AlignHCenter : Qt.AlignRight
+            text: collapsed ? qsTr(">") : qsTr("<")
+            onClicked: nodesPalette.collapsed = !nodesPalette.collapsed
+            ToolTip.visible: hovered
+            ToolTip.text: collapsed ? qsTr("Expand component library")
+                                     : qsTr("Collapse component library")
+        }
+
+        RowLayout {
+            visible: !nodesPalette.collapsed
+            Layout.fillWidth: true
+
+            ComboBox {
+                id: nodeTypeCombo
+                Layout.fillWidth: true
+                model: paletteModel
+                textRole: "nodeName"
+                valueRole: "nodeType"
+            }
+
+            Button {
+                text: qsTr("Add")
+                onClicked: {
+                    if (nodeTypeCombo.currentValue)
+                        nodesPalette.controller.addNodeType(
+                                    nodeTypeCombo.currentValue)
+                }
+            }
+        }
+
         Label {
+            visible: !nodesPalette.collapsed
             text: qsTr("Nodes Palette")
             color: Theme.textPrimary
             font.bold: true
@@ -28,6 +64,7 @@ Rectangle {
         }
 
         TextField {
+            visible: !nodesPalette.collapsed
             id: searchField
             Layout.fillWidth: true
             placeholderText: qsTr("Search nodes")
@@ -37,6 +74,7 @@ Rectangle {
 
         ListView {
             id: nodeList
+            visible: !nodesPalette.collapsed
             property var nodeController: nodesPalette.controller
             Layout.fillWidth: true
             Layout.fillHeight: true

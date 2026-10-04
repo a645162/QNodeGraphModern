@@ -6,6 +6,7 @@ Rectangle {
     id: propertiesBin
 
     required property var controller
+    property bool collapsed: false
 
     color: Theme.panelBg
     border.color: Theme.panelBorder
@@ -16,7 +17,17 @@ Rectangle {
         anchors.margins: 12
         spacing: 10
 
+        ToolButton {
+            Layout.alignment: collapsed ? Qt.AlignHCenter : Qt.AlignLeft
+            text: collapsed ? qsTr("<") : qsTr(">")
+            onClicked: propertiesBin.collapsed = !propertiesBin.collapsed
+            ToolTip.visible: hovered
+            ToolTip.text: collapsed ? qsTr("Expand properties")
+                                     : qsTr("Collapse properties")
+        }
+
         Label {
+            visible: !propertiesBin.collapsed
             text: qsTr("Properties")
             color: Theme.textPrimary
             font.bold: true
@@ -24,6 +35,7 @@ Rectangle {
         }
 
         Label {
+            visible: !propertiesBin.collapsed
             Layout.fillWidth: true
             text: propertiesBin.controller.selectedRow >= 0
                   ? qsTr("Node %1").arg(propertiesBin.controller.selectedRow + 1)
@@ -33,6 +45,7 @@ Rectangle {
         }
 
         Rectangle {
+            visible: !propertiesBin.collapsed
             Layout.fillWidth: true
             height: 1
             color: Theme.panelBorder
@@ -45,6 +58,7 @@ Rectangle {
             clip: true
             spacing: 8
             model: propertiesBin.controller.selectedProperties
+            visible: !propertiesBin.collapsed
 
             delegate: ColumnLayout {
                 required property var modelData
@@ -78,9 +92,12 @@ Rectangle {
                         stepSize: Number(modelData.step) > 0
                                   ? Number(modelData.step) : 1
                         value: Number(modelData.value)
-                        onMoved: propertiesBin.controller.setNodeProperty(
-                                     propertiesBin.controller.selectedRow,
-                                     modelData.name, value)
+                        onValueChanged: {
+                            if (pressed)
+                                propertiesBin.controller.setNodeProperty(
+                                            propertiesBin.controller.selectedRow,
+                                            modelData.name, value)
+                        }
                     }
 
                     ComboBox {
@@ -111,7 +128,7 @@ Rectangle {
 
             Label {
                 anchors.centerIn: parent
-                visible: propertyList.count === 0
+                visible: !propertiesBin.collapsed && propertyList.count === 0
                 text: qsTr("No editable properties")
                 color: Theme.nodeMutedText
             }

@@ -10,10 +10,14 @@
 
 namespace QNodeGraph::UI {
 
+class GraphController;
+
 class NodePaletteModel : public QAbstractListModel {
     Q_OBJECT
     QML_ELEMENT
     Q_PROPERTY(QString filter READ filter WRITE setFilter NOTIFY filterChanged)
+    Q_PROPERTY(QObject* controller READ controller WRITE setController NOTIFY controllerChanged)
+    Q_PROPERTY(bool hideFixedNodes READ hideFixedNodes WRITE setHideFixedNodes)
 
 public:
     enum NodeRole {
@@ -32,6 +36,9 @@ public:
     // 隐藏固定/唯一节点（如《图像输入》《图像输出》）：它们由宿主预置，不应
     // 出现在可拖拽添加的调色板中。默认关闭，保持既有行为。
     void setHideFixedNodes(bool hide);
+    [[nodiscard]] bool hideFixedNodes() const noexcept;
+    [[nodiscard]] QObject *controller() const noexcept;
+    void setController(QObject *controller);
 
     [[nodiscard]] int rowCount(
         const QModelIndex& parent = QModelIndex()) const override;
@@ -44,6 +51,7 @@ public:
 
 signals:
     void filterChanged();
+    void controllerChanged();
 
 private:
     void rebuildVisibleRows();
@@ -54,6 +62,7 @@ private:
     std::vector<int> m_visibleRows;
     QString m_filter;
     bool m_hideFixedNodes = false;
+    QObject *m_controller = nullptr;
 };
 
 } // namespace QNodeGraph::UI

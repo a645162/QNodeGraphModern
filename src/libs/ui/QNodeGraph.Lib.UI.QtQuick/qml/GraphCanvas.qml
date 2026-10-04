@@ -332,6 +332,8 @@ Rectangle {
                 required property bool nodeFixed
                 required property bool nodeOutputUsed
                 required property bool nodeEffective
+                required property bool nodeInputConnected
+                required property bool nodeOutputConnected
 
                 x: nodeItem.nodeX
                 y: nodeItem.nodeY
@@ -497,6 +499,7 @@ Rectangle {
 
                             // 数值滑块（editor == "slider"）
                             Slider {
+                                z: 3
                                 visible: propertyRow.modelData.editor === "slider"
                                 width: Math.max(40, propertyRow.width - 92)
                                 from: propertyRow.modelData.minimum
@@ -506,16 +509,22 @@ Rectangle {
                                           ? propertyRow.modelData.step : 0.001
                                 value: Number(propertyRow.modelData.value)
                                 // 拖动中即时回写，靠库的脏传播驱动下游重算。
-                                onMoved: canvas.controller.setNodeProperty(
-                                             nodeItem.index,
-                                             propertyRow.modelData.name, value)
+                                onValueChanged: {
+                                    if (pressed)
+                                        canvas.controller.setNodeProperty(
+                                                    nodeItem.index,
+                                                    propertyRow.modelData.name,
+                                                    value)
+                                }
                             }
 
                             // 布尔开关
                             CheckBox {
+                                z: 3
                                 visible: propertyRow.modelData.editor !== "slider" &&
-                                         propertyRow.modelData.valueType === "bool"
-                                text: qsTr("Enabled")
+                                         propertyRow.modelData.valueType === "bool" &&
+                                         propertyRow.modelData.name !== "enabled"
+                                text: propertyRow.modelData.name
                                 scale: 0.8
                                 checked: Boolean(propertyRow.modelData.value)
                                 onToggled: canvas.controller.setNodeProperty(
@@ -526,6 +535,7 @@ Rectangle {
 
                             // 其余一律文本输入（字符串/未声明控件的数值）
                             TextField {
+                                z: 3
                                 visible: propertyRow.modelData.editor !== "slider" &&
                                          propertyRow.modelData.valueType !== "bool"
                                 width: Math.max(40, propertyRow.width - 60)
@@ -560,13 +570,21 @@ Rectangle {
                     width: parent.width - 12
                     height: parent.height - 38
                     visible: nodeItem.nodeContentUrl.length > 0
+                    z: 3
                     source: nodeItem.nodeContentUrl
                     asynchronous: true
+                    property string previewSource: nodeItem.nodePreviewSource
                     onLoaded: {
                         if (item) {
                             item.nodeRow = nodeItem.index
                             item.nodeController = canvas.controller
+                            if (item.previewSource !== undefined)
+                                item.previewSource = previewSource
                         }
+                    }
+                    onPreviewSourceChanged: {
+                        if (item && item.previewSource !== undefined)
+                            item.previewSource = previewSource
                     }
                 }
 
@@ -645,10 +663,21 @@ Rectangle {
                     height: 12
                     visible: nodeItem.inputPortCount > 0
                     radius: 6
-                    color: Theme.portInput
-                    border.color: Theme.panelBg
-                    border.width: 2
+                    color: nodeItem.nodeInputConnected
+                           ? Theme.portInput : Theme.error
+                    border.color: nodeItem.nodeInputConnected
+                                  ? Theme.panelBg : Theme.error
+                    border.width: nodeItem.nodeInputConnected ? 2 : 3
                     z: 2
+
+                    Label {
+                        anchors.centerIn: parent
+                        visible: !nodeItem.nodeInputConnected
+                        text: "!"
+                        color: Theme.panelBg
+                        font.bold: true
+                        font.pixelSize: 9
+                    }
                 }
 
                 Rectangle {
@@ -661,10 +690,22 @@ Rectangle {
                     color: canvas.controller.connectionPending &&
                            canvas.controller.pendingOutputRow === nodeItem.index
                            ? Theme.portActive
-                           : Theme.portOutput
-                    border.color: Theme.panelBg
-                    border.width: 2
+                           : (nodeItem.nodeOutputConnected
+                              ? Theme.portOutput : Theme.error)
+                    border.color: nodeItem.nodeOutputConnected
+                                  ? Theme.panelBg : Theme.error
+                    border.width: nodeItem.nodeOutputConnected ? 2 : 3
                     z: 2
+
+                    Label {
+                        anchors.centerIn: parent
+                        visible: !nodeItem.nodeOutputConnected &&
+                                 !canvas.controller.connectionPending
+                        text: "!"
+                        color: Theme.panelBg
+                        font.bold: true
+                        font.pixelSize: 9
+                    }
 
                     MouseArea {
                         anchors.fill: parent
@@ -720,21 +761,6 @@ Rectangle {
                             canvas.controller.selectNode(nodeItem.index)
                         }
                     }
-                }
-
-                CheckBox {
-                    id: enabledToggle
-                    z: 3
-                    anchors.right: parent.right
-                    anchors.rightMargin: 5
-                    anchors.bottom: parent.bottom
-                    anchors.bottomMargin: 3
-                    text: qsTr("Enabled")
-                    checked: nodeItem.nodeEnabled
-                    scale: 0.72
-                    transformOrigin: Item.BottomRight
-                    onToggled: canvas.controller.setNodeProperty(
-                        nodeItem.index, "enabled", checked)
                 }
 
                 // 四角 resize。此前只有右下角一个手柄，且 resizeNode(row,w,h)

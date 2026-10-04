@@ -59,6 +59,7 @@ void GraphController::setRegistry(QNodeGraph::Graph::NodeRegistry registry) {
   m_registry = std::move(registry);
   // 改注册表后图内已有节点的图标/强调色/默认尺寸可能全部变化，需整表刷新。
   refreshRegistryDependentRoles();
+  emit registryChanged();
 }
 
 const QNodeGraph::Graph::NodeRegistry &
@@ -139,6 +140,9 @@ QVariantList GraphController::selectedProperties() const {
     return values;
   }
   for (const auto &[name, value] : node->properties) {
+    if (name == "enabled") {
+      continue;
+    }
     if (name.size() >= 8 && name.compare(name.size() - 8, 8, ".display") == 0) {
       continue;
     }
@@ -335,6 +339,9 @@ QVariant GraphController::data(const QModelIndex &index, int role) const {
     QVariantList values;
     const auto *descriptor = m_registry.find(node->type);
     for (const auto &[name, value] : node->properties) {
+      if (name == "enabled") {
+        continue;
+      }
       if (name.size() >= 8 &&
           name.compare(name.size() - 8, 8, ".display") == 0) {
         continue;
@@ -360,6 +367,10 @@ QVariant GraphController::data(const QModelIndex &index, int role) const {
   case NodeEffectiveRole:
     // 输出无人使用 → 该节点对最终结果无贡献，UI 降级显示。
     return m_outputUsed.contains(node->id);
+  case NodeInputConnectedRole:
+    return nodePortConnected(node->id, Core::PortDirection::Input);
+  case NodeOutputConnectedRole:
+    return nodePortConnected(node->id, Core::PortDirection::Output);
   case NodePreviewSourceRole:
   case NodePreviewWidthRole:
   case NodePreviewHeightRole:
@@ -416,6 +427,8 @@ QHash<int, QByteArray> GraphController::roleNames() const {
       {NodeOnNodePropertiesRole, "nodeOnNodeProperties"},
       {NodeOutputUsedRole, "nodeOutputUsed"},
       {NodeEffectiveRole, "nodeEffective"},
+      {NodeInputConnectedRole, "nodeInputConnected"},
+      {NodeOutputConnectedRole, "nodeOutputConnected"},
   };
 }
 
@@ -782,8 +795,33 @@ void GraphController::notifyTopologyChanged() {
   emit connectionsChanged();
   if (!m_nodeOrder.empty()) {
     emit dataChanged(index(0, 0), index(nodeCount() - 1, 0),
-                     {NodeOutputUsedRole, NodeEffectiveRole});
+                     {NodeOutputUsedRole, NodeEffectiveRole,
+                      NodeInputConnectedRole, NodeOutputConnectedRole});
   }
+}
+
+bool GraphController::nodePortConnected(
+    const Core::NodeId nodeId, const Core::PortDirection direction) const {
+  const auto *node = m_document.node(nodeId);
+  if (node == nullptr) {
+    return true;
+  }
+  for (const auto portId : node->ports) {
+    const auto *port = m_document.port(portId);
+    if (port == nullptr || port->direction != direction) {
+      continue;
+    }
+    const auto connected = std::any_of(
+        m_document.connections().cbegin(), m_document.connections().cend(),
+        [portId](const Core::Connection &connection) {
+          return connection.inputPort == portId ||
+                 connection.outputPort == portId;
+        });
+    if (!connected) {
+      return false;
+    }
+  }
+  return true;
 }
 
 void GraphController::setError(QString message) {

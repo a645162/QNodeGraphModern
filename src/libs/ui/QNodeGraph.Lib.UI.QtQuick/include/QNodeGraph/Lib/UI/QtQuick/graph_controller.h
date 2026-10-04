@@ -68,6 +68,9 @@ public:
         NodeOutputUsedRole,
         // 该节点是否参与求值（已达且输出被使用）。等价于 !pruned。
         NodeEffectiveRole,
+        // 端口是否已经接线。未接线的必需端口由画布标成诊断色。
+        NodeInputConnectedRole,
+        NodeOutputConnectedRole,
     };
     Q_ENUM(NodeRole)
 
@@ -134,7 +137,8 @@ public:
     // 供上下文菜单 / 测试等「按节点而非按端口」的场景使用。
     Q_INVOKABLE bool removeConnectionBetween(int outputRow, int inputRow);
     // 某节点的输出是否被下游使用（即剪枝判定的取反）。
-    [[nodiscard]] bool isNodeEffective(Core::NodeId nodeId) const;    Q_INVOKABLE bool selectNodesInRect(double startX, double startY,
+    [[nodiscard]] bool isNodeEffective(Core::NodeId nodeId) const;
+    Q_INVOKABLE bool selectNodesInRect(double startX, double startY,
                                        double endX, double endY,
                                        bool additive = false);
     Q_INVOKABLE bool setNodeProperty(int row, QString name, QVariant value);
@@ -163,6 +167,7 @@ signals:
     void nodeDisconnected(int outputRow, int inputRow);
     // Core 图模型的细粒度变更转发给宿主，宿主据此构造脏传播变更集。
     void graphChanged(qulonglong nodeId, int changeKind);
+    void registryChanged();
 
 private:
     void bindDocumentObserver();
@@ -182,6 +187,8 @@ private:
     // 剪枝相关 role 的 dataChanged。所有改动连接的路径都必须走这里，否则
     // 剪枝标记会与图不同步。
     void notifyTopologyChanged();
+    [[nodiscard]] bool nodePortConnected(
+        Core::NodeId nodeId, Core::PortDirection direction) const;
 
     Core::GraphDocument m_document;
     QNodeGraph::Graph::NodeRegistry m_registry;

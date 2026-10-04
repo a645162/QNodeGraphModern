@@ -1,4 +1,5 @@
 #include <QNodeGraph/Lib/UI/QtQuick/node_palette_model.h>
+#include <QNodeGraph/Lib/UI/QtQuick/graph_controller.h>
 
 #include <QVariantMap>
 
@@ -30,6 +31,26 @@ void NodePaletteModel::setHideFixedNodes(bool hide) {
     beginResetModel();
     rebuildVisibleRows();
     endResetModel();
+}
+
+bool NodePaletteModel::hideFixedNodes() const noexcept {
+    return m_hideFixedNodes;
+}
+
+QObject *NodePaletteModel::controller() const noexcept { return m_controller; }
+
+void NodePaletteModel::setController(QObject *controller) {
+    if (m_controller == controller) {
+        return;
+    }
+    m_controller = controller;
+    if (const auto *graph = qobject_cast<GraphController *>(controller)) {
+        setRegistry(graph->registry());
+        setHideFixedNodes(true);
+        QObject::connect(graph, &GraphController::registryChanged, this,
+                         [this, graph]() { setRegistry(graph->registry()); });
+    }
+    emit controllerChanged();
 }
 
 int NodePaletteModel::rowCount(const QModelIndex& parent) const {

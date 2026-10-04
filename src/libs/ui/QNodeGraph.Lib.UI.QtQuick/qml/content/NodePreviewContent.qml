@@ -8,6 +8,7 @@ Item {
     // content. The host updates NodePreviewSourceRole through ImageFrameProvider.
     property int nodeRow: -1
     property var nodeController: null
+    property string previewSource: ""
 
     Label {
         anchors.top: parent.top
@@ -29,10 +30,6 @@ Item {
         // synchronously keeps revision-based preview updates deterministic.
         asynchronous: false
         cache: false
-        source: previewContent.nodeRow >= 0 && previewContent.nodeController
-                    ? previewContent.nodeController.index(
-                          previewContent.nodeRow, 0)
-                          .data(GraphController.NodePreviewSourceRole)
-                    : ""
+        source: previewContent.previewSource
     }
 }

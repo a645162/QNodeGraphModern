@@ -142,6 +142,10 @@ bool GraphController::setNodeProperty(int row, QString name, QVariant value) {
   } else if (name == QStringLiteral("fixed")) {
     emit dataChanged(modelIndex, modelIndex, {NodeFixedRole});
   }
+  // Node-local editors bind to this composite role. Without an explicit
+  // refresh the side panel changes while the slider rendered inside the node
+  // remains bound to its previous QVariantList value.
+  emit dataChanged(modelIndex, modelIndex, {NodeOnNodePropertiesRole});
   emit propertiesChanged();
   emit historyChanged();
   return true;
