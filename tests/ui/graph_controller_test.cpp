@@ -35,6 +35,10 @@ private slots:
     void assignsNodeToGroupAndExposesProxyPorts();
     void movesNodeAndEmitsData();
     void clearsModel();
+    void emitsConnectionSignals();
+    void replacesExistingInputConnection();
+    void blocksDeletionOfFixedNode();
+    void resizesNodeWithUndo();
 };
 
 void GraphControllerTest::startsWithEmptyModel() {
@@ -61,8 +65,8 @@ void GraphControllerTest::addsNodeWithRoles() {
 
 void GraphControllerTest::connectsAdjacentDemoNodes() {
     QNodeGraph::UI::GraphController controller;
-    controller.addDemoNode();
-    controller.addDemoNode();
+    controller.addDemoNode(true);
+    controller.addDemoNode(true);
     QCOMPARE(controller.connections().size(), qsizetype{1});
     const auto connection = controller.connections().constFirst().toMap();
     QCOMPARE(connection.value(QStringLiteral("outputRow")).toInt(), 0);
@@ -468,6 +472,78 @@ void GraphControllerTest::clearsModel() {
     controller.clearGraph();
     QCOMPARE(controller.rowCount(), 0);
     QCOMPARE(controller.nodeCount(), 0);
+}
+
+void GraphControllerTest::emitsConnectionSignals() {
+    QNodeGraph::UI::GraphController controller;
+    controller.addDemoNode(false);
+    controller.addDemoNode(false);
+    QSignalSpy connectedSpy(&controller,
+                            &QNodeGraph::UI::GraphController::nodeConnected);
+
+    QVERIFY(controller.beginConnection(0));
+    QVERIFY(controller.completeConnectionAt(330.0, 144.0));
+    QCOMPARE(connectedSpy.count(), 1);
+    const auto arguments = connectedSpy.takeFirst();
+    QCOMPARE(arguments.at(0).toInt(), 0);
+    QCOMPARE(arguments.at(1).toInt(), 1);
+}
+
+void GraphControllerTest::replacesExistingInputConnection() {
+    QNodeGraph::UI::GraphController controller;
+    controller.addDemoNode(false);
+    controller.addDemoNode(false);
+    controller.addDemoNode(false);
+    QVERIFY(controller.beginConnection(2));
+    QVERIFY(controller.completeConnectionAt(330.0, 144.0));
+    QCOMPARE(controller.connections().size(), qsizetype{1});
+    QCOMPARE(controller.connections().constFirst().toMap()
+                 .value(QStringLiteral("outputRow")).toInt(),
+             2);
+
+    QSignalSpy disconnectedSpy(
+        &controller, &QNodeGraph::UI::GraphController::nodeDisconnected);
+    QVERIFY(controller.beginConnection(0));
+    QVERIFY(controller.completeConnectionAt(330.0, 144.0));
+    QCOMPARE(controller.connections().size(), qsizetype{1});
+    QCOMPARE(controller.connections().constFirst().toMap()
+                 .value(QStringLiteral("outputRow")).toInt(),
+             0);
+    QCOMPARE(disconnectedSpy.count(), 1);
+}
+
+void GraphControllerTest::blocksDeletionOfFixedNode() {
+    QNodeGraph::UI::GraphController controller;
+    QVERIFY(controller.addNodeType(QStringLiteral("load_image"), false));
+    QVERIFY(controller.index(0, 0)
+                .data(QNodeGraph::UI::GraphController::NodeFixedRole)
+                .toBool());
+    QVERIFY(!controller.deleteNode(0));
+    QCOMPARE(controller.nodeCount(), 1);
+    QVERIFY(!controller.lastError().isEmpty());
+    QVERIFY(controller.setNodeFixed(0, false));
+    QVERIFY(controller.deleteNode(0));
+    QCOMPARE(controller.nodeCount(), 0);
+}
+
+void GraphControllerTest::resizesNodeWithUndo() {
+    QNodeGraph::UI::GraphController controller;
+    controller.addDemoNode(false);
+    QVERIFY(controller.resizeNode(0, 320.0, 200.0));
+    QCOMPARE(controller.index(0, 0)
+                 .data(QNodeGraph::UI::GraphController::NodeWidthRole)
+                 .toDouble(),
+             320.0);
+    QCOMPARE(controller.index(0, 0)
+                 .data(QNodeGraph::UI::GraphController::NodeHeightRole)
+                 .toDouble(),
+             200.0);
+    QVERIFY(controller.undo());
+    QVERIFY(controller.undo());
+    QCOMPARE(controller.index(0, 0)
+                 .data(QNodeGraph::UI::GraphController::NodeWidthRole)
+                 .toDouble(),
+             180.0);
 }
 
 QTEST_MAIN(GraphControllerTest)

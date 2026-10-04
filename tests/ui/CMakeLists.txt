@@ -48,6 +48,11 @@ add_executable(QNodeGraph.UI.Visual.Tests
     graph_canvas_visual_test.cpp
 )
 
+target_compile_definitions(QNodeGraph.UI.Visual.Tests
+    PRIVATE
+        QNODEGRAPH_QML_IMPORT_DIR="$<TARGET_FILE_DIR:QNodeGraph.Lib.UI.QtQuick>"
+)
+
 target_link_libraries(QNodeGraph.UI.Visual.Tests
     PRIVATE
         QNodeGraph.Lib.UI.QtQuickplugin

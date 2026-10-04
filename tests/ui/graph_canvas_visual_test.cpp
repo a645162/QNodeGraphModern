@@ -1,11 +1,16 @@
 #include <QGuiApplication>
+#include <QQmlApplicationEngine>
 #include <QQmlComponent>
 #include <QQmlEngine>
 #include <QQuickItem>
 #include <QQuickWindow>
+#include <QNodeGraph/Lib/UI/QtQuick/graph_controller.h>
+#include <QtQml/qqmlextensionplugin.h>
 #include <QtTest/QtTest>
 
 #include <memory>
+
+Q_IMPORT_PLUGIN(QNodeGraph_UIPlugin)
 
 class GraphCanvasVisualTest final : public QObject {
     Q_OBJECT
@@ -14,7 +19,60 @@ private slots:
     void rendersGraphCanvasWithNode();
     void connectsPortsThroughMouseDrag();
     void addsPaletteNodeThroughMouseDrag();
+    void togglesThemeBetweenLightAndDark();
+    void loadsCustomNodeContent();
 };
+
+void GraphCanvasVisualTest::togglesThemeBetweenLightAndDark() {
+    QQmlApplicationEngine engine;
+    engine.loadFromModule("QNodeGraph.UI", "GraphCanvas");
+    QVERIFY2(!engine.rootObjects().isEmpty(),
+             qPrintable(QStringLiteral("GraphCanvas module failed to load")));
+    auto* canvas = qobject_cast<QQuickItem*>(engine.rootObjects().first());
+    QVERIFY(canvas != nullptr);
+    QVERIFY(QMetaObject::invokeMethod(canvas, "setThemeMode",
+                                      Q_ARG(QVariant, 2)));
+    QTest::qWait(50);
+    const auto dark = canvas->property("darkTheme").toBool();
+    QVERIFY(QMetaObject::invokeMethod(canvas, "setThemeMode",
+                                      Q_ARG(QVariant, 1)));
+    QTest::qWait(50);
+    const auto light = canvas->property("darkTheme").toBool();
+    qDebug() << "dark:" << dark << "light:" << light;
+    QVERIFY(dark);
+    QVERIFY(!light);
+}
+
+void GraphCanvasVisualTest::loadsCustomNodeContent() {
+    QQmlEngine engine;
+    QQmlComponent component(
+        &engine,
+        QUrl(QStringLiteral("qrc:/qt/qml/QNodeGraph/UI/qml/GraphCanvas.qml")));
+    QVERIFY2(component.status() == QQmlComponent::Ready,
+             qPrintable(component.errorString()));
+    std::unique_ptr<QObject> object(component.create());
+    QVERIFY(object != nullptr);
+    auto* canvas = qobject_cast<QQuickItem*>(object.get());
+    QVERIFY(canvas != nullptr);
+
+    QQuickWindow window;
+    window.resize(640, 420);
+    canvas->setParentItem(window.contentItem());
+    canvas->setWidth(window.width());
+    canvas->setHeight(window.height());
+    window.show();
+    QTest::qWait(100);
+
+    auto* controller = canvas->property("controller").value<QObject*>();
+    QVERIFY(controller != nullptr);
+    QVERIFY(QMetaObject::invokeMethod(controller, "addNodeType",
+                                      Q_ARG(QString, "blur"),
+                                      Q_ARG(bool, false)));
+    QTest::qWait(300);
+    QCOMPARE(controller->property("nodeCount").toInt(), 1);
+    const auto image = window.grabWindow();
+    QVERIFY(!image.isNull());
+}
 
 void GraphCanvasVisualTest::rendersGraphCanvasWithNode() {
     QQmlEngine engine;
@@ -145,6 +203,9 @@ void GraphCanvasVisualTest::addsPaletteNodeThroughMouseDrag() {
 
 int main(int argc, char** argv) {
     qputenv("QT_QPA_PLATFORM", "offscreen");
+#ifdef QNODEGRAPH_QML_IMPORT_DIR
+    qputenv("QML_IMPORT_PATH", QNODEGRAPH_QML_IMPORT_DIR);
+#endif
     QGuiApplication app(argc, argv);
     GraphCanvasVisualTest test;
     return QTest::qExec(&test, argc, argv);
