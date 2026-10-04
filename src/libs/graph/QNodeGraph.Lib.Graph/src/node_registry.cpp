@@ -82,36 +82,86 @@ Core::GraphResult<Core::NodeId> NodeRegistry::createNode(
             return std::unexpected(failure);
         }
     }
+    for (const auto& property : descriptor->properties) {
+        const auto placement =
+            property.placement == PropertyPlacement::Node
+                ? "node"
+                : (property.placement == PropertyPlacement::NodeAndPanel
+                       ? "both"
+                       : (property.placement == PropertyPlacement::Panel ? "panel"
+                                                                         : "hidden"));
+        static_cast<void>(document.setProperty(*node, property.name + ".display",
+                                               std::string(placement)));
+    }
+    if (!descriptor->deletable) {
+        static_cast<void>(document.setProperty(*node, "fixed", true));
+    }
     return *node;
 }
 
 NodeRegistry NodeRegistry::withBuiltins() {
     NodeRegistry registry;
-    registerBuiltin(registry,
-                    {"demo", "Demo Node",
-                     {imagePort("in", Core::PortDirection::Input),
-                      imagePort("out", Core::PortDirection::Output)}});
-    registerBuiltin(registry,
-                    {"load_image", "Load Image",
-                     {imagePort("image", Core::PortDirection::Output)}});
-    registerBuiltin(registry,
-                    {"grayscale", "Grayscale",
-                     {imagePort("image", Core::PortDirection::Input),
-                      imagePort("image", Core::PortDirection::Output)}});
-    registerBuiltin(registry,
-                    {"blur", "Blur",
-                     {imagePort("image", Core::PortDirection::Input),
-                      imagePort("image", Core::PortDirection::Output)}});
-    registerBuiltin(registry,
-                    {"edge_detect", "Edge Detect",
-                     {imagePort("image", Core::PortDirection::Input),
-                      imagePort("image", Core::PortDirection::Output)}});
-    registerBuiltin(registry,
-                    {"image_preview", "Image Preview",
-                     {imagePort("image", Core::PortDirection::Input)}});
-    registerBuiltin(registry,
-                    {"save_image", "Save Image",
-                     {imagePort("image", Core::PortDirection::Input)}});
+
+    NodeDescriptor demo;
+    demo.typeId = "demo";
+    demo.displayName = "Demo Node";
+    demo.ports = {imagePort("in", Core::PortDirection::Input),
+                  imagePort("out", Core::PortDirection::Output)};
+    demo.properties = {{"label", PropertyPlacement::Panel}};
+    registerBuiltin(registry, std::move(demo));
+
+    NodeDescriptor load;
+    load.typeId = "load_image";
+    load.displayName = "Load Image";
+    load.ports = {imagePort("image", Core::PortDirection::Output)};
+    load.properties = {{"label", PropertyPlacement::Panel},
+                       {"path", PropertyPlacement::Panel}};
+    load.deletable = false;
+    registerBuiltin(registry, std::move(load));
+
+    NodeDescriptor grayscale;
+    grayscale.typeId = "grayscale";
+    grayscale.displayName = "Grayscale";
+    grayscale.ports = {imagePort("image", Core::PortDirection::Input),
+                       imagePort("image", Core::PortDirection::Output)};
+    grayscale.properties = {{"label", PropertyPlacement::Panel}};
+    registerBuiltin(registry, std::move(grayscale));
+
+    NodeDescriptor blur;
+    blur.typeId = "blur";
+    blur.displayName = "Blur";
+    blur.ports = {imagePort("image", Core::PortDirection::Input),
+                  imagePort("image", Core::PortDirection::Output)};
+    blur.properties = {{"label", PropertyPlacement::Panel},
+                       {"radius", PropertyPlacement::NodeAndPanel}};
+    blur.qmlContentUrl = "qrc:/qt/qml/QNodeGraph/UI/qml/content/NodeImageContent.qml";
+    registerBuiltin(registry, std::move(blur));
+
+    NodeDescriptor edge;
+    edge.typeId = "edge_detect";
+    edge.displayName = "Edge Detect";
+    edge.ports = {imagePort("image", Core::PortDirection::Input),
+                  imagePort("image", Core::PortDirection::Output)};
+    edge.properties = {{"label", PropertyPlacement::Panel},
+                       {"threshold", PropertyPlacement::NodeAndPanel}};
+    registerBuiltin(registry, std::move(edge));
+
+    NodeDescriptor preview;
+    preview.typeId = "image_preview";
+    preview.displayName = "Image Preview";
+    preview.ports = {imagePort("image", Core::PortDirection::Input)};
+    preview.properties = {{"label", PropertyPlacement::Panel}};
+    registerBuiltin(registry, std::move(preview));
+
+    NodeDescriptor save;
+    save.typeId = "save_image";
+    save.displayName = "Save Image";
+    save.ports = {imagePort("image", Core::PortDirection::Input)};
+    save.properties = {{"label", PropertyPlacement::Panel},
+                       {"path", PropertyPlacement::Panel}};
+    save.deletable = false;
+    registerBuiltin(registry, std::move(save));
+
     registerBuiltin(registry,
                     {"group", "Group",
                      {imagePort("in", Core::PortDirection::Input),
