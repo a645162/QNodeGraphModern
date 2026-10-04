@@ -302,7 +302,7 @@ void GraphController::refreshRegistryDependentRoles() {
                           NodeIsGroupRole, NodeContentUrlRole,
                           NodeOnNodePropertiesRole});
     }
-    emit connectionsChanged();
+    notifyTopologyChanged();
     emit propertiesChanged();
 }
 
@@ -578,6 +578,11 @@ QVariant GraphController::data(const QModelIndex& index, int role) const {
         }
         return values;
     }
+    case NodeOutputUsedRole:
+        return m_outputUsed.contains(node->id);
+    case NodeEffectiveRole:
+        // 输出无人使用 → 该节点对最终结果无贡献，UI 降级显示。
+        return m_outputUsed.contains(node->id);
     case NodePreviewSourceRole:
     case NodePreviewWidthRole:
     case NodePreviewHeightRole:
@@ -633,6 +638,8 @@ QHash<int, QByteArray> GraphController::roleNames() const {
         {NodeFixedRole, "nodeFixed"},
         {NodeContentUrlRole, "nodeContentUrl"},
         {NodeOnNodePropertiesRole, "nodeOnNodeProperties"},
+        {NodeOutputUsedRole, "nodeOutputUsed"},
+        {NodeEffectiveRole, "nodeEffective"},
     };
 }
 
@@ -667,7 +674,7 @@ void GraphController::addDemoNode(bool connectToPrevious) {
         }
     }
     emit nodeCountChanged();
-    emit connectionsChanged();
+    notifyTopologyChanged();
 }
 
 bool GraphController::addNodeType(QString typeId, bool connectToPrevious) {
@@ -721,7 +728,7 @@ bool GraphController::addNodeType(QString typeId, bool connectToPrevious) {
     m_nodeOrder.push_back(*node);
     endInsertRows();
     emit nodeCountChanged();
-    emit connectionsChanged();
+    notifyTopologyChanged();
     return true;
 }
 
@@ -759,7 +766,7 @@ bool GraphController::deleteNode(int row) {
     if (nodeCount() != oldCount) {
         emit nodeCountChanged();
     }
-    emit connectionsChanged();
+    notifyTopologyChanged();
     emit historyChanged();
     return true;
 }
@@ -809,7 +816,7 @@ bool GraphController::loadGraph(QString filePath) {
     if (nodeCount() != oldCount) {
         emit nodeCountChanged();
     }
-    emit connectionsChanged();
+    notifyTopologyChanged();
     emit historyChanged();
     setError({});
     return true;
@@ -891,7 +898,7 @@ void GraphController::clearGraph() {
     m_commandStack.clear();
     endResetModel();
     emit nodeCountChanged();
-    emit connectionsChanged();
+    notifyTopologyChanged();
     emit historyChanged();
 }
 
@@ -908,7 +915,7 @@ bool GraphController::moveNode(int row, double x, double y) {
     }
     const auto modelIndex = index(row, 0);
     emit dataChanged(modelIndex, modelIndex, {NodeXRole, NodeYRole});
-    emit connectionsChanged();
+    notifyTopologyChanged();
     if (connectionPending()) {
         emit connectionPreviewChanged();
     }
@@ -951,7 +958,7 @@ bool GraphController::moveSelectedNodes(int anchorRow, double x, double y) {
         const auto modelIndex = index(row, 0);
         emit dataChanged(modelIndex, modelIndex, {NodeXRole, NodeYRole});
     }
-    emit connectionsChanged();
+    notifyTopologyChanged();
     emit historyChanged();
     return true;
 }
@@ -1036,7 +1043,7 @@ bool GraphController::autoLayout() {
     }
     emit dataChanged(index(0, 0), index(count - 1, 0),
                      {NodeXRole, NodeYRole});
-    emit connectionsChanged();
+    notifyTopologyChanged();
     if (connectionPending()) {
         emit connectionPreviewChanged();
     }
@@ -1083,7 +1090,7 @@ int GraphController::sliceConnections(double startX, double startY,
         }
     }
     if (removed > 0) {
-        emit connectionsChanged();
+        notifyTopologyChanged();
         emit historyChanged();
     }
     return removed;
@@ -1324,7 +1331,7 @@ bool GraphController::resizeNodeAt(int row, double x, double y, double width,
     const auto modelIndex = index(row, 0);
     emit dataChanged(modelIndex, modelIndex,
                      {NodeWidthRole, NodeHeightRole, NodeXRole, NodeYRole});
-    emit connectionsChanged();
+    notifyTopologyChanged();
     emit historyChanged();
     return true;
 }
@@ -1399,7 +1406,7 @@ bool GraphController::undo() {
                           NodeHeightRole, NodeColorRole, NodeIsBackdropRole,
                           NodeIsGroupRole, NodeGroupIdRole});
     }
-    emit connectionsChanged();
+    notifyTopologyChanged();
     emit propertiesChanged();
     emit historyChanged();
     return true;
@@ -1422,7 +1429,7 @@ bool GraphController::redo() {
                           NodeHeightRole, NodeColorRole, NodeIsBackdropRole,
                           NodeIsGroupRole, NodeGroupIdRole});
     }
-    emit connectionsChanged();
+    notifyTopologyChanged();
     emit propertiesChanged();
     emit historyChanged();
     return true;
@@ -1480,6 +1487,62 @@ void GraphController::setSelection(std::vector<int> rows) {
     emit selectedRowChanged();
     emit selectionChanged();
     emit propertiesChanged();
+}
+
+void GraphController::recomputeOutputUsage() {
+    // 汇点 = 没有输出端口的节点（图像预览 / 保存 / 视口输出）。它们的输入
+    // 被消费，因此其上游「输出被使用」。沿连接反向做一次可达性遍历即可。
+    m_outputUsed.clear();
+    std::queue<Core::NodeId> pending;
+    for (const auto nodeId : m_document.nodeIds()) {
+        const auto* node = m_document.node(nodeId);
+        if (node == nullptr) {
+            continue;
+        }
+        if (portFor(nodeId, Core::PortDirection::Output) == 0) {
+            if (m_outputUsed.insert(nodeId).second) {
+                pending.push(nodeId);
+            }
+        }
+    }
+    // 反向遍历：输入端口所在节点 ← 上游输出端口所在节点。
+    while (!pending.empty()) {
+        const auto nodeId = pending.front();
+        pending.pop();
+        const auto* node = m_document.node(nodeId);
+        if (node == nullptr) {
+            continue;
+        }
+        for (const auto portId : node->ports) {
+            const auto* port = m_document.port(portId);
+            if (port == nullptr ||
+                port->direction != Core::PortDirection::Input) {
+                continue;
+            }
+            for (const auto& connection : m_document.connections()) {
+                if (connection.inputPort != portId) {
+                    continue;
+                }
+                const auto* upstreamPort =
+                    m_document.port(connection.outputPort);
+                if (upstreamPort == nullptr) {
+                    continue;
+                }
+                if (m_outputUsed.insert(upstreamPort->nodeId).second) {
+                    pending.push(upstreamPort->nodeId);
+                }
+            }
+        }
+    }
+}
+
+void GraphController::notifyTopologyChanged() {
+    recomputeOutputUsage();
+    emit connectionsChanged();
+    if (!m_nodeOrder.empty()) {
+        emit dataChanged(index(0, 0), index(nodeCount() - 1, 0),
+                         {NodeOutputUsedRole, NodeEffectiveRole});
+    }
 }
 
 void GraphController::setError(QString message) {
@@ -1546,7 +1609,7 @@ bool GraphController::connectRows(int outputRow, int inputRow) {
     }
     setError({});
     emit nodeConnected(outputRow, inputRow);
-    emit connectionsChanged();
+    notifyTopologyChanged();
     emit historyChanged();
     return true;
 }

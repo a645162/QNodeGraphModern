@@ -11,6 +11,7 @@
 #include <QVariant>
 
 #include <map>
+#include <set>
 #include <vector>
 
 namespace QNodeGraph::UI {
@@ -60,6 +61,11 @@ public:
         NodeFixedRole,
         NodeContentUrlRole,
         NodeOnNodePropertiesRole,
+        // 该节点的输出是否被下游使用（从任一输出型节点反向可达）。
+        // 未被使用的 in+out 节点会被标记为无效，UI 据此降级显示。
+        NodeOutputUsedRole,
+        // 该节点是否参与求值（已达且输出被使用）。等价于 !pruned。
+        NodeEffectiveRole,
     };
     Q_ENUM(NodeRole)
 
@@ -150,6 +156,14 @@ private:
     [[nodiscard]] int rowFor(Core::NodeId nodeId) const;
     [[nodiscard]] bool connectRows(int outputRow, int inputRow);
     [[nodiscard]] bool isFixedNode(Core::NodeId nodeId) const;
+    // 重算「输出被使用」集合：把「输出型节点」（无输出端口者，如图像预览、
+    // 保存、视口输出）当作汇点，沿连接反向做可达性遍历。未出现在集合中的
+    // 节点其输出无人使用，可被剪枝。
+    void recomputeOutputUsage();
+    // 拓扑或连接发生变化后的统一通知：重算可达性并发出 connectionsChanged +
+    // 剪枝相关 role 的 dataChanged。所有改动连接的路径都必须走这里，否则
+    // 剪枝标记会与图不同步。
+    void notifyTopologyChanged();
 
     Core::GraphDocument m_document;
     QNodeGraph::Graph::NodeRegistry m_registry;
@@ -164,6 +178,8 @@ private:
         int channels = 0;
     };
     std::map<Core::NodeId, NodePreview> m_nodePreviews;
+    // 输出被使用（从汇点反向可达）的节点集合，由 recomputeOutputUsage() 维护。
+    std::set<Core::NodeId> m_outputUsed;
     int m_pendingOutputRow = -1;
     Core::Point m_previewPoint;
     int m_selectedRow = -1;

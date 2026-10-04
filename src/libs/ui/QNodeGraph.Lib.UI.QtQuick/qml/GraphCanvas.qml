@@ -319,6 +319,8 @@ Rectangle {
                 required property var nodeOnNodeProperties
                 required property string nodeContentUrl
                 required property bool nodeFixed
+                required property bool nodeOutputUsed
+                required property bool nodeEffective
 
                 x: nodeItem.nodeX
                 y: nodeItem.nodeY
@@ -339,7 +341,24 @@ Rectangle {
                                                          : Theme.nodeBorder)
                 border.width: nodeItem.nodeSelected ? 2 : Theme.borderWidth
                 radius: Theme.nodeRadius
-                opacity: nodeItem.nodeEnabled ? 1.0 : 0.55
+                // 输出未被使用的节点（剪枝）额外降级，与「已禁用」区分：
+                // 禁用是用户主动关闭，剪枝是接线问题。
+                opacity: nodeItem.nodeEffective
+                         ? (nodeItem.nodeEnabled ? 1.0 : 0.55)
+                         : 0.38
+
+                // 剪枝标记：虚线红框 + 角标。Theme.error 此前零引用，正好作
+                // 无效标识色。
+                Rectangle {
+                    anchors.fill: parent
+                    anchors.margins: 1
+                    color: "transparent"
+                    radius: Theme.nodeRadius
+                    border.color: Theme.error
+                    border.width: 1
+                    visible: !nodeItem.nodeEffective
+                    z: 5
+                }
 
                 Rectangle {
                     width: parent.width
@@ -391,18 +410,69 @@ Rectangle {
                     x: 8
                     y: 32
                     width: parent.width - 16
-                    spacing: 1
+                    spacing: 3
                     visible: nodeItem.nodeContentUrl.length === 0 &&
                              nodeItem.nodePreviewSource.length === 0
                     Repeater {
                         model: nodeItem.nodeOnNodeProperties
-                        delegate: Label {
+
+                        // 节点内属性控件：按描述符声明的 editor 分派，而不是
+                        // 一律当只读文本。此前这里是 Label，滑块做不出来。
+                        delegate: Row {
+                            id: propertyRow
                             required property var modelData
-                            text: modelData.name + ": " + String(modelData.value)
-                            color: Theme.nodeBodyText
-                            font.pixelSize: 11
-                            elide: Text.ElideRight
                             width: parent.width
+                            spacing: 4
+
+                            Label {
+                                text: propertyRow.modelData.name
+                                color: Theme.nodeBodyText
+                                font.pixelSize: 10
+                                width: 52
+                                elide: Text.ElideRight
+                            }
+
+                            // 数值滑块（editor == "slider"）
+                            Slider {
+                                visible: propertyRow.modelData.editor === "slider"
+                                width: Math.max(40, propertyRow.width - 92)
+                                from: propertyRow.modelData.minimum
+                                to: Math.max(propertyRow.modelData.minimum + 1,
+                                             propertyRow.modelData.maximum)
+                                stepSize: propertyRow.modelData.step > 0
+                                          ? propertyRow.modelData.step : 0.001
+                                value: Number(propertyRow.modelData.value)
+                                // 拖动中即时回写，靠库的脏传播驱动下游重算。
+                                onMoved: canvas.controller.setNodeProperty(
+                                             nodeItem.index,
+                                             propertyRow.modelData.name, value)
+                            }
+
+                            // 布尔开关
+                            CheckBox {
+                                visible: propertyRow.modelData.editor !== "slider" &&
+                                         propertyRow.modelData.valueType === "bool"
+                                text: qsTr("Enabled")
+                                scale: 0.8
+                                checked: Boolean(propertyRow.modelData.value)
+                                onToggled: canvas.controller.setNodeProperty(
+                                               nodeItem.index,
+                                               propertyRow.modelData.name,
+                                               checked)
+                            }
+
+                            // 其余一律文本输入（字符串/未声明控件的数值）
+                            TextField {
+                                visible: propertyRow.modelData.editor !== "slider" &&
+                                         propertyRow.modelData.valueType !== "bool"
+                                width: Math.max(40, propertyRow.width - 60)
+                                text: String(propertyRow.modelData.value)
+                                font.pixelSize: 10
+                                onEditingFinished: canvas.controller.setNodeProperty(
+                                                       nodeItem.index,
+                                                       propertyRow.modelData.name,
+                                                       text)
+                            }
                         }
                     }
                 }
@@ -618,37 +688,76 @@ Rectangle {
                     }
                 }
 
-                Rectangle {
-                    id: resizeHandle
-                    visible: !nodeItem.nodeIsBackdrop && !nodeItem.nodeIsGroup
-                    x: parent.width - 9
-                    y: parent.height - 9
-                    width: 14
-                    height: 14
-                    radius: 3
-                    color: Theme.nodeMutedText
-                    opacity: resizeArea.pressed ? 1.0 : 0.55
-                    z: 4
+                // 四角 resize。此前只有右下角一个手柄，且 resizeNode(row,w,h)
+                // 的签名表达不了「同时改变左上角」—— 从左/上侧拖拽必须同时移动
+                // origin，因此改用 resizeNodeAt(row, x, y, w, h)。
+                //
+                // 每个角记录拖拽起点的矩形（origin + size），全程按「起点 + 位移」
+                // 计算，避免逐帧累加导致的漂移。
+                Repeater {
+                    model: [
+                        { corner: "tl", cx: 0, cy: 0, cursor: Qt.SizeFDiagCursor },
+                        { corner: "tr", cx: 1, cy: 0, cursor: Qt.SizeBDiagCursor },
+                        { corner: "bl", cx: 0, cy: 1, cursor: Qt.SizeBDiagCursor },
+                        { corner: "br", cx: 1, cy: 1, cursor: Qt.SizeFDiagCursor }
+                    ]
 
-                    MouseArea {
-                        id: resizeArea
-                        anchors.fill: parent
-                        cursorShape: Qt.SizeFDiagCursor
-                        preventStealing: true
+                    delegate: Rectangle {
+                        id: resizeHandle
+                        required property var modelData
 
-                        onPressed: function(mouse) {
-                            mouse.accepted = true
-                        }
-                        onPositionChanged: function(mouse) {
-                            var point = parent.mapToItem(canvas, mouse.x, mouse.y)
-                            var worldX = (point.x - canvas.panOffset.x) /
-                                         canvas.zoomFactor
-                            var worldY = (point.y - canvas.panOffset.y) /
-                                         canvas.zoomFactor
-                            canvas.controller.resizeNode(
-                                nodeItem.index,
-                                Math.max(120, worldX - nodeItem.nodeX),
-                                Math.max(72, worldY - nodeItem.nodeY))
+                        visible: !nodeItem.nodeIsBackdrop && !nodeItem.nodeIsGroup
+                        x: modelData.cx === 0 ? -7 : parent.width - 7
+                        y: modelData.cy === 0 ? -7 : parent.height - 7
+                        width: 14
+                        height: 14
+                        radius: 3
+                        color: Theme.nodeMutedText
+                        opacity: resizeArea.pressed ? 1.0 : 0.55
+                        z: 4
+
+                        MouseArea {
+                            id: resizeArea
+                            anchors.fill: parent
+                            cursorShape: resizeHandle.modelData.cursor
+                            preventStealing: true
+
+                            property real startX: 0
+                            property real startY: 0
+                            property real startWidth: 0
+                            property real startHeight: 0
+
+                            onPressed: function(mouse) {
+                                startX = nodeItem.nodeX
+                                startY = nodeItem.nodeY
+                                startWidth = nodeItem.nodeWidth
+                                startHeight = nodeItem.nodeHeight
+                                mouse.accepted = true
+                            }
+                            onPositionChanged: function(mouse) {
+                                var point = parent.mapToItem(canvas, mouse.x,
+                                                             mouse.y)
+                                var worldX = (point.x - canvas.panOffset.x) /
+                                             canvas.zoomFactor
+                                var worldY = (point.y - canvas.panOffset.y) /
+                                             canvas.zoomFactor
+                                var left = startX
+                                var top = startY
+                                var right = startX + startWidth
+                                var bottom = startY + startHeight
+                                // 只改动被拖拽的那条边，对边保持不动。
+                                if (resizeHandle.modelData.cx === 0)
+                                    left = Math.min(worldX, right - 120)
+                                else
+                                    right = Math.max(worldX, left + 120)
+                                if (resizeHandle.modelData.cy === 0)
+                                    top = Math.min(worldY, bottom - 72)
+                                else
+                                    bottom = Math.max(worldY, top + 72)
+                                canvas.controller.resizeNodeAt(
+                                    nodeItem.index, left, top,
+                                    right - left, bottom - top)
+                            }
                         }
                     }
                 }

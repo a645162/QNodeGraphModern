@@ -46,6 +46,7 @@ private slots:
     void rejectsDuplicateUniqueNode();
     void exposesPropertyEditorMetadata();
     void usesInjectedRegistryForCustomNodes();
+    void marksPrunedNodesAsIneffective();
 };
 
 void GraphControllerTest::startsWithEmptyModel() {
@@ -722,6 +723,32 @@ void GraphControllerTest::usesInjectedRegistryForCustomNodes() {
                  .data(QNodeGraph::UI::GraphController::NodeWidthRole)
                  .toDouble(),
              220.0);
+}
+
+void GraphControllerTest::marksPrunedNodesAsIneffective() {
+    QNodeGraph::UI::GraphController controller;
+    // 节点 0/1 是 demo（in+out），节点 2 是 image_preview（只有 in，是汇点）。
+    controller.addNodeType(QStringLiteral("demo"));
+    controller.addNodeType(QStringLiteral("demo"));
+    controller.addNodeType(QStringLiteral("image_preview"));
+
+    const auto effectiveRole = QNodeGraph::UI::GraphController::NodeEffectiveRole;
+    // 未接线时：两个 demo 的输出无人使用 → 剪枝；preview 自身是汇点 → 有效。
+    QCOMPARE(controller.index(0, 0).data(effectiveRole).toBool(), false);
+    QCOMPARE(controller.index(1, 0).data(effectiveRole).toBool(), false);
+    QCOMPARE(controller.index(2, 0).data(effectiveRole).toBool(), true);
+
+    // demo0 → demo1 → preview 全链打通后，三者都有效。
+    QVERIFY(controller.beginConnection(0));
+    QVERIFY(controller.completeConnectionAt(80.0 + 250.0, 90.0));
+    QVERIFY(controller.beginConnection(1));
+    QVERIFY(controller.completeConnectionAt(80.0 + 500.0, 90.0));
+    QCOMPARE(controller.index(0, 0).data(effectiveRole).toBool(), true);
+    QCOMPARE(controller.index(1, 0).data(effectiveRole).toBool(), true);
+
+    // 剪掉中间一环，上游重新变为剪枝。
+    QVERIFY(controller.sliceConnections(0.0, 0.0, 5000.0, 5000.0) >= 0);
+    QCOMPARE(controller.index(0, 0).data(effectiveRole).toBool(), false);
 }
 
 QTEST_MAIN(GraphControllerTest)
