@@ -53,6 +53,12 @@ PR 应说明设计影响、受影响的库和 Example，附上构建与测试命
 必须通过异步执行接口更新 UI，禁止从工作线程直接操作 QML 对象。大型图像默认使用
 外部资源引用，不要把原始图像嵌入图文档或提交到仓库。
 
+## 参考实现
+
+节点图的设计与交互参考 **NodeGraphQt**（<https://github.com/jchanvfx/NodeGraphQt>）。
+本机可查阅其本地检出于 `D:\Work\Test\NodeGraphQt`，仅作设计与交互参考，本项目为
+独立的 C++23/Qt 6 实现，不直接移植其 Python 源码。
+
 ## 提交与推送规范
 
 最近的提交历史采用简短、祈使式主题，并带可选 scope，例如 `feat(Qt): ...`、`docs(Regex): ...`、`docs(Agents): ...`。

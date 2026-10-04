@@ -48,3 +48,9 @@ CMake project, and keep the host window in that project's application target.
 See [docs/README.md](docs/README.md) for the QML module, node authoring, image
 execution, persistence, and extension contracts. The Chinese guide is
 [README.zh-cn.md](README.zh-cn.md).
+
+## Reference
+
+The node-graph design is inspired by **NodeGraphQt**
+(<https://github.com/jchanvfx/NodeGraphQt>), a Python/Qt node graph framework.
+This project is an independent C++23/Qt 6 implementation.

@@ -21,3 +21,9 @@ Execution 异步执行服务，以及提供 `QNodeGraph.UI` QML 模块的 UI/QtQ
 
 详细的外部 CMake 接入、QML 组件、节点扩展、持久化和线程约束见
 [docs/README.md](docs/README.md)。
+
+## 参考项目
+
+节点图的设计与交互参考了 **NodeGraphQt**
+（<https://github.com/jchanvfx/NodeGraphQt>），一个 Python/Qt 节点图框架。
+本项目为独立的 C++23/Qt 6 实现。
