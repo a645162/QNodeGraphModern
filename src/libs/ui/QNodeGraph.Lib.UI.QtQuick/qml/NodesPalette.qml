@@ -54,6 +54,17 @@ Rectangle {
                 border.color: mouseArea.containsMouse ? "#69a7dc" : "#566575"
                 radius: 3
 
+                Drag.dragType: Drag.Automatic
+                Drag.active: dragHandler.active
+                Drag.supportedActions: Qt.CopyAction
+                Drag.keys: ["qnodegraph.node"]
+                Drag.mimeData: { "text/plain": nodeType }
+
+                DragHandler {
+                    target: null
+                    id: dragHandler
+                }
+
                 Column {
                     anchors.left: parent.left
                     anchors.leftMargin: 10

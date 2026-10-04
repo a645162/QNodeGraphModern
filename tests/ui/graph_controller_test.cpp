@@ -12,6 +12,8 @@ private slots:
     void startsWithEmptyModel();
     void addsNodeWithRoles();
     void connectsAdjacentDemoNodes();
+    void addsNodeAtCanvasPosition();
+    void fansOutOneOutputToMultipleInputs();
     void connectsNodesThroughPortInteraction();
     void reportsPortHitTestingResults();
     void exposesAndClearsConnectionPreview();
@@ -65,6 +67,31 @@ void GraphControllerTest::connectsAdjacentDemoNodes() {
     const auto connection = controller.connections().constFirst().toMap();
     QCOMPARE(connection.value(QStringLiteral("outputRow")).toInt(), 0);
     QCOMPARE(connection.value(QStringLiteral("inputRow")).toInt(), 1);
+}
+
+void GraphControllerTest::addsNodeAtCanvasPosition() {
+    QNodeGraph::UI::GraphController controller;
+    QVERIFY(controller.addNodeTypeAt(QStringLiteral("grayscale"), 420.0,
+                                     260.0));
+    QCOMPARE(controller.nodeCount(), 1);
+    const auto index = controller.index(0, 0);
+    QCOMPARE(index.data(QNodeGraph::UI::GraphController::NodeXRole).toDouble(),
+             330.0);
+    QCOMPARE(index.data(QNodeGraph::UI::GraphController::NodeYRole).toDouble(),
+             206.0);
+}
+
+void GraphControllerTest::fansOutOneOutputToMultipleInputs() {
+    QNodeGraph::UI::GraphController controller;
+    controller.addDemoNode(false);
+    controller.addDemoNode(false);
+    controller.addDemoNode(false);
+
+    QVERIFY(controller.beginConnection(0));
+    QVERIFY(controller.completeConnectionAt(330.0, 144.0));
+    QVERIFY(controller.beginConnection(0));
+    QVERIFY(controller.completeConnectionAt(580.0, 144.0));
+    QCOMPARE(controller.connections().size(), qsizetype{2});
 }
 
 void GraphControllerTest::connectsNodesThroughPortInteraction() {

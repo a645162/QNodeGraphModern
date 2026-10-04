@@ -568,6 +568,16 @@ bool GraphController::addNodeType(QString typeId, bool connectToPrevious) {
     return true;
 }
 
+bool GraphController::addNodeTypeAt(QString typeId, double x, double y,
+                                    bool connectToPrevious) {
+    if (!addNodeType(std::move(typeId), connectToPrevious)) {
+        return false;
+    }
+    const auto row = nodeCount() - 1;
+    return moveNode(row, x - kDemoNodeWidth / 2.0,
+                    y - kDemoNodeHeight / 2.0);
+}
+
 bool GraphController::deleteNode(int row) {
     if (row < 0 || row >= nodeCount()) {
         return false;

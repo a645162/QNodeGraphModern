@@ -24,6 +24,7 @@ Rectangle {
     property point sliceStart: Qt.point(0, 0)
     property point sliceEnd: Qt.point(0, 0)
     property int contextNodeRow: -1
+    property bool nodeDropActive: nodeDropArea.containsDrag
 
     onZoomFactorChanged: {
         grid.requestPaint()
@@ -80,6 +81,38 @@ Rectangle {
 
     GraphController {
         id: graphController
+    }
+
+    DropArea {
+        id: nodeDropArea
+        anchors.fill: parent
+        keys: ["qnodegraph.node"]
+        z: 4
+
+        onDropped: function(drop) {
+            var typeId = drop.getDataAsString("text/plain")
+            if (typeId.length === 0 && drop.source)
+                typeId = drop.source.nodeType
+            if (typeId.length === 0)
+                return
+
+            var worldX = (drop.x - canvas.panOffset.x) / canvas.zoomFactor
+            var worldY = (drop.y - canvas.panOffset.y) / canvas.zoomFactor
+            if (canvas.controller.addNodeTypeAt(typeId, worldX, worldY,
+                                                false)) {
+                drop.acceptProposedAction()
+            }
+        }
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        anchors.margins: 2
+        color: "transparent"
+        border.color: "#69a7dc"
+        border.width: 2
+        visible: canvas.nodeDropActive
+        z: 5
     }
 
     Menu {
@@ -417,10 +450,24 @@ Rectangle {
                     radius: 6
                     color: "#6fa8dc"
                     border.color: "#c4e2ff"
+                    z: 2
+                }
+
+                Rectangle {
+                    x: parent.width - 6
+                    y: nodeItem.height / 2 - 6
+                    width: 12
+                    height: 12
+                    radius: 6
+                    color: canvas.controller.connectionPending ? "#f0b45f" : "#7bc58c"
+                    border.color: "#d5f6dc"
+                    z: 2
 
                     MouseArea {
                         anchors.fill: parent
                         acceptedButtons: Qt.LeftButton
+                        preventStealing: true
+
                         onPressed: {
                             mouse.accepted = true
                             canvas.controller.beginConnection(nodeItem.index)
@@ -444,16 +491,6 @@ Rectangle {
                                 canvas.controller.cancelConnection()
                         }
                     }
-                }
-
-                Rectangle {
-                    x: parent.width - 6
-                    y: nodeItem.height / 2 - 6
-                    width: 12
-                    height: 12
-                    radius: 6
-                    color: canvas.controller.connectionPending ? "#f0b45f" : "#7bc58c"
-                    border.color: "#d5f6dc"
                 }
 
                 MouseArea {

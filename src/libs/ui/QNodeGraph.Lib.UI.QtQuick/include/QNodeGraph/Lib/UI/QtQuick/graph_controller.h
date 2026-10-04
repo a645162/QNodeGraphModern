@@ -80,6 +80,8 @@ public:
     Q_INVOKABLE void addDemoNode(bool connectToPrevious = true);
     Q_INVOKABLE bool addNodeType(QString typeId,
                                  bool connectToPrevious = true);
+    Q_INVOKABLE bool addNodeTypeAt(QString typeId, double x, double y,
+                                   bool connectToPrevious = false);
     Q_INVOKABLE bool deleteNode(int row);
     Q_INVOKABLE bool saveGraph(QString filePath);
     Q_INVOKABLE bool loadGraph(QString filePath);

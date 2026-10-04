@@ -42,6 +42,17 @@ Rectangle {
                 height: 38
                 color: mouseArea.containsMouse ? "#344452" : "transparent"
 
+                Drag.dragType: Drag.Automatic
+                Drag.active: dragHandler.active
+                Drag.supportedActions: Qt.CopyAction
+                Drag.keys: ["qnodegraph.node"]
+                Drag.mimeData: { "text/plain": nodeType }
+
+                DragHandler {
+                    target: null
+                    id: dragHandler
+                }
+
                 RowLayout {
                     anchors.fill: parent
                     anchors.leftMargin: 8
