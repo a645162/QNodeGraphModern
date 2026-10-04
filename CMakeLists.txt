@@ -15,12 +15,36 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(QNODEGRAPH_BUILD_EXAMPLES "Build QNodeGraph examples" ON)
 option(QNODEGRAPH_BUILD_TESTS "Build QNodeGraph tests" ON)
+option(QNODEGRAPH_DEPLOY_QT_RUNTIME
+       "Deploy Qt runtime files beside example executables on Windows" ON)
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Quick Qml QuickControls2 Concurrent)
+
+if(WIN32 AND QNODEGRAPH_DEPLOY_QT_RUNTIME)
+    get_filename_component(QNODEGRAPH_QT_PREFIX
+                           "${Qt6_DIR}/../../.." ABSOLUTE)
+    find_program(QNODEGRAPH_WINDEPLOYQT
+                 NAMES windeployqt.exe windeployqt
+                 HINTS "${QNODEGRAPH_QT_PREFIX}/bin"
+                 NO_DEFAULT_PATH)
+    if(QNODEGRAPH_WINDEPLOYQT)
+        function(qnodegraph_deploy_qt_runtime target)
+            add_custom_command(TARGET ${target} POST_BUILD
+                COMMAND "${QNODEGRAPH_WINDEPLOYQT}"
+                        --no-translations
+                        --qmldir "${CMAKE_SOURCE_DIR}/examples"
+                        "$<TARGET_FILE:${target}>"
+                VERBATIM)
+        endfunction()
+    else()
+        message(WARNING
+                "windeployqt was not found; example executables will need Qt on PATH")
+    endif()
+endif()
 
 qt_policy(SET QTP0001 NEW)
 qt_policy(SET QTP0004 NEW)

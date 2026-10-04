@@ -8,6 +8,8 @@ ApplicationWindow {
     id: root
     width: 1280
     height: 800
+    minimumWidth: 1080
+    minimumHeight: 640
     visible: true
     title: qsTr("QNodeGraph Basic Demo")
     color: "#20252b"
@@ -135,11 +137,13 @@ ApplicationWindow {
 
     RowLayout {
         anchors.fill: parent
-        anchors.margins: 16
-        spacing: 12
+        anchors.margins: 12
+        spacing: 8
 
         ColumnLayout {
-            Layout.preferredWidth: 230
+            Layout.preferredWidth: 190
+            Layout.minimumWidth: 175
+            Layout.maximumWidth: 210
             Layout.fillHeight: true
             spacing: 8
 
@@ -164,10 +168,13 @@ ApplicationWindow {
             id: canvas
             Layout.fillWidth: true
             Layout.fillHeight: true
+            Layout.minimumWidth: 420
         }
 
         PropertiesBin {
-            Layout.preferredWidth: 260
+            Layout.preferredWidth: 220
+            Layout.minimumWidth: 200
+            Layout.maximumWidth: 240
             Layout.fillHeight: true
             controller: canvas.controller
         }

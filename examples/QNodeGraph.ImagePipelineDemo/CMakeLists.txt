@@ -28,3 +28,7 @@ target_compile_features(QNodeGraph.ImagePipelineDemo PRIVATE cxx_std_23)
 set_target_properties(QNodeGraph.ImagePipelineDemo PROPERTIES
     WIN32_EXECUTABLE TRUE
 )
+
+if(COMMAND qnodegraph_deploy_qt_runtime)
+    qnodegraph_deploy_qt_runtime(QNodeGraph.ImagePipelineDemo)
+endif()
