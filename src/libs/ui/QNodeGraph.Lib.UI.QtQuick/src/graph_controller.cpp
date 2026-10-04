@@ -257,6 +257,10 @@ bool GraphController::connectionPending() const noexcept {
     return m_pendingOutputRow >= 0;
 }
 
+int GraphController::pendingOutputRow() const noexcept {
+    return m_pendingOutputRow;
+}
+
 QVariantMap GraphController::connectionPreview() const {
     if (!connectionPending() || m_pendingOutputRow >= nodeCount()) {
         return {};
@@ -307,6 +311,16 @@ QVariantList GraphController::selectedProperties() const {
         return values;
     }
     for (const auto& [name, value] : node->properties) {
+        if (name.size() >= 8 &&
+            name.compare(name.size() - 8, 8, ".display") == 0) {
+            continue;
+        }
+        const auto display = nodeStringProperty(*node, (name + ".display").c_str(),
+                                                QStringLiteral("panel"));
+        if (display == QStringLiteral("node") ||
+            display == QStringLiteral("hidden")) {
+            continue;
+        }
         values.push_back(QVariantMap{
             {QStringLiteral("name"), QString::fromStdString(name)},
             {QStringLiteral("value"), propertyVariant(value)},
@@ -439,6 +453,39 @@ QVariant GraphController::data(const QModelIndex& index, int role) const {
         return nodePorts(*node, m_document, Core::PortDirection::Input);
     case NodeOutputPortsRole:
         return nodePorts(*node, m_document, Core::PortDirection::Output);
+    case NodeFixedRole: {
+        const auto iterator = node->properties.find("fixed");
+        return iterator != node->properties.end() &&
+               std::holds_alternative<bool>(iterator->second)
+                   ? QVariant(std::get<bool>(iterator->second))
+                   : QVariant(false);
+    }
+    case NodeContentUrlRole: {
+        if (const auto* descriptor = m_registry.find(node->type);
+            descriptor != nullptr && !descriptor->qmlContentUrl.empty()) {
+            return QString::fromStdString(descriptor->qmlContentUrl);
+        }
+        return QString{};
+    }
+    case NodeOnNodePropertiesRole: {
+        QVariantList values;
+        for (const auto& [name, value] : node->properties) {
+            if (name.size() >= 8 &&
+                name.compare(name.size() - 8, 8, ".display") == 0) {
+                continue;
+            }
+            const auto display = nodeStringProperty(
+                *node, (name + ".display").c_str(), QStringLiteral("panel"));
+            if (display != QStringLiteral("node") &&
+                display != QStringLiteral("both")) {
+                continue;
+            }
+            values.push_back(QVariantMap{
+                {QStringLiteral("name"), QString::fromStdString(name)},
+                {QStringLiteral("value"), propertyVariant(value)}});
+        }
+        return values;
+    }
     case NodePreviewSourceRole:
     case NodePreviewWidthRole:
     case NodePreviewHeightRole:
@@ -491,6 +538,9 @@ QHash<int, QByteArray> GraphController::roleNames() const {
         {NodePreviewChannelsRole, "nodePreviewChannels"},
         {NodeInputPortsRole, "nodeInputPorts"},
         {NodeOutputPortsRole, "nodeOutputPorts"},
+        {NodeFixedRole, "nodeFixed"},
+        {NodeContentUrlRole, "nodeContentUrl"},
+        {NodeOnNodePropertiesRole, "nodeOnNodeProperties"},
     };
 }
 
@@ -583,6 +633,10 @@ bool GraphController::deleteNode(int row) {
         return false;
     }
     const auto nodeId = m_nodeOrder[static_cast<std::size_t>(row)];
+    if (isFixedNode(nodeId)) {
+        setError(QStringLiteral("This node is fixed and cannot be deleted."));
+        return false;
+    }
     const auto result = m_commandStack.execute(
         std::make_unique<Core::DeleteNodeCommand>(nodeId), m_document);
     if (!result) {
@@ -1129,10 +1183,43 @@ bool GraphController::setNodeProperty(int row, QString name, QVariant value) {
         emit dataChanged(modelIndex, modelIndex, {NodeEnabledRole});
     } else if (name == QStringLiteral("label")) {
         emit dataChanged(modelIndex, modelIndex, {NodeLabelRole, NodeNameRole});
+    } else if (name == QStringLiteral("fixed")) {
+        emit dataChanged(modelIndex, modelIndex, {NodeFixedRole});
     }
     emit propertiesChanged();
     emit historyChanged();
     return true;
+}
+
+bool GraphController::resizeNode(int row, double width, double height) {
+    if (row < 0 || row >= nodeCount() || width <= 0.0 || height <= 0.0) {
+        return false;
+    }
+    const auto nodeId = m_nodeOrder[static_cast<std::size_t>(row)];
+    if (const auto result = m_commandStack.execute(
+            std::make_unique<Core::SetPropertyCommand>(
+                nodeId, "width", std::int64_t{static_cast<std::int64_t>(width)}),
+            m_document);
+        !result) {
+        return false;
+    }
+    if (const auto result = m_commandStack.execute(
+            std::make_unique<Core::SetPropertyCommand>(
+                nodeId, "height",
+                std::int64_t{static_cast<std::int64_t>(height)}),
+            m_document);
+        !result) {
+        return false;
+    }
+    const auto modelIndex = index(row, 0);
+    emit dataChanged(modelIndex, modelIndex, {NodeWidthRole, NodeHeightRole});
+    emit connectionsChanged();
+    emit historyChanged();
+    return true;
+}
+
+bool GraphController::setNodeFixed(int row, bool fixed) {
+    return setNodeProperty(row, QStringLiteral("fixed"), fixed);
 }
 
 bool GraphController::assignNodeToGroup(int nodeRow, int groupRow) {
@@ -1311,17 +1398,52 @@ bool GraphController::connectRows(int outputRow, int inputRow) {
     const auto outputPort = portFor(outputNode, Core::PortDirection::Output);
     const auto inputPort = portFor(inputNode, Core::PortDirection::Input);
     if (outputPort == 0 || inputPort == 0) {
+        setError(QStringLiteral("Both an output and an input port are required."));
         return false;
+    }
+    const auto* input = m_document.port(inputPort);
+    if (input != nullptr && !input->acceptsMultipleConnections) {
+        const auto existing = std::find_if(
+            m_document.connections().begin(), m_document.connections().end(),
+            [inputPort](const Core::Connection& connection) {
+                return connection.inputPort == inputPort;
+            });
+        if (existing != m_document.connections().end()) {
+            const auto previousOutput = existing->outputPort;
+            int previousRow = -1;
+            if (const auto* previousPort = m_document.port(previousOutput);
+                previousPort != nullptr) {
+                previousRow = rowFor(previousPort->nodeId);
+            }
+            if (const auto result = m_commandStack.execute(
+                    std::make_unique<Core::DisconnectPortsCommand>(previousOutput,
+                                                                   inputPort),
+                    m_document);
+                !result) {
+                setError(QString::fromStdString(result.error().message));
+                return false;
+            }
+            emit nodeDisconnected(previousRow, inputRow);
+        }
     }
     const auto result = m_commandStack.execute(
         std::make_unique<Core::ConnectPortsCommand>(outputPort, inputPort),
         m_document);
     if (!result) {
+        setError(QString::fromStdString(result.error().message));
         return false;
     }
+    setError({});
+    emit nodeConnected(outputRow, inputRow);
     emit connectionsChanged();
     emit historyChanged();
     return true;
+}
+
+bool GraphController::isFixedNode(Core::NodeId nodeId) const {
+    const auto* value = m_document.property(nodeId, "fixed");
+    return value != nullptr && std::holds_alternative<bool>(*value) &&
+           std::get<bool>(*value);
 }
 
 } // namespace QNodeGraph::UI

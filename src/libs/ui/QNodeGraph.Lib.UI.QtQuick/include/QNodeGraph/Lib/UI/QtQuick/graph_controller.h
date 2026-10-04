@@ -21,6 +21,7 @@ class GraphController : public QAbstractListModel {
     Q_PROPERTY(int nodeCount READ nodeCount NOTIFY nodeCountChanged)
     Q_PROPERTY(QVariantList connections READ connections NOTIFY connectionsChanged)
     Q_PROPERTY(bool connectionPending READ connectionPending NOTIFY connectionPendingChanged)
+    Q_PROPERTY(int pendingOutputRow READ pendingOutputRow NOTIFY connectionPendingChanged)
     Q_PROPERTY(QVariantMap connectionPreview READ connectionPreview NOTIFY connectionPreviewChanged)
     Q_PROPERTY(int selectedRow READ selectedRow NOTIFY selectedRowChanged)
     Q_PROPERTY(QVariantList selectedRows READ selectedRows NOTIFY selectionChanged)
@@ -56,6 +57,9 @@ public:
         NodePreviewChannelsRole,
         NodeInputPortsRole,
         NodeOutputPortsRole,
+        NodeFixedRole,
+        NodeContentUrlRole,
+        NodeOnNodePropertiesRole,
     };
     Q_ENUM(NodeRole)
 
@@ -69,6 +73,7 @@ public:
     [[nodiscard]] int nodeCount() const noexcept;
     [[nodiscard]] QVariantList connections() const;
     [[nodiscard]] bool connectionPending() const noexcept;
+    [[nodiscard]] int pendingOutputRow() const noexcept;
     [[nodiscard]] QVariantMap connectionPreview() const;
     [[nodiscard]] int selectedRow() const noexcept;
     [[nodiscard]] QVariantList selectedRows() const;
@@ -77,9 +82,9 @@ public:
     [[nodiscard]] bool canUndo() const noexcept;
     [[nodiscard]] bool canRedo() const noexcept;
 
-    Q_INVOKABLE void addDemoNode(bool connectToPrevious = true);
+    Q_INVOKABLE void addDemoNode(bool connectToPrevious = false);
     Q_INVOKABLE bool addNodeType(QString typeId,
-                                 bool connectToPrevious = true);
+                                 bool connectToPrevious = false);
     Q_INVOKABLE bool addNodeTypeAt(QString typeId, double x, double y,
                                    bool connectToPrevious = false);
     Q_INVOKABLE bool deleteNode(int row);
@@ -106,6 +111,8 @@ public:
                                        double endX, double endY,
                                        bool additive = false);
     Q_INVOKABLE bool setNodeProperty(int row, QString name, QVariant value);
+    Q_INVOKABLE bool resizeNode(int row, double width, double height);
+    Q_INVOKABLE bool setNodeFixed(int row, bool fixed);
     Q_INVOKABLE bool assignNodeToGroup(int nodeRow, int groupRow);
     Q_INVOKABLE bool clearNodeGroup(int nodeRow);
     Q_INVOKABLE bool undo();
@@ -121,6 +128,8 @@ signals:
     void propertiesChanged();
     void errorChanged();
     void historyChanged();
+    void nodeConnected(int outputRow, int inputRow);
+    void nodeDisconnected(int outputRow, int inputRow);
 
 private:
     void setError(QString message);
@@ -130,6 +139,7 @@ private:
                                        Core::PortDirection direction) const;
     [[nodiscard]] int rowFor(Core::NodeId nodeId) const;
     [[nodiscard]] bool connectRows(int outputRow, int inputRow);
+    [[nodiscard]] bool isFixedNode(Core::NodeId nodeId) const;
 
     Core::GraphDocument m_document;
     QNodeGraph::Graph::NodeRegistry m_registry;
