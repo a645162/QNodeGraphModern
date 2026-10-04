@@ -6,6 +6,7 @@ Rectangle {
     id: tree
 
     required property var controller
+    property Item dropTarget: null
     color: "#20262d"
     border.color: "#3c4652"
     radius: 4
@@ -28,6 +29,7 @@ Rectangle {
 
         ListView {
             id: treeList
+            property var nodeController: tree.controller
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
@@ -35,6 +37,7 @@ Rectangle {
             model: treeModel
 
             delegate: Rectangle {
+                id: treeDelegate
                 required property string nodeType
                 required property string nodeName
                 required property string category
@@ -43,15 +46,12 @@ Rectangle {
                 color: mouseArea.containsMouse ? "#344452" : "transparent"
 
                 Drag.dragType: Drag.Automatic
-                Drag.active: dragHandler.active
+                Drag.active: treeDelegate.dragging
                 Drag.supportedActions: Qt.CopyAction
                 Drag.keys: ["qnodegraph.node"]
                 Drag.mimeData: { "text/plain": nodeType }
-
-                DragHandler {
-                    target: null
-                    id: dragHandler
-                }
+                property bool dragging: false
+                property bool dropHandled: false
 
                 RowLayout {
                     anchors.fill: parent
@@ -78,7 +78,33 @@ Rectangle {
                     id: mouseArea
                     anchors.fill: parent
                     hoverEnabled: true
-                    onClicked: tree.controller.addNodeType(nodeType)
+                    property point pressPoint
+
+                    onPressed: function(mouse) {
+                        pressPoint = Qt.point(mouse.x, mouse.y)
+                        treeDelegate.dropHandled = false
+                    }
+                    onPositionChanged: function(mouse) {
+                        if (!treeDelegate.dragging &&
+                            (Math.abs(mouse.x - pressPoint.x) > 8 ||
+                             Math.abs(mouse.y - pressPoint.y) > 8)) {
+                            treeDelegate.dragging = true
+                        }
+                    }
+                    onReleased: function(mouse) {
+                        if (treeDelegate.dragging) {
+                            treeDelegate.Drag.drop()
+                            if (!treeDelegate.dropHandled && tree.dropTarget) {
+                                var targetPoint = tree.dropTarget.mapFromItem(
+                                            treeDelegate, mouse.x, mouse.y)
+                                tree.dropTarget.controller.addNodeTypeAt(
+                                            nodeType, targetPoint.x, targetPoint.y, false)
+                            }
+                            treeDelegate.dragging = false
+                        } else {
+                            treeList.nodeController.addNodeType(nodeType)
+                        }
+                    }
                 }
             }
         }

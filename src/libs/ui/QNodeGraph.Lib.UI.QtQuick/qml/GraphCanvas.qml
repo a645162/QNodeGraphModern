@@ -100,6 +100,8 @@ Rectangle {
             var worldY = (drop.y - canvas.panOffset.y) / canvas.zoomFactor
             if (canvas.controller.addNodeTypeAt(typeId, worldX, worldY,
                                                 false)) {
+                if (drop.source && drop.source.dropHandled !== undefined)
+                    drop.source.dropHandled = true
                 drop.acceptProposedAction()
             }
         }
@@ -468,11 +470,11 @@ Rectangle {
                         acceptedButtons: Qt.LeftButton
                         preventStealing: true
 
-                        onPressed: {
+                        onPressed: function(mouse) {
                             mouse.accepted = true
                             canvas.controller.beginConnection(nodeItem.index)
                         }
-                        onPositionChanged: {
+                        onPositionChanged: function(mouse) {
                             var point = parent.mapToItem(canvas, mouse.x, mouse.y)
                             canvas.controller.updateConnectionPreview(
                                 (point.x - canvas.panOffset.x) /
@@ -480,7 +482,7 @@ Rectangle {
                                 (point.y - canvas.panOffset.y) /
                                 canvas.zoomFactor)
                         }
-                        onReleased: {
+                        onReleased: function(mouse) {
                             var point = parent.mapToItem(canvas, mouse.x, mouse.y)
                             var worldX = (point.x - canvas.panOffset.x) /
                                          canvas.zoomFactor

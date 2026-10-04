@@ -3,9 +3,10 @@ import QtQuick.Controls
 import QtQuick.Layouts
 
 Rectangle {
-    id: palette
+    id: nodesPalette
 
     required property var controller
+    property Item dropTarget: null
     color: "#20262d"
     border.color: "#3c4652"
     radius: 4
@@ -36,6 +37,7 @@ Rectangle {
 
         ListView {
             id: nodeList
+            property var nodeController: nodesPalette.controller
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
@@ -43,6 +45,7 @@ Rectangle {
             model: paletteModel
 
             delegate: Rectangle {
+                id: paletteDelegate
                 required property string nodeType
                 required property string nodeName
                 required property string category
@@ -55,15 +58,12 @@ Rectangle {
                 radius: 3
 
                 Drag.dragType: Drag.Automatic
-                Drag.active: dragHandler.active
+                Drag.active: paletteDelegate.dragging
                 Drag.supportedActions: Qt.CopyAction
                 Drag.keys: ["qnodegraph.node"]
                 Drag.mimeData: { "text/plain": nodeType }
-
-                DragHandler {
-                    target: null
-                    id: dragHandler
-                }
+                property bool dragging: false
+                property bool dropHandled: false
 
                 Column {
                     anchors.left: parent.left
@@ -91,7 +91,33 @@ Rectangle {
                     id: mouseArea
                     anchors.fill: parent
                     hoverEnabled: true
-                    onClicked: palette.controller.addNodeType(nodeType)
+                    property point pressPoint
+
+                    onPressed: function(mouse) {
+                        pressPoint = Qt.point(mouse.x, mouse.y)
+                        paletteDelegate.dropHandled = false
+                    }
+                    onPositionChanged: function(mouse) {
+                        if (!paletteDelegate.dragging &&
+                            (Math.abs(mouse.x - pressPoint.x) > 8 ||
+                             Math.abs(mouse.y - pressPoint.y) > 8)) {
+                            paletteDelegate.dragging = true
+                        }
+                    }
+                    onReleased: function(mouse) {
+                        if (paletteDelegate.dragging) {
+                            paletteDelegate.Drag.drop()
+                            if (!paletteDelegate.dropHandled && nodesPalette.dropTarget) {
+                                var targetPoint = nodesPalette.dropTarget.mapFromItem(
+                                            paletteDelegate, mouse.x, mouse.y)
+                                nodesPalette.dropTarget.controller.addNodeTypeAt(
+                                            nodeType, targetPoint.x, targetPoint.y, false)
+                            }
+                            paletteDelegate.dragging = false
+                        } else {
+                            nodeList.nodeController.addNodeType(nodeType)
+                        }
+                    }
                 }
             }
         }

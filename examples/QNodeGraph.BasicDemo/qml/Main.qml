@@ -159,8 +159,14 @@ ApplicationWindow {
                 Layout.fillHeight: true
                 currentIndex: nodeTabs.currentIndex
 
-                NodesPalette { controller: canvas.controller }
-                NodesTree { controller: canvas.controller }
+                NodesPalette {
+                    controller: canvas.controller
+                    dropTarget: canvas
+                }
+                NodesTree {
+                    controller: canvas.controller
+                    dropTarget: canvas
+                }
             }
         }
 
