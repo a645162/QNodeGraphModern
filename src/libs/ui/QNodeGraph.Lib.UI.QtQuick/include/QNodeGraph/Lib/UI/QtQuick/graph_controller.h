@@ -64,6 +64,12 @@ public:
     Q_ENUM(NodeRole)
 
     explicit GraphController(QObject* parent = nullptr);
+    // 注入宿主注册表：宿主注册自定义节点类型后传入，使画布与调色板共享同一
+    // 份类型定义。未注入时使用 NodeRegistry::withBuiltins()（保持既有行为）。
+    void setRegistry(QNodeGraph::Graph::NodeRegistry registry);
+    [[nodiscard]] const QNodeGraph::Graph::NodeRegistry& registry() const noexcept;
+    // 注册表变更后需通知视图刷新（图标/强调色/尺寸等 role 全部来自描述符）。
+    void refreshRegistryDependentRoles();
 
     [[nodiscard]] int rowCount(
         const QModelIndex& parent = QModelIndex()) const override;

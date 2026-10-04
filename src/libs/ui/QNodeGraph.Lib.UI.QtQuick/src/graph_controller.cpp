@@ -58,72 +58,79 @@ QString propertyType(const Core::PropertyValue& value) {
         value);
 }
 
-QString nodeIcon(const std::string& type) {
-    if (type == "load_image") {
-        return QStringLiteral("IMG");
+// 控件类型名（QML 侧按此字符串分派编辑器）。与 PropertyEditor 枚举一一对应。
+QString propertyEditorName(QNodeGraph::Graph::PropertyEditor editor) {
+    switch (editor) {
+    case QNodeGraph::Graph::PropertyEditor::Automatic:
+        return QStringLiteral("automatic");
+    case QNodeGraph::Graph::PropertyEditor::CheckBox:
+        return QStringLiteral("checkbox");
+    case QNodeGraph::Graph::PropertyEditor::Slider:
+        return QStringLiteral("slider");
+    case QNodeGraph::Graph::PropertyEditor::SpinBox:
+        return QStringLiteral("spinbox");
+    case QNodeGraph::Graph::PropertyEditor::LineEdit:
+        return QStringLiteral("lineedit");
+    case QNodeGraph::Graph::PropertyEditor::FilePath:
+        return QStringLiteral("filepath");
+    case QNodeGraph::Graph::PropertyEditor::Directory:
+        return QStringLiteral("directory");
+    case QNodeGraph::Graph::PropertyEditor::ComboBox:
+        return QStringLiteral("combobox");
     }
-    if (type == "grayscale") {
-        return QStringLiteral("FX");
-    }
-    if (type == "blur") {
-        return QStringLiteral("BLR");
-    }
-    if (type == "edge_detect") {
-        return QStringLiteral("EDG");
-    }
-    if (type == "image_preview") {
-        return QStringLiteral("VIEW");
-    }
-    if (type == "save_image") {
-        return QStringLiteral("SAVE");
-    }
-    if (type == "group") {
-        return QStringLiteral("GRP");
-    }
-    if (type == "backdrop") {
-        return QStringLiteral("BG");
-    }
-    return QStringLiteral("NODE");
+    return QStringLiteral("automatic");
 }
 
-QString nodeIconSource(const std::string& type) {
-    const auto iconType = type == "load_image" || type == "grayscale" ||
-                                  type == "blur" || type == "edge_detect" ||
-                                  type == "image_preview" || type == "save_image" ||
-                                  type == "group" || type == "backdrop"
-                              ? type
-                              : std::string{"node"};
-    return QStringLiteral("qrc:/qt/qml/QNodeGraph/UI/qml/icons/%1.svg")
-        .arg(QString::fromStdString(iconType));
+// 在描述符中查找某属性的控件元数据，未声明时返回 nullptr。
+const QNodeGraph::Graph::PropertyDescriptor* findPropertyDescriptor(
+    const QNodeGraph::Graph::NodeDescriptor* descriptor,
+    const std::string& name) {
+    if (descriptor == nullptr) {
+        return nullptr;
+    }
+    for (const auto& property : descriptor->properties) {
+        if (property.name == name) {
+            return &property;
+        }
+    }
+    return nullptr;
 }
 
-QString nodeAccent(const std::string& type) {
-    if (type == "load_image") {
-        return QStringLiteral("#4f8fc6");
+// 把控件元数据附加到属性条目上，供 QML 选择编辑器。未声明元数据时写入
+// automatic/0，QML 会退回按 valueType 推断。
+void appendPropertyEditorMetadata(
+    QVariantMap& entry, const QNodeGraph::Graph::NodeDescriptor* descriptor,
+    const std::string& name) {
+    const auto* property = findPropertyDescriptor(descriptor, name);
+    entry.insert(QStringLiteral("editor"),
+                 propertyEditorName(property != nullptr
+                                        ? property->editor
+                                        : QNodeGraph::Graph::PropertyEditor::Automatic));
+    entry.insert(QStringLiteral("minimum"),
+                 property != nullptr ? property->minimum : 0.0);
+    entry.insert(QStringLiteral("maximum"),
+                 property != nullptr ? property->maximum : 0.0);
+    entry.insert(QStringLiteral("step"),
+                 property != nullptr ? property->step : 0.0);
+    QVariantList choices;
+    if (property != nullptr) {
+        for (const auto& choice : property->choices) {
+            choices.push_back(QString::fromStdString(choice));
+        }
     }
-    if (type == "grayscale") {
-        return QStringLiteral("#6f7bd8");
-    }
-    if (type == "blur") {
-        return QStringLiteral("#9568c7");
-    }
-    if (type == "edge_detect") {
-        return QStringLiteral("#b26d5c");
-    }
-    if (type == "image_preview") {
-        return QStringLiteral("#4aaf85");
-    }
-    if (type == "save_image") {
-        return QStringLiteral("#71859a");
-    }
-    if (type == "group") {
-        return QStringLiteral("#4a718c");
-    }
-    if (type == "backdrop") {
-        return QStringLiteral("#557081");
-    }
-    return QStringLiteral("#426b91");
+    entry.insert(QStringLiteral("choices"), choices);
 }
+
+// 以下三个函数返回描述符未声明外观时的兜底值。此前这里是一整张按 typeId
+// 的 if 链硬编码表，现由 NodeDescriptor 的 iconGlyph/iconSource/accent 声明，
+// 宿主注册自定义节点时即可一并给出外观，无需修改库代码。
+QString fallbackIconGlyph() { return QStringLiteral("NODE"); }
+
+QString fallbackIconSource() {
+    return QStringLiteral("qrc:/qt/qml/QNodeGraph/UI/qml/icons/node.svg");
+}
+
+QString fallbackAccent() { return QStringLiteral("#426b91"); }
 
 double nodeNumberProperty(const Core::Node& node, const char* name,
                           double fallback) {
@@ -277,6 +284,28 @@ GraphController::GraphController(QObject* parent)
       m_document("QNodeGraphModern"),
       m_registry(QNodeGraph::Graph::NodeRegistry::withBuiltins()) {}
 
+void GraphController::setRegistry(QNodeGraph::Graph::NodeRegistry registry) {
+    m_registry = std::move(registry);
+    // 改注册表后图内已有节点的图标/强调色/默认尺寸可能全部变化，需整表刷新。
+    refreshRegistryDependentRoles();
+}
+
+const QNodeGraph::Graph::NodeRegistry& GraphController::registry() const noexcept {
+    return m_registry;
+}
+
+void GraphController::refreshRegistryDependentRoles() {
+    if (!m_nodeOrder.empty()) {
+        emit dataChanged(index(0, 0), index(nodeCount() - 1, 0),
+                         {NodeIconRole, NodeIconSourceRole, NodeAccentRole,
+                          NodeWidthRole, NodeHeightRole, NodeIsBackdropRole,
+                          NodeIsGroupRole, NodeContentUrlRole,
+                          NodeOnNodePropertiesRole});
+    }
+    emit connectionsChanged();
+    emit propertiesChanged();
+}
+
 int GraphController::nodeCount() const noexcept {
     return static_cast<int>(m_nodeOrder.size());
 }
@@ -351,7 +380,13 @@ QVariantList GraphController::selectedProperties() const {
         values.push_back(QVariantMap{
             {QStringLiteral("name"), QString::fromStdString(name)},
             {QStringLiteral("value"), propertyVariant(value)},
-            {QStringLiteral("valueType"), propertyType(value)}});
+            {QStringLiteral("valueType"), propertyType(value)},
+            {QStringLiteral("editor"),
+             propertyEditorName(
+                 findPropertyDescriptor(m_registry.find(node->type), name) != nullptr
+                     ? findPropertyDescriptor(m_registry.find(node->type), name)
+                           ->editor
+                     : QNodeGraph::Graph::PropertyEditor::Automatic)}});
     }
     return values;
 }
@@ -432,12 +467,24 @@ QVariant GraphController::data(const QModelIndex& index, int role) const {
         }
         return count;
     }
-    case NodeIconRole:
-        return nodeIcon(node->type);
-    case NodeIconSourceRole:
-        return nodeIconSource(node->type);
-    case NodeAccentRole:
-        return nodeAccent(node->type);
+    case NodeIconRole: {
+        const auto* descriptor = m_registry.find(node->type);
+        return descriptor != nullptr && !descriptor->iconGlyph.empty()
+                   ? QString::fromStdString(descriptor->iconGlyph)
+                   : fallbackIconGlyph();
+    }
+    case NodeIconSourceRole: {
+        const auto* descriptor = m_registry.find(node->type);
+        return descriptor != nullptr && !descriptor->iconSource.empty()
+                   ? QString::fromStdString(descriptor->iconSource)
+                   : fallbackIconSource();
+    }
+    case NodeAccentRole: {
+        const auto* descriptor = m_registry.find(node->type);
+        return descriptor != nullptr && !descriptor->accent.empty()
+                   ? QString::fromStdString(descriptor->accent)
+                   : fallbackAccent();
+    }
     case NodeEnabledRole: {
         const auto* enabled = m_document.property(node->id, "enabled");
         return enabled != nullptr && std::holds_alternative<bool>(*enabled)
@@ -452,15 +499,29 @@ QVariant GraphController::data(const QModelIndex& index, int role) const {
         return QString::fromStdString(node->name);
     }
     case NodeWidthRole:
-        return nodeNumberProperty(*node, "width", kDemoNodeWidth);
+        return nodeNumberProperty(
+            *node, "width",
+            m_registry.find(node->type) != nullptr
+                ? m_registry.find(node->type)->defaultWidth
+                : kDemoNodeWidth);
     case NodeHeightRole:
-        return nodeNumberProperty(*node, "height", kDemoNodeHeight);
+        return nodeNumberProperty(
+            *node, "height",
+            m_registry.find(node->type) != nullptr
+                ? m_registry.find(node->type)->defaultHeight
+                : kDemoNodeHeight);
     case NodeColorRole:
         return nodeStringProperty(*node, "color", QStringLiteral("#2a333d"));
-    case NodeIsBackdropRole:
-        return node->type == "backdrop";
-    case NodeIsGroupRole:
-        return node->type == "group";
+    case NodeIsBackdropRole: {
+        const auto* descriptor = m_registry.find(node->type);
+        return descriptor != nullptr &&
+               descriptor->visualRole == QNodeGraph::Graph::NodeVisualRole::Backdrop;
+    }
+    case NodeIsGroupRole: {
+        const auto* descriptor = m_registry.find(node->type);
+        return descriptor != nullptr &&
+               descriptor->visualRole == QNodeGraph::Graph::NodeVisualRole::Group;
+    }
     case NodeGroupIdRole: {
         const auto iterator = node->properties.find("groupId");
         if (iterator != node->properties.end() &&
@@ -494,6 +555,7 @@ QVariant GraphController::data(const QModelIndex& index, int role) const {
     }
     case NodeOnNodePropertiesRole: {
         QVariantList values;
+        const auto* descriptor = m_registry.find(node->type);
         for (const auto& [name, value] : node->properties) {
             if (name.size() >= 8 &&
                 name.compare(name.size() - 8, 8, ".display") == 0) {
@@ -505,9 +567,14 @@ QVariant GraphController::data(const QModelIndex& index, int role) const {
                 display != QStringLiteral("both")) {
                 continue;
             }
-            values.push_back(QVariantMap{
+            // 带上 valueType 与控件元数据，QML 才能按描述符选择控件（滑块 /
+            // 勾选框 / 输入框），而不是把非 bool 一律当文本处理。
+            QVariantMap entry{
                 {QStringLiteral("name"), QString::fromStdString(name)},
-                {QStringLiteral("value"), propertyVariant(value)}});
+                {QStringLiteral("value"), propertyVariant(value)},
+                {QStringLiteral("valueType"), propertyType(value)}};
+            appendPropertyEditorMetadata(entry, descriptor, name);
+            values.push_back(std::move(entry));
         }
         return values;
     }
@@ -608,6 +675,14 @@ bool GraphController::addNodeType(QString typeId, bool connectToPrevious) {
     if (descriptor == nullptr) {
         return false;
     }
+    // 唯一节点（如《图像输入》《图像输出》）在同一文档中只允许存在一个。
+    if (descriptor->unique &&
+        Graph::NodeRegistry::countNodesOfType(m_document, descriptor->typeId) >
+            0) {
+        setError(QString::fromStdString(descriptor->displayName) +
+                 QStringLiteral(" already exists; only one instance is allowed."));
+        return false;
+    }
     const auto row = static_cast<int>(m_nodeOrder.size());
     const auto name = descriptor->displayName + " " + std::to_string(row + 1);
     const auto node = m_registry.createNode(
@@ -618,14 +693,21 @@ bool GraphController::addNodeType(QString typeId, bool connectToPrevious) {
     }
     m_document.setProperty(*node, "enabled", true);
     m_document.setProperty(*node, "label", name);
-    if (typeId == QStringLiteral("backdrop")) {
-        m_document.setProperty(*node, "width", std::int64_t{560});
-        m_document.setProperty(*node, "height", std::int64_t{300});
-        m_document.setProperty(*node, "color", std::string{"#304554"});
-    } else if (typeId == QStringLiteral("group")) {
-        m_document.setProperty(*node, "width", std::int64_t{240});
-        m_document.setProperty(*node, "height", std::int64_t{140});
-        m_document.setProperty(*node, "color", std::string{"#384b5b"});
+    // 尺寸与背景色改由描述符声明，取代此前按 backdrop/group 的 typeId 特判。
+    m_document.setProperty(*node, "width",
+                           std::int64_t{static_cast<std::int64_t>(
+                               descriptor->defaultWidth)});
+    m_document.setProperty(*node, "height",
+                           std::int64_t{static_cast<std::int64_t>(
+                               descriptor->defaultHeight)});
+    if (const auto* existing = m_document.property(*node, "color");
+        existing == nullptr &&
+        descriptor->visualRole != Graph::NodeVisualRole::Standard) {
+        static_cast<void>(m_document.setProperty(
+            *node, "color",
+            std::string{descriptor->visualRole == Graph::NodeVisualRole::Backdrop
+                            ? "#304554"
+                            : "#384b5b"}));
     }
     const auto input = portFor(*node, Core::PortDirection::Input);
     if (connectToPrevious && row > 0 && input != 0) {

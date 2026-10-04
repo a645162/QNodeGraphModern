@@ -14,6 +14,24 @@ NodePaletteModel::NodePaletteModel(QObject* parent)
     rebuildVisibleRows();
 }
 
+void NodePaletteModel::setRegistry(QNodeGraph::Graph::NodeRegistry registry) {
+    m_registry = std::move(registry);
+    beginResetModel();
+    m_descriptors = m_registry.descriptors();
+    rebuildVisibleRows();
+    endResetModel();
+}
+
+void NodePaletteModel::setHideFixedNodes(bool hide) {
+    if (m_hideFixedNodes == hide) {
+        return;
+    }
+    m_hideFixedNodes = hide;
+    beginResetModel();
+    rebuildVisibleRows();
+    endResetModel();
+}
+
 int NodePaletteModel::rowCount(const QModelIndex& parent) const {
     return parent.isValid() ? 0 : static_cast<int>(m_visibleRows.size());
 }
@@ -75,6 +93,13 @@ void NodePaletteModel::rebuildVisibleRows() {
     m_visibleRows.clear();
     for (int index = 0; index < static_cast<int>(m_descriptors.size()); ++index) {
         const auto& descriptor = m_descriptors[static_cast<std::size_t>(index)];
+        // 固定/唯一节点由宿主预置，不出现在可拖拽添加的调色板里。
+        // deletable=false 与 fixed=true 都表达「不可删除」，两者都要判 ——
+        // 既有描述符（load_image/save_image）用的是前者。
+        if (m_hideFixedNodes &&
+            (!descriptor.deletable || descriptor.fixed || descriptor.unique)) {
+            continue;
+        }
         const auto type = QString::fromStdString(descriptor.typeId);
         const auto name = QString::fromStdString(descriptor.displayName);
         const auto category = categoryFor(type);

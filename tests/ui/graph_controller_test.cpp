@@ -41,6 +41,11 @@ private slots:
     void resizesNodeWithUndo();
     void resizesNodeFromTopLeftCorner();
     void followsNodeSizeInConnectionGeometry();
+    void declaresAppearanceFromDescriptor();
+    void usesDefaultSizeFromDescriptor();
+    void rejectsDuplicateUniqueNode();
+    void exposesPropertyEditorMetadata();
+    void usesInjectedRegistryForCustomNodes();
 };
 
 void GraphControllerTest::startsWithEmptyModel() {
@@ -601,6 +606,122 @@ void GraphControllerTest::followsNodeSizeInConnectionGeometry() {
     QCOMPARE(connection.value(QStringLiteral("outputX")).toDouble(), 80.0);
     QCOMPARE(connection.value(QStringLiteral("outputWidth")).toDouble(), 400.0);
     QCOMPARE(connection.value(QStringLiteral("outputY")).toDouble(), 210.0);
+}
+
+void GraphControllerTest::declaresAppearanceFromDescriptor() {
+    QNodeGraph::UI::GraphController controller;
+    controller.addNodeType(QStringLiteral("blur"));
+    // 外观元数据此前硬编码在三个自由函数里，现由描述符声明。
+    QCOMPARE(controller.index(0, 0)
+                 .data(QNodeGraph::UI::GraphController::NodeIconRole)
+                 .toString(),
+             QStringLiteral("BLR"));
+    QCOMPARE(controller.index(0, 0)
+                 .data(QNodeGraph::UI::GraphController::NodeAccentRole)
+                 .toString(),
+             QStringLiteral("#9568c7"));
+    QVERIFY(controller.index(0, 0)
+                .data(QNodeGraph::UI::GraphController::NodeIconSourceRole)
+                .toString()
+                .endsWith(QStringLiteral("blur.svg")));
+}
+
+void GraphControllerTest::usesDefaultSizeFromDescriptor() {
+    QNodeGraph::UI::GraphController controller;
+    // backdrop 描述符声明 560x300，取代 addNodeType 里按 typeId 的特判。
+    controller.addNodeType(QStringLiteral("backdrop"));
+    QCOMPARE(controller.index(0, 0)
+                 .data(QNodeGraph::UI::GraphController::NodeWidthRole)
+                 .toDouble(),
+             560.0);
+    QCOMPARE(controller.index(0, 0)
+                 .data(QNodeGraph::UI::GraphController::NodeHeightRole)
+                 .toDouble(),
+             300.0);
+    // 视觉角色也来自描述符，不再靠 type 字符串比较。
+    QCOMPARE(controller.index(0, 0)
+                 .data(QNodeGraph::UI::GraphController::NodeIsBackdropRole)
+                 .toBool(),
+             true);
+}
+
+void GraphControllerTest::rejectsDuplicateUniqueNode() {
+    QNodeGraph::UI::GraphController controller;
+    auto registry = QNodeGraph::Graph::NodeRegistry::withBuiltins();
+    QNodeGraph::Graph::NodeDescriptor input;
+    input.typeId = "viewer_image_input";
+    input.displayName = "Viewport Image Input";
+    input.fixed = true;
+    input.unique = true;
+    QVERIFY(registry.registerNode(std::move(input)));
+    controller.setRegistry(std::move(registry));
+
+    QVERIFY(controller.addNodeType(QStringLiteral("viewer_image_input")));
+    QCOMPARE(controller.nodeCount(), 1);
+    // 第二次添加必须被拒绝（唯一节点只允许一个实例）。
+    QVERIFY(!controller.addNodeType(QStringLiteral("viewer_image_input")));
+    QCOMPARE(controller.nodeCount(), 1);
+    // 固定节点不可删除。
+    QVERIFY(!controller.deleteNode(0));
+    QCOMPARE(controller.nodeCount(), 1);
+}
+
+void GraphControllerTest::exposesPropertyEditorMetadata() {
+    QNodeGraph::UI::GraphController controller;
+    controller.addNodeType(QStringLiteral("blur"));
+    const auto properties = controller.index(0, 0)
+                                .data(QNodeGraph::UI::GraphController::
+                                          NodeOnNodePropertiesRole)
+                                .toList();
+    bool sawRadius = false;
+    for (const auto& entry : properties) {
+        const auto map = entry.toMap();
+        if (map.value(QStringLiteral("name")).toString() !=
+            QStringLiteral("radius")) {
+            continue;
+        }
+        sawRadius = true;
+        // 节点内控件需要知道用滑块、以及取值范围。
+        QCOMPARE(map.value(QStringLiteral("editor")).toString(),
+                 QStringLiteral("slider"));
+        QCOMPARE(map.value(QStringLiteral("minimum")).toDouble(), 1.0);
+        QCOMPARE(map.value(QStringLiteral("maximum")).toDouble(), 50.0);
+        QCOMPARE(map.value(QStringLiteral("valueType")).toString(),
+                 QStringLiteral("int64"));
+    }
+    QVERIFY(sawRadius);
+}
+
+void GraphControllerTest::usesInjectedRegistryForCustomNodes() {
+    QNodeGraph::UI::GraphController controller;
+    auto registry = QNodeGraph::Graph::NodeRegistry::withBuiltins();
+    QNodeGraph::Graph::NodeDescriptor custom;
+    custom.typeId = "custom.invert";
+    custom.displayName = "Custom Invert";
+    custom.ports = {{"image", QNodeGraph::Core::PortDirection::Input,
+                     QNodeGraph::Core::PortDataType::Image, false},
+                    {"image", QNodeGraph::Core::PortDirection::Output,
+                     QNodeGraph::Core::PortDataType::Image, false}};
+    custom.iconGlyph = "INV";
+    custom.accent = "#00aa88";
+    custom.defaultWidth = 220.0;
+    custom.defaultHeight = 130.0;
+    QVERIFY(registry.registerNode(std::move(custom)));
+    controller.setRegistry(std::move(registry));
+
+    QVERIFY(controller.addNodeType(QStringLiteral("custom.invert")));
+    QCOMPARE(controller.index(0, 0)
+                 .data(QNodeGraph::UI::GraphController::NodeIconRole)
+                 .toString(),
+             QStringLiteral("INV"));
+    QCOMPARE(controller.index(0, 0)
+                 .data(QNodeGraph::UI::GraphController::NodeAccentRole)
+                 .toString(),
+             QStringLiteral("#00aa88"));
+    QCOMPARE(controller.index(0, 0)
+                 .data(QNodeGraph::UI::GraphController::NodeWidthRole)
+                 .toDouble(),
+             220.0);
 }
 
 QTEST_MAIN(GraphControllerTest)
