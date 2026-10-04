@@ -10,7 +10,6 @@ namespace QNodeGraph::UI {
 
 class GraphConnectionsItem : public QQuickItem {
     Q_OBJECT
-    QML_ELEMENT
     Q_PROPERTY(QVariantList connections READ connections WRITE setConnections
                    NOTIFY connectionsChanged)
     Q_PROPERTY(QVariantMap preview READ preview WRITE setPreview
