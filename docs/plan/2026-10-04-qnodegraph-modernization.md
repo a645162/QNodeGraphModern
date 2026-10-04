@@ -6,7 +6,7 @@
 
 **Architecture:** Keep graph data, commands, serialization, and execution contracts in focused C++ libraries. Package the QML canvas and Qt bridge as a reusable library module; use Qt Quick/QML for host application visuals, with custom scene-graph items for high-volume canvas rendering. Reuse ImageViewerQt's layering and CMake organization without copying its QWidget UI.
 
-**Tech Stack:** C++23, CMake 3.24+, Qt 6.5+, Qt Quick, QML, Qt Quick Controls 2, Qt Test, PowerShell build scripts.
+**Tech Stack:** C++23, CMake 3.24+, Qt 6.5+, Qt Quick, QML, Qt Quick Controls 2, Qt Test, Python build scripts.
 
 **Spec:** The approved architectural direction from the user conversation on 2026-10-04.
 
@@ -21,10 +21,10 @@
 
 ## Task 1: Project Foundation
 
-**Files:** `CMakeLists.txt`, `src/CMakeLists.txt`, `src/libs/CMakeLists.txt`, `scripts/build/build.ps1`
+**Files:** `CMakeLists.txt`, `src/CMakeLists.txt`, `src/libs/CMakeLists.txt`, `scripts/build.py`
 
 - [x] Configure the root project for C++23, Qt6, CTest, and optional examples/tests; no standalone application target is built from `src/`.
-- [x] Add repeatable PowerShell configure/build entry point.
+- [x] Add repeatable Python configure/build entry point.
 - [x] Add Qt deployment and packaging after the first usable UI exists.
 
 ## Task 2: Core Graph Model
@@ -106,7 +106,7 @@
 
 ## Task 8: Verification and Delivery
 
-**Files:** `scripts/test/test.ps1`, `docs/README.md`, `README.md`, `README.zh-cn.md`
+**Files:** `scripts/test.py`, `docs/README.md`, `README.md`, `README.zh-cn.md`
 
 - [x] Run CMake configure and Debug build on the supported Qt kit.
 - [x] Run CTest with failure output enabled (8/8 tests passed).

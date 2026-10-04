@@ -50,8 +50,7 @@ Debug 和 Release 构建均使用 CMake/Ninja。提交前运行完整 `ctest --o
 `QNodeGraphModernConfig.cmake`。Windows 示例部署使用：
 
 ```powershell
-.\scripts\package\package.ps1 -Configuration Release `
-    -QtPrefix C:\Qt\6.12.0\llvm-mingw_64
+python scripts/package.py --configuration Release --qt-prefix C:\Qt\6.12.0\llvm-mingw_64
 ```
 
 宿主项目需要同时提供匹配版本的 Qt 前缀，随后通过

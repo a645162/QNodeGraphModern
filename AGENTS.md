@@ -8,7 +8,7 @@
 - `src/libs/ui/QNodeGraph.Lib.UI.QtQuick`：Qt Quick 桥接、QML 模块 `QNodeGraph.UI`。
 - `examples/`：库的可运行消费者，例如 `QNodeGraph.BasicDemo` 和图像管线 Demo。
 - `tests/`：CTest/QtTest 测试。
-- `scripts/`：PowerShell 构建、运行和测试入口。
+- `scripts/`：Python 构建、运行和测试入口。
 - `docs/plan/`：功能规划与阶段性实施计划。
 
 ## 构建、测试与本地开发
@@ -16,10 +16,10 @@
 Qt kit 默认探测 `C:\Qt\6.12.0\llvm-mingw_64`，也可以显式传入路径：
 
 ```powershell
-.\scripts\build\build.ps1 -QtPrefix C:\Qt\6.12.0\llvm-mingw_64
-.\scripts\test\test.ps1
-.\scripts\run\run.ps1 -BasicDemo
-.\scripts\run\run.ps1 -ImagePipelineDemo
+python scripts/build.py --qt-prefix C:\Qt\6.12.0\llvm-mingw_64
+python scripts/test.py
+python scripts/run.py basic
+python scripts/run.py image-pipeline
 ```
 
 直接使用 CMake 时，使用 `cmake -S . -B build\Debug -G Ninja`，然后执行

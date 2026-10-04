@@ -20,24 +20,24 @@ project.
 
 ## Configure and build
 
-The PowerShell scripts auto-detect the local Qt kit when it is installed at
+The Python scripts auto-detect the local Qt kit when it is installed at
 `C:\Qt\6.12.0\llvm-mingw_64`. A different kit can be supplied explicitly:
 
 ```powershell
-.\scripts\build\build.ps1 -QtPrefix C:\Qt\6.12.0\llvm-mingw_64
+python scripts/build.py --qt-prefix C:\Qt\6.12.0\llvm-mingw_64
 ```
 
 Run the library consumer examples:
 
 ```powershell
-.\scripts\run\run.ps1 -BasicDemo
-.\scripts\run\run.ps1 -ImagePipelineDemo
+python scripts/run.py basic
+python scripts/run.py image-pipeline
 ```
 
 Run tests:
 
 ```powershell
-.\scripts\test\test.ps1
+python scripts/test.py
 ```
 
 The repository is library-first: no executable is produced from `src/`. Link

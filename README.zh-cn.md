@@ -6,10 +6,10 @@ QNodeGraphModern 是一个库优先的 C++23、Qt 6、Qt Quick/QML 节点图框�
 ## 快速开始
 
 ```powershell
-.\scripts\build\build.ps1 -QtPrefix C:\Qt\6.12.0\llvm-mingw_64
-.\scripts\test\test.ps1
-.\scripts\run\run.ps1 -BasicDemo
-.\scripts\run\run.ps1 -ImagePipelineDemo
+python scripts/build.py --qt-prefix C:\Qt\6.12.0\llvm-mingw_64
+python scripts/test.py
+python scripts/run.py basic
+python scripts/run.py image-pipeline
 ```
 
 核心库包括：Core 图模型、Graph 注册表和 JSON 持久化、Image 图像帧与处理器、

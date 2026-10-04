@@ -1,6 +1,6 @@
 # Python scripts
 
-从仓库根目录运行：
+`scripts/` 下只保留 Python 入口。从仓库根目录运行：
 
 ```powershell
 python scripts/build.py --configuration Debug
