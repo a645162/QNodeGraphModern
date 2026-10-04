@@ -13,12 +13,15 @@ add_library(QNodeGraph.Lib.UI.QtQuick STATIC
 
 set(QT_QML_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
 
+set_source_files_properties(qml/Theme.qml
+    PROPERTIES QT_QML_SINGLETON_TYPE TRUE
+)
+
 qt_add_qml_module(QNodeGraph.Lib.UI.QtQuick
     URI QNodeGraph.UI
     VERSION 1.0
     SOURCES
         include/QNodeGraph/Lib/UI/QtQuick/graph_controller.h
-        include/QNodeGraph/Lib/UI/QtQuick/graph_connections_item.h
         include/QNodeGraph/Lib/UI/QtQuick/node_palette_model.h
     RESOURCES
         qml/icons/node.svg
@@ -32,10 +35,13 @@ qt_add_qml_module(QNodeGraph.Lib.UI.QtQuick
         qml/icons/backdrop.svg
     QML_FILES
         qml/GraphCanvas.qml
+        qml/GraphConnectionsItem.qml
         qml/PropertiesBin.qml
         qml/NodesPalette.qml
         qml/NodesTree.qml
         qml/TabSearch.qml
+        qml/Theme.qml
+        qml/content/NodeImageContent.qml
 )
 
 target_include_directories(QNodeGraph.Lib.UI.QtQuick

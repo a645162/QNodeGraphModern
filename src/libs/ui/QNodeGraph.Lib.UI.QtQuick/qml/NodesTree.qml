@@ -7,9 +7,9 @@ Rectangle {
 
     required property var controller
     property Item dropTarget: null
-    color: "#20262d"
-    border.color: "#3c4652"
-    radius: 4
+    color: Theme.panelBg
+    border.color: Theme.panelBorder
+    radius: Theme.radius
 
     NodePaletteModel {
         id: treeModel
@@ -22,7 +22,7 @@ Rectangle {
 
         Label {
             text: qsTr("Nodes Tree")
-            color: "#f0f3f6"
+            color: Theme.textPrimary
             font.bold: true
             font.pixelSize: 16
         }
@@ -43,7 +43,8 @@ Rectangle {
                 required property string category
                 width: treeList.width
                 height: 38
-                color: mouseArea.containsMouse ? "#344452" : "transparent"
+                color: mouseArea.containsMouse ? Theme.nodeBgSelected
+                                               : "transparent"
 
                 Drag.dragType: Drag.Automatic
                 Drag.active: treeDelegate.dragging
@@ -61,14 +62,14 @@ Rectangle {
 
                     Label {
                         text: category
-                        color: "#738292"
+                        color: Theme.textSecondary
                         Layout.preferredWidth: 62
                         elide: Text.ElideRight
                     }
 
                     Label {
                         text: nodeName
-                        color: "#d7e0e8"
+                        color: Theme.textPrimary
                         Layout.fillWidth: true
                         elide: Text.ElideRight
                     }

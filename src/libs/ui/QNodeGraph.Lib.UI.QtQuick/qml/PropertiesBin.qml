@@ -7,9 +7,9 @@ Rectangle {
 
     required property var controller
 
-    color: "#20262d"
-    border.color: "#3c4652"
-    radius: 4
+    color: Theme.panelBg
+    border.color: Theme.panelBorder
+    radius: Theme.radius
 
     ColumnLayout {
         anchors.fill: parent
@@ -18,7 +18,7 @@ Rectangle {
 
         Label {
             text: qsTr("Properties")
-            color: "#f0f3f6"
+            color: Theme.textPrimary
             font.bold: true
             font.pixelSize: 16
         }
@@ -28,14 +28,14 @@ Rectangle {
             text: propertiesBin.controller.selectedRow >= 0
                   ? qsTr("Node %1").arg(propertiesBin.controller.selectedRow + 1)
                   : qsTr("Select a node")
-            color: "#9aa6b2"
+            color: Theme.textSecondary
             elide: Text.ElideRight
         }
 
         Rectangle {
             Layout.fillWidth: true
             height: 1
-            color: "#3c4652"
+            color: Theme.panelBorder
         }
 
         ListView {
@@ -54,7 +54,7 @@ Rectangle {
                 Label {
                     Layout.fillWidth: true
                     text: modelData.name
-                    color: "#c7d1db"
+                    color: Theme.nodeBodyText
                     elide: Text.ElideRight
                 }
 
@@ -85,7 +85,7 @@ Rectangle {
                 anchors.centerIn: parent
                 visible: propertyList.count === 0
                 text: qsTr("No editable properties")
-                color: "#738292"
+                color: Theme.nodeMutedText
             }
         }
     }

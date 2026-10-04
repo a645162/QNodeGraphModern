@@ -7,9 +7,9 @@ Rectangle {
 
     required property var controller
     property Item dropTarget: null
-    color: "#20262d"
-    border.color: "#3c4652"
-    radius: 4
+    color: Theme.panelBg
+    border.color: Theme.panelBorder
+    radius: Theme.radius
 
     NodePaletteModel {
         id: paletteModel
@@ -22,7 +22,7 @@ Rectangle {
 
         Label {
             text: qsTr("Nodes Palette")
-            color: "#f0f3f6"
+            color: Theme.textPrimary
             font.bold: true
             font.pixelSize: 16
         }
@@ -53,9 +53,11 @@ Rectangle {
                 required property int outputPortCount
                 width: nodeList.width
                 height: 52
-                color: mouseArea.containsMouse ? "#344452" : "#2a313a"
-                border.color: mouseArea.containsMouse ? "#69a7dc" : "#566575"
-                radius: 3
+                color: mouseArea.containsMouse ? Theme.nodeBgSelected
+                                               : Theme.nodeBg
+                border.color: mouseArea.containsMouse ? Theme.nodeBorderSelected
+                                                      : Theme.nodeBorder
+                radius: Theme.radiusSmall
 
                 Drag.dragType: Drag.Automatic
                 Drag.active: paletteDelegate.dragging
@@ -73,7 +75,7 @@ Rectangle {
 
                     Label {
                         text: nodeName
-                        color: "#e6edf3"
+                        color: Theme.textPrimary
                         font.bold: true
                     }
 
@@ -82,7 +84,7 @@ Rectangle {
                               .arg(category)
                               .arg(inputPortCount)
                               .arg(outputPortCount)
-                        color: "#9aa6b2"
+                        color: Theme.textSecondary
                         font.pixelSize: 11
                     }
                 }

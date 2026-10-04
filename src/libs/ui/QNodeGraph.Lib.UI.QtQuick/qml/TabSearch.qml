@@ -29,10 +29,10 @@ Popup {
     }
 
     background: Rectangle {
-        color: "#20262d"
-        border.color: "#69a7dc"
+        color: Theme.panelBg
+        border.color: Theme.nodeBorderSelected
         border.width: 1
-        radius: 5
+        radius: Theme.radius
     }
 
     contentItem: ColumnLayout {
@@ -42,7 +42,7 @@ Popup {
 
         Label {
             text: qsTr("Tab Search")
-            color: "#f0f3f6"
+            color: Theme.textPrimary
             font.bold: true
             font.pixelSize: 16
         }
@@ -61,6 +61,7 @@ Popup {
 
         ListView {
             id: resultList
+            property var nodeController: tabSearch.controller
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
@@ -70,16 +71,18 @@ Popup {
             highlightMoveDuration: 0
 
             delegate: Rectangle {
+                required property int index
                 required property string nodeType
                 required property string nodeName
                 required property string category
                 width: resultList.width
                 height: 40
-                color: resultList.currentIndex === index ? "#344452" : "#2a313a"
-                radius: 3
+                color: resultList.currentIndex === index ? Theme.nodeBgSelected
+                                                         : Theme.nodeBg
+                radius: Theme.radiusSmall
 
                 function activate() {
-                    tabSearch.controller.addNodeType(nodeType)
+                    resultList.nodeController.addNodeType(nodeType)
                     tabSearch.close()
                 }
 
@@ -90,13 +93,13 @@ Popup {
 
                     Label {
                         text: nodeName
-                        color: "#e6edf3"
+                        color: Theme.textPrimary
                         Layout.fillWidth: true
                     }
 
                     Label {
                         text: category
-                        color: "#9aa6b2"
+                        color: Theme.textSecondary
                     }
                 }
 
