@@ -466,7 +466,14 @@ Core::GraphResult<Core::GraphDocument> GraphJson::load(
             QStringLiteral("Unable to parse graph JSON: %1")
                 .arg(parseError.errorString())));
     }
-    return fromJson(document.object());
+    // 先迁移再解析。此前 load() 直接调用 fromJson()，而 fromJson() 对版本号是
+    // 严格校验 `== kSchemaVersion`，导致 migrate() 在库内零调用者、旧版本文件
+    // 永远读不进来。迁移入口必须在这里，宿主才不需要自己先 migrate。
+    const auto migrated = migrate(document.object());
+    if (!migrated) {
+        return std::unexpected(migrated.error());
+    }
+    return fromJson(*migrated);
 }
 
 } // namespace QNodeGraph::Graph

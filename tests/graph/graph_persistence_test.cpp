@@ -44,6 +44,8 @@ private slots:
     void reportsMissingJsonFile();
     void registersAndInstantiatesBuiltInImageNodes();
     void migratesInitialSchemaAndReportsMissingExternalAssets();
+    void loadsLegacyVersionThroughMigration();
+    void persistsNodeSizeAndFixedFlag();
 };
 
 void GraphPersistenceTest::roundTripsDocumentAndProperties() {
@@ -143,6 +145,59 @@ void GraphPersistenceTest::migratesInitialSchemaAndReportsMissingExternalAssets(
     QVERIFY(!missing.has_value());
     QCOMPARE(missing.error().code,
              QNodeGraph::Core::GraphErrorCode::ExternalAssetMissing);
+}
+
+void GraphPersistenceTest::loadsLegacyVersionThroughMigration() {
+    // 旧版本文件（schemaVersion 0）必须先经 migrate 才能解析。此前 load()
+    // 直接调用 fromJson()（严格校验 == kSchemaVersion），旧文件永远读不进来。
+    QJsonObject legacy;
+    legacy.insert(QStringLiteral("schemaVersion"), 0);
+    legacy.insert(QStringLiteral("nodes"), QJsonArray{});
+    legacy.insert(QStringLiteral("connections"), QJsonArray{});
+
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto path = directory.filePath(QStringLiteral("legacy.json"));
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    file.write(QJsonDocument(legacy).toJson());
+    file.close();
+
+    const auto loaded = QNodeGraph::Graph::GraphJson::load(path);
+    QVERIFY(loaded.has_value());
+    // 迁移会补上缺失的 name。
+    QCOMPARE(QString::fromStdString(loaded->name()), QStringLiteral("Untitled"));
+    QCOMPARE(loaded->nodeCount(), std::size_t{0});
+}
+
+void GraphPersistenceTest::persistsNodeSizeAndFixedFlag() {
+    // 节点尺寸与固定标记走 properties 通用袋，必须能往返。尺寸是四角 resize
+    // 与连线几何的基础；fixed 决定节点可否删除。
+    QNodeGraph::Core::GraphDocument document{"sizes"};
+    const auto first = document.addNode("blur", "First");
+    const auto second = document.addNode("image_preview", "Second");
+    QVERIFY(first.has_value());
+    QVERIFY(second.has_value());
+    QVERIFY(document.setProperty(*first, "width", std::int64_t{400}).has_value());
+    QVERIFY(document.setProperty(*first, "height", std::int64_t{240}).has_value());
+    QVERIFY(document.setProperty(*second, "fixed", true).has_value());
+
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto path = directory.filePath(QStringLiteral("sizes.json"));
+    QVERIFY(QNodeGraph::Graph::GraphJson::save(document, path).has_value());
+
+    const auto loaded = QNodeGraph::Graph::GraphJson::load(path);
+    QVERIFY(loaded.has_value());
+    const auto* loadedFirst = loaded->node(*first);
+    QVERIFY(loadedFirst != nullptr);
+    const auto& width = loadedFirst->properties.at("width");
+    QCOMPARE(std::get<std::int64_t>(width), std::int64_t{400});
+    const auto& height = loadedFirst->properties.at("height");
+    QCOMPARE(std::get<std::int64_t>(height), std::int64_t{240});
+    const auto* loadedSecond = loaded->node(*second);
+    QVERIFY(loadedSecond != nullptr);
+    QCOMPARE(std::get<bool>(loadedSecond->properties.at("fixed")), true);
 }
 
 QTEST_MAIN(GraphPersistenceTest)
