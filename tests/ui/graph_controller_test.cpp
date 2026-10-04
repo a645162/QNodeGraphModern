@@ -39,6 +39,8 @@ private slots:
     void replacesExistingInputConnection();
     void blocksDeletionOfFixedNode();
     void resizesNodeWithUndo();
+    void resizesNodeFromTopLeftCorner();
+    void followsNodeSizeInConnectionGeometry();
 };
 
 void GraphControllerTest::startsWithEmptyModel() {
@@ -538,12 +540,67 @@ void GraphControllerTest::resizesNodeWithUndo() {
                  .data(QNodeGraph::UI::GraphController::NodeHeightRole)
                  .toDouble(),
              200.0);
-    QVERIFY(controller.undo());
+    // 尺寸调整是单条原子命令：一次 undo 必须同时回退宽与高。旧实现用两条
+    // SetPropertyCommand，需要按两次 Ctrl+Z 且中间会出现畸形的半改状态。
     QVERIFY(controller.undo());
     QCOMPARE(controller.index(0, 0)
                  .data(QNodeGraph::UI::GraphController::NodeWidthRole)
                  .toDouble(),
              180.0);
+    QCOMPARE(controller.index(0, 0)
+                 .data(QNodeGraph::UI::GraphController::NodeHeightRole)
+                 .toDouble(),
+             108.0);
+    // 再次撤销应返回 false：addDemoNode 直接改文档、不入命令栈，栈里只有
+    // resize 这一条命令。
+    QVERIFY(!controller.undo());
+}
+
+void GraphControllerTest::resizesNodeFromTopLeftCorner() {
+    QNodeGraph::UI::GraphController controller;
+    controller.addDemoNode(false);
+    // 从左/上侧拖拽会同时改变左上角坐标与尺寸，origin 必须与尺寸一起进入
+    // 同一条撤销快照。addDemoNode 把首个节点放在 (80, 90)。
+    QVERIFY(controller.resizeNodeAt(0, 40.0, 60.0, 300.0, 160.0));
+    QCOMPARE(controller.index(0, 0)
+                 .data(QNodeGraph::UI::GraphController::NodeWidthRole)
+                 .toDouble(),
+             300.0);
+    QCOMPARE(controller.index(0, 0)
+                 .data(QNodeGraph::UI::GraphController::NodeHeightRole)
+                 .toDouble(),
+             160.0);
+    QCOMPARE(controller.index(0, 0)
+                 .data(QNodeGraph::UI::GraphController::NodeXRole)
+                 .toDouble(),
+             40.0);
+    QCOMPARE(controller.index(0, 0)
+                 .data(QNodeGraph::UI::GraphController::NodeYRole)
+                 .toDouble(),
+             60.0);
+    QVERIFY(controller.undo());
+    QCOMPARE(controller.index(0, 0)
+                 .data(QNodeGraph::UI::GraphController::NodeWidthRole)
+                 .toDouble(),
+             180.0);
+    QCOMPARE(controller.index(0, 0)
+                 .data(QNodeGraph::UI::GraphController::NodeXRole)
+                 .toDouble(),
+             80.0);
+}
+
+void GraphControllerTest::followsNodeSizeInConnectionGeometry() {
+    QNodeGraph::UI::GraphController controller;
+    controller.addDemoNode(true);
+    controller.addDemoNode(true);
+    // 放大首个节点后，连接几何必须跟随实际尺寸 —— 修复前这里恒用 180x108
+    // 常量，导致改尺寸后连线端点不动。
+    QVERIFY(controller.resizeNode(0, 400.0, 240.0));
+    const auto connection = controller.connections().constFirst().toMap();
+    // 首节点原点 (80, 90)：输出端口 x = 80 + 400，y = 90 + 240/2。
+    QCOMPARE(connection.value(QStringLiteral("outputX")).toDouble(), 80.0);
+    QCOMPARE(connection.value(QStringLiteral("outputWidth")).toDouble(), 400.0);
+    QCOMPARE(connection.value(QStringLiteral("outputY")).toDouble(), 210.0);
 }
 
 QTEST_MAIN(GraphControllerTest)

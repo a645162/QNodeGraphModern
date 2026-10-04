@@ -140,6 +140,34 @@ double nodeNumberProperty(const Core::Node& node, const char* name,
     return fallback;
 }
 
+// 节点实际尺寸。必须与 data() 的 NodeWidthRole/NodeHeightRole 保持同一语义，
+// 否则连线端点会按默认尺寸计算、与画布上的真实节点错位。
+//
+// 兜底值刻意用 kDemoNodeWidth/Height 而非描述符默认尺寸：连接几何必须是
+// const 上下文的纯函数（portAt 也被 const 方法使用），而注册表查询在节点刚
+// 创建、属性尚未写入的瞬间可能拿不到描述符；画布尺寸与连线端点走同一个
+// 兜底值，才不会出现两者基准不一致。
+double nodeWidth(const Core::Node& node) {
+    return nodeNumberProperty(node, "width", kDemoNodeWidth);
+}
+
+double nodeHeight(const Core::Node& node) {
+    return nodeNumberProperty(node, "height", kDemoNodeHeight);
+}
+
+// 输出端口的世界坐标（节点右侧中点）。连线、命中测试、切片与预览共用同一
+// 计算，避免任何一处漏改导致端点漂移。
+Core::Point outputPortPoint(const Core::Node& node) {
+    return Core::Point{node.position.x + nodeWidth(node),
+                       node.position.y + nodeHeight(node) / 2.0};
+}
+
+// 输入端口的世界坐标（节点左侧中点）。
+Core::Point inputPortPoint(const Core::Node& node) {
+    return Core::Point{node.position.x,
+                       node.position.y + nodeHeight(node) / 2.0};
+}
+
 QString nodeStringProperty(const Core::Node& node, const char* name,
                            QString fallback) {
     const auto iterator = node.properties.find(name);
@@ -273,11 +301,10 @@ QVariantMap GraphController::connectionPreview() const {
     QVariantMap value;
     value.insert(QStringLiteral("outputRow"), m_pendingOutputRow);
     value.insert(QStringLiteral("outputX"), node->position.x);
-    value.insert(QStringLiteral("outputY"),
-                 node->position.y + kDemoNodeHeight / 2.0);
+    value.insert(QStringLiteral("outputY"), outputPortPoint(*node).y);
     value.insert(QStringLiteral("inputX"), m_previewPoint.x);
     value.insert(QStringLiteral("inputY"), m_previewPoint.y);
-    value.insert(QStringLiteral("outputWidth"), kDemoNodeWidth);
+    value.insert(QStringLiteral("outputWidth"), nodeWidth(*node));
     return value;
 }
 
@@ -351,12 +378,10 @@ QVariantList GraphController::connections() const {
         value.insert(QStringLiteral("outputRow"), outputRow);
         value.insert(QStringLiteral("inputRow"), inputRow);
         value.insert(QStringLiteral("outputX"), outputNode->position.x);
-        value.insert(QStringLiteral("outputY"),
-                     outputNode->position.y + kDemoNodeHeight / 2.0);
+        value.insert(QStringLiteral("outputY"), outputPortPoint(*outputNode).y);
         value.insert(QStringLiteral("inputX"), inputNode->position.x);
-        value.insert(QStringLiteral("inputY"),
-                     inputNode->position.y + kDemoNodeHeight / 2.0);
-        value.insert(QStringLiteral("outputWidth"), kDemoNodeWidth);
+        value.insert(QStringLiteral("inputY"), inputPortPoint(*inputNode).y);
+        value.insert(QStringLiteral("outputWidth"), nodeWidth(*outputNode));
         values.push_back(value);
     }
     return values;
@@ -953,11 +978,8 @@ int GraphController::sliceConnections(double startX, double startY,
         if (outputNode == nullptr || inputNode == nullptr) {
             continue;
         }
-        const Core::Point curveStart{
-            outputNode->position.x + kDemoNodeWidth,
-            outputNode->position.y + kDemoNodeHeight / 2.0};
-        const Core::Point curveEnd{inputNode->position.x,
-                                   inputNode->position.y + kDemoNodeHeight / 2.0};
+        const Core::Point curveStart = outputPortPoint(*outputNode);
+        const Core::Point curveEnd = inputPortPoint(*inputNode);
         const auto distance =
             std::max(40.0, std::abs(curveEnd.x - curveStart.x) * 0.5);
         const Core::Point controlStart{curveStart.x + distance, curveStart.y};
@@ -992,7 +1014,7 @@ QVariantMap GraphController::portAt(double worldX, double worldY) const {
         if (node == nullptr) {
             continue;
         }
-        const auto centerY = node->position.y + kDemoNodeHeight / 2.0;
+        const auto centerY = inputPortPoint(*node).y;
         const auto matches = [worldX, worldY, centerY,
                               hitRadiusSquared](double x) {
             const auto dx = worldX - x;
@@ -1007,10 +1029,10 @@ QVariantMap GraphController::portAt(double worldX, double worldY) const {
                     {QStringLiteral("y"), centerY}};
         }
         if (portFor(node->id, Core::PortDirection::Output) != 0 &&
-            matches(node->position.x + kDemoNodeWidth)) {
+            matches(outputPortPoint(*node).x)) {
             return {{QStringLiteral("row"), static_cast<int>(row)},
                     {QStringLiteral("direction"), QStringLiteral("output")},
-                    {QStringLiteral("x"), node->position.x + kDemoNodeWidth},
+                    {QStringLiteral("x"), outputPortPoint(*node).x},
                     {QStringLiteral("y"), centerY}};
         }
     }
@@ -1029,8 +1051,7 @@ bool GraphController::beginConnection(int outputRow) {
     if (node == nullptr) {
         return false;
     }
-    m_previewPoint = {node->position.x + kDemoNodeWidth,
-                      node->position.y + kDemoNodeHeight / 2.0};
+    m_previewPoint = outputPortPoint(*node);
     m_pendingOutputRow = outputRow;
     emit connectionPendingChanged();
     emit connectionPreviewChanged();
@@ -1192,27 +1213,35 @@ bool GraphController::setNodeProperty(int row, QString name, QVariant value) {
 }
 
 bool GraphController::resizeNode(int row, double width, double height) {
+    // 兼容旧签名：保持左上角不动（右下角拖拽语义）。
+    if (row < 0 || row >= nodeCount()) {
+        return false;
+    }
+    const auto* node = m_document.node(m_nodeOrder[static_cast<std::size_t>(row)]);
+    if (node == nullptr) {
+        return false;
+    }
+    return resizeNodeAt(row, node->position.x, node->position.y, width, height);
+}
+
+bool GraphController::resizeNodeAt(int row, double x, double y, double width,
+                                   double height) {
     if (row < 0 || row >= nodeCount() || width <= 0.0 || height <= 0.0) {
         return false;
     }
     const auto nodeId = m_nodeOrder[static_cast<std::size_t>(row)];
+    // 单条原子命令：宽、高与左上角一起写入同一次撤销快照。之前用两条
+    // SetPropertyCommand 会导致撤销只回退一半尺寸。
     if (const auto result = m_commandStack.execute(
-            std::make_unique<Core::SetPropertyCommand>(
-                nodeId, "width", std::int64_t{static_cast<std::int64_t>(width)}),
-            m_document);
-        !result) {
-        return false;
-    }
-    if (const auto result = m_commandStack.execute(
-            std::make_unique<Core::SetPropertyCommand>(
-                nodeId, "height",
-                std::int64_t{static_cast<std::int64_t>(height)}),
+            std::make_unique<Core::ResizeNodeCommand>(nodeId, Core::Point{x, y},
+                                                      width, height),
             m_document);
         !result) {
         return false;
     }
     const auto modelIndex = index(row, 0);
-    emit dataChanged(modelIndex, modelIndex, {NodeWidthRole, NodeHeightRole});
+    emit dataChanged(modelIndex, modelIndex,
+                     {NodeWidthRole, NodeHeightRole, NodeXRole, NodeYRole});
     emit connectionsChanged();
     emit historyChanged();
     return true;

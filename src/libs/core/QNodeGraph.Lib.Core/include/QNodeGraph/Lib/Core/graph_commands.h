@@ -101,6 +101,35 @@ private:
     std::optional<PropertyValue> m_previousValue;
 };
 
+// 节点尺寸调整（宽 + 高）的原子命令。
+//
+// 为什么需要单独一条命令：尺寸是两个独立属性（"width" / "height"），若用两条
+// SetPropertyCommand，撤销一次只回退一半尺寸 —— 用户要按两次 Ctrl+Z 才能复原，
+// 且中间态会出现「宽度已改、高度未改」的畸形节点。此命令把两次写入合并为一次
+// 可撤销操作。
+//
+// m_position 为调整后节点的左上角世界坐标：只有从右下角拖拽时左上角不动；
+// 从左/上侧拖拽会同时改变左上角，因此 origin 必须与尺寸一起进入撤销快照。
+class ResizeNodeCommand final : public GraphCommand {
+public:
+    ResizeNodeCommand(NodeId nodeId, Point position, double width,
+                      double height);
+    GraphResult<void> execute(GraphDocument& document) override;
+    GraphResult<void> undo(GraphDocument& document) override;
+    [[nodiscard]] const char* name() const noexcept override;
+
+private:
+    NodeId m_nodeId;
+    Point m_position;
+    double m_width;
+    double m_height;
+    std::optional<Point> m_previousPosition;
+    std::optional<PropertyValue> m_previousWidth;
+    std::optional<PropertyValue> m_previousHeight;
+    bool m_previousWidthWasSet = false;
+    bool m_previousHeightWasSet = false;
+};
+
 class GraphCommandStack final {
 public:
     GraphResult<void> execute(std::unique_ptr<GraphCommand> command,

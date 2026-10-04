@@ -112,6 +112,10 @@ public:
                                        bool additive = false);
     Q_INVOKABLE bool setNodeProperty(int row, QString name, QVariant value);
     Q_INVOKABLE bool resizeNode(int row, double width, double height);
+    // 四角/四边 resize 的统一入口：同时指定调整后的左上角世界坐标与尺寸。
+    // 右下角拖拽等价于 origin 不变；左/上侧拖拽会同时改变 origin。
+    Q_INVOKABLE bool resizeNodeAt(int row, double x, double y, double width,
+                                  double height);
     Q_INVOKABLE bool setNodeFixed(int row, bool fixed);
     Q_INVOKABLE bool assignNodeToGroup(int nodeRow, int groupRow);
     Q_INVOKABLE bool clearNodeGroup(int nodeRow);

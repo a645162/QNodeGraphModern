@@ -195,6 +195,87 @@ GraphResult<void> SetPropertyCommand::undo(GraphDocument& document) {
 
 const char* SetPropertyCommand::name() const noexcept { return "Set Property"; }
 
+ResizeNodeCommand::ResizeNodeCommand(NodeId nodeId, Point position,
+                                     double width, double height)
+    : m_nodeId(nodeId), m_position(position), m_width(width), m_height(height) {}
+
+GraphResult<void> ResizeNodeCommand::execute(GraphDocument& document) {
+    const auto* node = document.node(m_nodeId);
+    if (node == nullptr) {
+        return std::unexpected(
+            GraphError{GraphErrorCode::NodeNotFound,
+                       "Node " + std::to_string(m_nodeId) + " was not found."});
+    }
+    // 仅在首次执行时抓取快照：redo 必须回退到最初状态而不是上一次执行后的
+    // 状态，否则反复 undo/redo 会累积漂移。
+    if (!m_previousPosition.has_value()) {
+        m_previousPosition = node->position;
+        m_previousWidthWasSet = node->properties.contains("width");
+        m_previousHeightWasSet = node->properties.contains("height");
+        if (const auto iterator = node->properties.find("width");
+            iterator != node->properties.end()) {
+            m_previousWidth = iterator->second;
+        }
+        if (const auto iterator = node->properties.find("height");
+            iterator != node->properties.end()) {
+            m_previousHeight = iterator->second;
+        }
+    }
+    if (const auto result = document.setNodePosition(m_nodeId, m_position);
+        !result) {
+        return std::unexpected(result.error());
+    }
+    if (const auto result = document.setProperty(
+            m_nodeId, "width", std::int64_t{static_cast<std::int64_t>(m_width)});
+        !result) {
+        return std::unexpected(result.error());
+    }
+    if (const auto result = document.setProperty(
+            m_nodeId, "height",
+            std::int64_t{static_cast<std::int64_t>(m_height)});
+        !result) {
+        return std::unexpected(result.error());
+    }
+    return {};
+}
+
+GraphResult<void> ResizeNodeCommand::undo(GraphDocument& document) {
+    if (!m_previousPosition.has_value()) {
+        return std::unexpected(
+            commandError("The resize command was not executed."));
+    }
+    if (const auto result =
+            document.setNodePosition(m_nodeId, *m_previousPosition);
+        !result) {
+        return std::unexpected(result.error());
+    }
+    // 原先没有该属性时用 clearProperty 移除，而不是写回一个猜测的默认值 ——
+    // 否则撤销后节点会多出本来不存在的 width/height 属性。
+    if (m_previousWidthWasSet && m_previousWidth.has_value()) {
+        if (const auto result =
+                document.setProperty(m_nodeId, "width", *m_previousWidth);
+            !result) {
+            return std::unexpected(result.error());
+        }
+    } else if (const auto result = document.clearProperty(m_nodeId, "width");
+               !result) {
+        return std::unexpected(result.error());
+    }
+    if (m_previousHeightWasSet && m_previousHeight.has_value()) {
+        if (const auto result =
+                document.setProperty(m_nodeId, "height", *m_previousHeight);
+            !result) {
+            return std::unexpected(result.error());
+        }
+    } else if (const auto result = document.clearProperty(m_nodeId, "height");
+               !result) {
+        return std::unexpected(result.error());
+    }
+    return {};
+}
+
+const char* ResizeNodeCommand::name() const noexcept { return "Resize Node"; }
+
 GraphResult<void> GraphCommandStack::execute(std::unique_ptr<GraphCommand> command,
                                              GraphDocument& document) {
     if (command == nullptr) {
