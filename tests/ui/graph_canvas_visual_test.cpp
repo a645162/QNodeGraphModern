@@ -2,6 +2,8 @@
 #include <QQmlApplicationEngine>
 #include <QQmlComponent>
 #include <QQmlEngine>
+#include <QColor>
+#include <QImage>
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <QNodeGraph/Lib/UI/QtQuick/graph_controller.h>
@@ -21,7 +23,42 @@ private slots:
     void addsPaletteNodeThroughMouseDrag();
     void togglesThemeBetweenLightAndDark();
     void loadsCustomNodeContent();
+    void rendersConnectionWireBetweenNodes();
 };
+
+void GraphCanvasVisualTest::rendersConnectionWireBetweenNodes() {
+    QQmlApplicationEngine engine;
+    engine.loadFromModule("QNodeGraph.UI", "GraphCanvas");
+    QVERIFY2(!engine.rootObjects().isEmpty(), "canvas load failed");
+    auto* canvas = qobject_cast<QQuickItem*>(engine.rootObjects().first());
+    QVERIFY(canvas != nullptr);
+    QQuickWindow window;
+    window.resize(640, 420);
+    canvas->setParentItem(window.contentItem());
+    canvas->setWidth(window.width());
+    canvas->setHeight(window.height());
+    window.show();
+    QTest::qWait(100);
+    auto* controller = canvas->property("controller").value<QObject*>();
+    QVERIFY(controller != nullptr);
+    QMetaObject::invokeMethod(controller, "addDemoNode", Q_ARG(bool, false));
+    QMetaObject::invokeMethod(controller, "addDemoNode", Q_ARG(bool, false));
+    QMetaObject::invokeMethod(controller, "beginConnection", Q_ARG(int, 0));
+    QMetaObject::invokeMethod(controller, "completeConnectionAt",
+                              Q_ARG(double, 330.0), Q_ARG(double, 144.0));
+    QTest::qWait(200);
+
+    const auto image = window.grabWindow();
+    const auto background = QColor(QStringLiteral("#191d22"));
+    int wirePixels = 0;
+    for (int x = 270; x <= 320; ++x) {
+        const auto color = image.pixelColor(x, 144);
+        if (color != background)
+            ++wirePixels;
+    }
+    QVERIFY2(wirePixels > 0,
+             "the connection wire is not visible between the two ports");
+}
 
 void GraphCanvasVisualTest::togglesThemeBetweenLightAndDark() {
     QQmlApplicationEngine engine;

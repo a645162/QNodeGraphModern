@@ -240,7 +240,7 @@ Rectangle {
     Canvas {
         id: grid
         anchors.fill: parent
-        z: -2
+        z: 0
         renderTarget: Canvas.FramebufferObject
         onPaint: {
             var context = getContext("2d")
@@ -270,7 +270,7 @@ Rectangle {
     GraphConnectionsItem {
         id: pipes
         anchors.fill: parent
-        z: -1
+        z: 1
         connections: graphController.connections
         preview: graphController.connectionPreview
         previewActive: graphController.connectionPending
@@ -284,6 +284,7 @@ Rectangle {
         x: canvas.panOffset.x
         y: canvas.panOffset.y
         scale: canvas.zoomFactor
+        z: 2
 
         Repeater {
             model: graphController
@@ -689,7 +690,7 @@ Rectangle {
     MouseArea {
         id: selectionArea
         anchors.fill: parent
-        z: -1
+        z: 0
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         onPressed: function(mouse) {
             canvas.forceActiveFocus()

@@ -1,7 +1,6 @@
 import QtQuick
-import QtQuick.Shapes
 
-Item {
+Canvas {
     id: root
 
     property var connections: []
@@ -11,85 +10,68 @@ Item {
     property int layoutMode: 0
     property bool previewActive: false
 
-    Repeater {
-        model: root.connections
+    renderTarget: Canvas.Image
+    antialiasing: true
 
-        delegate: Shape {
-            required property var modelData
-            anchors.fill: parent
-            z: 0
-            antialiasing: true
-
-            ShapePath {
-                fillColor: "transparent"
-                strokeColor: Theme.wire
-                strokeWidth: 2
-                capStyle: ShapePath.RoundCap
-                joinStyle: ShapePath.RoundJoin
-                PathPolyline {
-                    path: root.pathFor(modelData)
-                }
-            }
-        }
-    }
-
-    Shape {
-        anchors.fill: parent
-        z: 1
-        antialiasing: true
-        visible: root.preview && root.preview.inputX !== undefined
-
-        ShapePath {
-            fillColor: "transparent"
-            strokeColor: root.previewActive ? Theme.wireActive : Theme.wire
-            strokeWidth: 2
-            capStyle: ShapePath.RoundCap
-            joinStyle: ShapePath.RoundJoin
-            PathPolyline {
-                path: root.preview && root.preview.inputX !== undefined
-                      ? root.pathFor(root.preview)
-                      : []
-            }
-        }
-    }
+    onConnectionsChanged: requestPaint()
+    onPreviewChanged: requestPaint()
+    onPanOffsetChanged: requestPaint()
+    onZoomFactorChanged: requestPaint()
+    onLayoutModeChanged: requestPaint()
+    onWidthChanged: requestPaint()
+    onHeightChanged: requestPaint()
 
     function screenPoint(x, y) {
         return Qt.point(root.panOffset.x + x * root.zoomFactor,
                         root.panOffset.y + y * root.zoomFactor)
     }
 
-    function pathFor(connection) {
+    function tracePath(context, connection) {
         if (!connection || connection.outputX === undefined)
-            return []
+            return false
         var start = screenPoint(connection.outputX + connection.outputWidth,
                                 connection.outputY)
         var end = screenPoint(connection.inputX, connection.inputY)
-        if (root.layoutMode === 2)
-            return [start, end]
+        context.beginPath()
+        if (root.layoutMode === 2) {
+            context.moveTo(start.x, start.y)
+            context.lineTo(end.x, end.y)
+            return true
+        }
         if (root.layoutMode === 1) {
             var middleX = (start.x + end.x) * 0.5
-            return [start, Qt.point(middleX, start.y),
-                    Qt.point(middleX, end.y), end]
+            context.moveTo(start.x, start.y)
+            context.lineTo(middleX, start.y)
+            context.lineTo(middleX, end.y)
+            context.lineTo(end.x, end.y)
+            return true
         }
-        var distance = Math.max(40.0, Math.abs(end.x - start.x) * 0.5)
-        var controlStart = Qt.point(start.x + distance * root.zoomFactor,
-                                    start.y)
-        var controlEnd = Qt.point(end.x - distance * root.zoomFactor, end.y)
-        var points = []
-        var samples = 24
-        for (var index = 0; index <= samples; ++index) {
-            var t = index / samples
-            var inverse = 1.0 - t
-            var x = inverse * inverse * inverse * start.x +
-                    3.0 * inverse * inverse * t * controlStart.x +
-                    3.0 * inverse * t * t * controlEnd.x +
-                    t * t * t * end.x
-            var y = inverse * inverse * inverse * start.y +
-                    3.0 * inverse * inverse * t * controlStart.y +
-                    3.0 * inverse * t * t * controlEnd.y +
-                    t * t * t * end.y
-            points.push(Qt.point(x, y))
+        var distance = Math.max(40.0, Math.abs(end.x - start.x) * 0.5) *
+                       root.zoomFactor
+        context.moveTo(start.x, start.y)
+        context.bezierCurveTo(start.x + distance, start.y,
+                              end.x - distance, end.y, end.x, end.y)
+        return true
+    }
+
+    onPaint: {
+        var context = getContext("2d")
+        context.reset()
+        context.lineWidth = 2
+        context.lineCap = "round"
+        context.lineJoin = "round"
+
+        context.strokeStyle = Theme.wire
+        for (var index = 0; index < root.connections.length; ++index) {
+            if (tracePath(context, root.connections[index]))
+                context.stroke()
         }
-        return points
+
+        if (root.preview && root.preview.inputX !== undefined) {
+            context.strokeStyle = root.previewActive ? Theme.wireActive
+                                                     : Theme.wire
+            if (tracePath(context, root.preview))
+                context.stroke()
+        }
     }
 }
