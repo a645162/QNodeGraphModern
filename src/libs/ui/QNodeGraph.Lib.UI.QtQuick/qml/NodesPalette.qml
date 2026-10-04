@@ -19,19 +19,26 @@ Rectangle {
         hideFixedNodes: true
     }
 
+    ToolButton {
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.topMargin: 6
+        anchors.leftMargin: 6
+        text: nodesPalette.collapsed ? qsTr("+") : qsTr("-")
+        onClicked: nodesPalette.collapsed = !nodesPalette.collapsed
+        ToolTip.visible: hovered
+        ToolTip.text: nodesPalette.collapsed ? qsTr("展开组件库")
+                                               : qsTr("折叠组件库")
+        z: 2
+    }
+
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 10
+        anchors.leftMargin: 10
+        anchors.rightMargin: 10
+        anchors.topMargin: 38
+        anchors.bottomMargin: 10
         spacing: 8
-
-        ToolButton {
-            Layout.alignment: collapsed ? Qt.AlignHCenter : Qt.AlignRight
-            text: collapsed ? qsTr(">") : qsTr("<")
-            onClicked: nodesPalette.collapsed = !nodesPalette.collapsed
-            ToolTip.visible: hovered
-            ToolTip.text: collapsed ? qsTr("Expand component library")
-                                     : qsTr("Collapse component library")
-        }
 
         RowLayout {
             visible: !nodesPalette.collapsed
@@ -46,7 +53,7 @@ Rectangle {
             }
 
             Button {
-                text: qsTr("Add")
+                text: qsTr("添加")
                 onClicked: {
                     if (nodeTypeCombo.currentValue)
                         nodesPalette.controller.addNodeType(
@@ -57,7 +64,7 @@ Rectangle {
 
         Label {
             visible: !nodesPalette.collapsed
-            text: qsTr("Nodes Palette")
+            text: qsTr("组件库")
             color: Theme.textPrimary
             font.bold: true
             font.pixelSize: 16
@@ -67,7 +74,7 @@ Rectangle {
             visible: !nodesPalette.collapsed
             id: searchField
             Layout.fillWidth: true
-            placeholderText: qsTr("Search nodes")
+            placeholderText: qsTr("搜索组件")
             selectByMouse: true
             onTextChanged: paletteModel.filter = text
         }

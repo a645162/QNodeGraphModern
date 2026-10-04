@@ -21,14 +21,14 @@ ColumnLayout {
         spacing: 10
 
         Label {
-            text: qsTr("Image processing workflow")
+            text: qsTr("图像处理工作流")
             color: Theme.textPrimary
             font.bold: true
         }
 
         CheckBox {
             id: workflowEnabledToggle
-            text: qsTr("Enabled")
+            text: qsTr("启用")
             checked: editor.workflowHost
                      ? editor.workflowHost.workflowEnabled : true
             onToggled: {

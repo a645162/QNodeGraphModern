@@ -411,16 +411,39 @@ bool GraphController::autoLayout() {
   }
 
   const auto maxColumn = *std::max_element(columns.begin(), columns.end());
-  std::vector<int> rowsPerColumn(static_cast<std::size_t>(maxColumn + 1), 0);
+  std::vector<double> columnWidths(static_cast<std::size_t>(maxColumn + 1),
+                                   0.0);
+  constexpr double kColumnGap = 80.0;
+  constexpr double kRowGap = 36.0;
+  for (int row = 0; row < count; ++row) {
+    const auto *node =
+        m_document.node(m_nodeOrder[static_cast<std::size_t>(row)]);
+    if (node == nullptr) {
+      continue;
+    }
+    const auto column = columns[static_cast<std::size_t>(row)];
+    columnWidths[static_cast<std::size_t>(column)] = std::max(
+        columnWidths[static_cast<std::size_t>(column)], nodeWidth(*node));
+  }
+  std::vector<double> columnX(static_cast<std::size_t>(maxColumn + 1), 80.0);
+  for (int column = 1; column <= maxColumn; ++column) {
+    columnX[static_cast<std::size_t>(column)] =
+        columnX[static_cast<std::size_t>(column - 1)] +
+        columnWidths[static_cast<std::size_t>(column - 1)] + kColumnGap;
+  }
+  std::vector<double> nextY(static_cast<std::size_t>(maxColumn + 1), 90.0);
   bool changed = false;
   for (int row = 0; row < count; ++row) {
     const auto column = columns[static_cast<std::size_t>(row)];
-    const auto line = rowsPerColumn[static_cast<std::size_t>(column)]++;
-    const Core::Point position{80.0 + column * 260.0, 90.0 + line * 180.0};
     const auto *node =
         m_document.node(m_nodeOrder[static_cast<std::size_t>(row)]);
-    if (node == nullptr ||
-        (node->position.x == position.x && node->position.y == position.y)) {
+    if (node == nullptr) {
+      continue;
+    }
+    const Core::Point position{columnX[static_cast<std::size_t>(column)],
+                               nextY[static_cast<std::size_t>(column)]};
+    nextY[static_cast<std::size_t>(column)] += nodeHeight(*node) + kRowGap;
+    if (node->position.x == position.x && node->position.y == position.y) {
       continue;
     }
     const auto result = m_commandStack.execute(

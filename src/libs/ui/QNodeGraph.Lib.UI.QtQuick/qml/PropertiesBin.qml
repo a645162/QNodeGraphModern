@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 import QtQuick.Layouts
 
 Rectangle {
@@ -7,28 +8,50 @@ Rectangle {
 
     required property var controller
     property bool collapsed: false
+    property int colorRow: -1
+    property string colorProperty: ""
 
     color: Theme.panelBg
     border.color: Theme.panelBorder
     radius: Theme.radius
 
+    ColorDialog {
+        id: colorDialog
+        title: qsTr("选择背景颜色")
+        onAccepted: {
+            if (propertiesBin.colorRow >= 0 &&
+                    propertiesBin.colorProperty.length > 0) {
+                propertiesBin.controller.setNodeProperty(
+                    propertiesBin.colorRow, propertiesBin.colorProperty,
+                    selectedColor.toString())
+            }
+        }
+    }
+
+    ToolButton {
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.topMargin: 6
+        anchors.rightMargin: 6
+        text: propertiesBin.collapsed ? qsTr("+") : qsTr("-")
+        onClicked: propertiesBin.collapsed = !propertiesBin.collapsed
+        ToolTip.visible: hovered
+        ToolTip.text: propertiesBin.collapsed ? qsTr("展开属性")
+                                               : qsTr("折叠属性")
+        z: 2
+    }
+
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 12
+        anchors.leftMargin: 12
+        anchors.rightMargin: 12
+        anchors.topMargin: 38
+        anchors.bottomMargin: 12
         spacing: 10
-
-        ToolButton {
-            Layout.alignment: collapsed ? Qt.AlignHCenter : Qt.AlignLeft
-            text: collapsed ? qsTr("<") : qsTr(">")
-            onClicked: propertiesBin.collapsed = !propertiesBin.collapsed
-            ToolTip.visible: hovered
-            ToolTip.text: collapsed ? qsTr("Expand properties")
-                                     : qsTr("Collapse properties")
-        }
 
         Label {
             visible: !propertiesBin.collapsed
-            text: qsTr("Properties")
+            text: qsTr("属性")
             color: Theme.textPrimary
             font.bold: true
             font.pixelSize: 16
@@ -38,8 +61,8 @@ Rectangle {
             visible: !propertiesBin.collapsed
             Layout.fillWidth: true
             text: propertiesBin.controller.selectedRow >= 0
-                  ? qsTr("Node %1").arg(propertiesBin.controller.selectedRow + 1)
-                  : qsTr("Select a node")
+                  ? qsTr("节点 %1").arg(propertiesBin.controller.selectedRow + 1)
+                  : qsTr("请选择节点")
             color: Theme.textSecondary
             elide: Text.ElideRight
         }
@@ -100,6 +123,19 @@ Rectangle {
                         }
                     }
 
+                    TextField {
+                        visible: modelData.editor === "slider"
+                        Layout.preferredWidth: 64
+                        text: Number(modelData.value).toLocaleString(
+                                  Qt.locale(), 'f',
+                                  Number(modelData.step) < 1 ? 2 : 0)
+                        selectByMouse: true
+                        inputMethodHints: Qt.ImhFormattedNumbersOnly
+                        onEditingFinished: propertiesBin.controller.setNodeProperty(
+                            propertiesBin.controller.selectedRow,
+                            modelData.name, text)
+                    }
+
                     ComboBox {
                         visible: modelData.editor === "combobox"
                         Layout.fillWidth: true
@@ -123,13 +159,24 @@ Rectangle {
                             propertiesBin.controller.selectedRow,
                             modelData.name, text)
                     }
+
+                    Button {
+                        visible: modelData.name === "background"
+                        text: qsTr("取色")
+                        onClicked: {
+                            propertiesBin.colorRow = propertiesBin.controller.selectedRow
+                            propertiesBin.colorProperty = modelData.name
+                            colorDialog.selectedColor = String(modelData.value)
+                            colorDialog.open()
+                        }
+                    }
                 }
             }
 
             Label {
                 anchors.centerIn: parent
                 visible: !propertiesBin.collapsed && propertyList.count === 0
-                text: qsTr("No editable properties")
+                        text: qsTr("没有可编辑属性")
                 color: Theme.nodeMutedText
             }
         }

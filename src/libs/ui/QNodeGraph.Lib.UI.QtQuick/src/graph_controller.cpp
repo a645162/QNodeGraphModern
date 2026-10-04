@@ -368,9 +368,11 @@ QVariant GraphController::data(const QModelIndex &index, int role) const {
     // 输出无人使用 → 该节点对最终结果无贡献，UI 降级显示。
     return m_outputUsed.contains(node->id);
   case NodeInputConnectedRole:
-    return nodePortConnected(node->id, Core::PortDirection::Input);
+    return !m_outputUsed.contains(node->id) ||
+           nodePortConnected(node->id, Core::PortDirection::Input);
   case NodeOutputConnectedRole:
-    return nodePortConnected(node->id, Core::PortDirection::Output);
+    return !m_outputUsed.contains(node->id) ||
+           nodePortConnected(node->id, Core::PortDirection::Output);
   case NodePreviewSourceRole:
   case NodePreviewWidthRole:
   case NodePreviewHeightRole:
@@ -811,6 +813,16 @@ bool GraphController::nodePortConnected(
     if (port == nullptr || port->direction != direction) {
       continue;
     }
+    // A descriptor may explicitly opt into optional inputs (for example a
+    // two-source compositor that also supports a single image). Such ports
+    // remain valid when disconnected and must not produce a false alarm.
+    if (direction == Core::PortDirection::Input) {
+      const auto *optional = m_document.property(nodeId, "optionalInputs");
+      if (optional != nullptr && std::holds_alternative<bool>(*optional) &&
+          std::get<bool>(*optional)) {
+        continue;
+      }
+    }
     const auto connected = std::any_of(
         m_document.connections().cbegin(), m_document.connections().cend(),
         [portId](const Core::Connection &connection) {
@@ -849,7 +861,30 @@ bool GraphController::connectRows(int outputRow, int inputRow) {
   const auto outputNode = m_nodeOrder[static_cast<std::size_t>(outputRow)];
   const auto inputNode = m_nodeOrder[static_cast<std::size_t>(inputRow)];
   const auto outputPort = portFor(outputNode, Core::PortDirection::Output);
-  const auto inputPort = portFor(inputNode, Core::PortDirection::Input);
+  // For multi-input nodes, use the first free input port so repeated drags to
+  // the same node populate imageA, then imageB (the common compositor flow).
+  auto inputPort = Core::PortId{0};
+  const auto *inputValue = m_document.node(inputNode);
+  if (inputValue != nullptr) {
+    for (const auto candidate : inputValue->ports) {
+      const auto *port = m_document.port(candidate);
+      if (port == nullptr || port->direction != Core::PortDirection::Input) {
+        continue;
+      }
+      const auto connected = std::any_of(
+          m_document.connections().cbegin(), m_document.connections().cend(),
+          [candidate](const Core::Connection &connection) {
+            return connection.inputPort == candidate;
+          });
+      if (!connected) {
+        inputPort = candidate;
+        break;
+      }
+      if (inputPort == 0) {
+        inputPort = candidate;
+      }
+    }
+  }
   if (outputPort == 0 || inputPort == 0) {
     setError(QStringLiteral("Both an output and an input port are required."));
     return false;

@@ -127,6 +127,31 @@ bool GraphController::setNodeProperty(int row, QString name, QVariant value) {
     converted = value.toString().toStdString();
   }
 
+  if (const auto *descriptor = m_registry.find(
+          m_document.node(nodeId) != nullptr
+              ? m_document.node(nodeId)->type
+              : std::string{});
+      descriptor != nullptr) {
+    for (const auto &property : descriptor->properties) {
+      if (property.name != name.toStdString() ||
+          !std::holds_alternative<double>(converted) &&
+              !std::holds_alternative<std::int64_t>(converted)) {
+        continue;
+      }
+      const auto clamped = std::clamp(
+          std::holds_alternative<double>(converted)
+              ? std::get<double>(converted)
+              : static_cast<double>(std::get<std::int64_t>(converted)),
+          property.minimum, property.maximum);
+      if (std::holds_alternative<double>(converted)) {
+        converted = clamped;
+      } else {
+        converted = static_cast<std::int64_t>(std::llround(clamped));
+      }
+      break;
+    }
+  }
+
   const auto result = m_commandStack.execute(
       std::make_unique<Core::SetPropertyCommand>(nodeId, name.toStdString(),
                                                  std::move(converted)),

@@ -501,7 +501,7 @@ Rectangle {
                             Slider {
                                 z: 3
                                 visible: propertyRow.modelData.editor === "slider"
-                                width: Math.max(40, propertyRow.width - 92)
+                                width: Math.max(40, propertyRow.width - 144)
                                 from: propertyRow.modelData.minimum
                                 to: Math.max(propertyRow.modelData.minimum + 1,
                                              propertyRow.modelData.maximum)
@@ -516,6 +516,22 @@ Rectangle {
                                                     propertyRow.modelData.name,
                                                     value)
                                 }
+                            }
+
+                            TextField {
+                                z: 3
+                                visible: propertyRow.modelData.editor === "slider"
+                                width: 48
+                                text: Number(propertyRow.modelData.value).toLocaleString(
+                                          Qt.locale(), 'f',
+                                          Number(propertyRow.modelData.step) < 1 ? 2 : 0)
+                                font.pixelSize: 10
+                                selectByMouse: true
+                                inputMethodHints: Qt.ImhFormattedNumbersOnly
+                                onEditingFinished: canvas.controller.setNodeProperty(
+                                                       nodeItem.index,
+                                                       propertyRow.modelData.name,
+                                                       text)
                             }
 
                             // 布尔开关
