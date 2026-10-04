@@ -1,1 +1,0 @@
-# The canonical CMake entry point is CMakeLists.txt.
