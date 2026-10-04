@@ -5,6 +5,8 @@
 ```powershell
 python scripts/build.py --configuration Debug
 python scripts/test.py --configuration Debug
+python scripts/run.py basic
+python scripts/package.py --configuration Release
 python scripts/example/run_basic_demo.py
 python scripts/example/run_image_pipeline_demo.py
 ```
