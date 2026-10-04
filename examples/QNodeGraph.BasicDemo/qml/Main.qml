@@ -12,7 +12,7 @@ ApplicationWindow {
     minimumHeight: 640
     visible: true
     title: qsTr("QNodeGraph Basic Demo")
-    color: "#20252b"
+    color: Theme.windowBg
 
     header: ToolBar {
         RowLayout {
@@ -89,6 +89,16 @@ ApplicationWindow {
                 currentIndex: canvas.pipeLayout
                 onActivated: canvas.pipeLayout = currentIndex
                 implicitWidth: 110
+            }
+
+            Button {
+                text: Theme.dark ? qsTr("Light") : qsTr("Dark")
+                onClicked: Theme.mode = Theme.dark ? Theme.light : Theme.darkMode
+            }
+
+            Button {
+                text: qsTr("System")
+                onClicked: Theme.mode = Theme.system
             }
 
             Label {
