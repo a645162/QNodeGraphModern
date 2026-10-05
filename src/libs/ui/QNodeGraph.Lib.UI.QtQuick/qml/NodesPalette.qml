@@ -7,6 +7,7 @@ Rectangle {
     id: nodesPalette
 
     required property var controller
+    property var helpProvider: null
     property Item dropTarget: null
     property bool collapsed: false
     color: Theme.panelBg
@@ -115,6 +116,8 @@ Rectangle {
                 Column {
                     anchors.left: parent.left
                     anchors.leftMargin: 10
+                    anchors.right: helpButton.left
+                    anchors.rightMargin: 8
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 2
 
@@ -132,6 +135,19 @@ Rectangle {
                         color: Theme.textSecondary
                         font.pixelSize: 11
                     }
+                }
+
+                ToolButton {
+                    id: helpButton
+                    anchors.right: parent.right
+                    anchors.rightMargin: 4
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "?"
+                    visible: nodesPalette.helpProvider !== null
+                    onClicked: nodesPalette.helpProvider.openFor(nodeType)
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("查看帮助")
+                    z: 2
                 }
 
                 MouseArea {

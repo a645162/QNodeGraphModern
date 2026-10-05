@@ -2,11 +2,13 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Layouts
+import QNodeGraph.UI 1.0
 
 Rectangle {
     id: propertiesBin
 
     required property var controller
+    property var helpProvider: null
     property bool collapsed: false
     property int colorRow: -1
     property string colorProperty: ""
@@ -38,6 +40,28 @@ Rectangle {
         ToolTip.visible: hovered
         ToolTip.text: propertiesBin.collapsed ? qsTr("展开属性")
                                                : qsTr("折叠属性")
+        z: 2
+    }
+
+    ToolButton {
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.topMargin: 6
+        anchors.rightMargin: 42
+        text: "?"
+        enabled: propertiesBin.helpProvider !== null &&
+                 propertiesBin.controller.selectedRow >= 0
+        onClicked: {
+            if (enabled) {
+                var typeId = propertiesBin.controller.data(
+                            propertiesBin.controller.index(
+                                propertiesBin.controller.selectedRow, 0),
+                            GraphController.NodeTypeRole)
+                propertiesBin.helpProvider.openFor(String(typeId))
+            }
+        }
+        ToolTip.visible: hovered
+        ToolTip.text: qsTr("查看节点帮助")
         z: 2
     }
 

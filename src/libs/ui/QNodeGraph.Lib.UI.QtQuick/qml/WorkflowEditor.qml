@@ -12,6 +12,8 @@ ColumnLayout {
     // this null and keeps the canvas usable without application settings.
     property var workflowHost: typeof workflowPanel === "undefined"
                                 ? null : workflowPanel
+    property var helpProvider: typeof workflowHelp === "undefined"
+                               ? null : workflowHelp
 
     spacing: 5
 
@@ -52,6 +54,7 @@ ColumnLayout {
             Layout.minimumWidth: collapsed ? 30 : 190
             controller: graph.controller
             dropTarget: graph
+            helpProvider: editor.helpProvider
         }
 
         GraphCanvas {
@@ -59,6 +62,7 @@ ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.minimumWidth: 360
+            helpProvider: editor.helpProvider
         }
 
         PropertiesBin {
@@ -67,6 +71,36 @@ ColumnLayout {
             Layout.preferredWidth: collapsed ? 30 : 250
             Layout.minimumWidth: collapsed ? 30 : 210
             controller: graph.controller
+            helpProvider: editor.helpProvider
+        }
+    }
+
+    Dialog {
+        id: helpDialog
+        modal: false
+        title: editor.helpProvider && editor.helpProvider.typeId.length > 0
+               ? qsTr("帮助: %1").arg(editor.helpProvider.typeId)
+               : qsTr("工作流帮助")
+        width: Math.min(editor.width * 0.7, 720)
+        height: Math.min(editor.height * 0.8, 560)
+        visible: editor.helpProvider ? editor.helpProvider.open : false
+        standardButtons: Dialog.Close
+
+        onClosed: {
+            if (editor.helpProvider)
+                editor.helpProvider.close()
+        }
+
+        contentItem: ScrollView {
+            clip: true
+            Text {
+                width: helpDialog.availableWidth
+                text: editor.helpProvider ? editor.helpProvider.markdown : ""
+                textFormat: Text.MarkdownText
+                wrapMode: Text.WordWrap
+                color: Theme.textPrimary
+                padding: 12
+            }
         }
     }
 }

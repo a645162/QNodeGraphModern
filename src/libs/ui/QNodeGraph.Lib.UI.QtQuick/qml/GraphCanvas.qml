@@ -12,6 +12,7 @@ Rectangle {
     radius: Theme.radius
 
     property alias controller: graphController
+    property var helpProvider: null
     readonly property bool darkTheme: Theme.dark
     function setThemeMode(value) {
         Theme.mode = value
@@ -152,6 +153,19 @@ Rectangle {
         }
 
         MenuSeparator {}
+
+        MenuItem {
+            text: qsTr("节点帮助")
+            enabled: canvas.contextNodeRow >= 0 && canvas.helpProvider !== null
+            onTriggered: {
+                if (canvas.helpProvider && canvas.contextNodeRow >= 0) {
+                    var typeId = graphController.data(
+                                graphController.index(canvas.contextNodeRow, 0),
+                                GraphController.NodeTypeRole)
+                    canvas.helpProvider.openFor(String(typeId))
+                }
+            }
+        }
 
         MenuItem {
             text: qsTr("Reset View")
