@@ -18,6 +18,7 @@ private slots:
     void carriesNodePropertiesAsParams();
     void excludesDisplayAndUiKeysFromParams();
     void keepsPlanStableAcrossRebuilds();
+    void exposesExecutionPolicyDefaultsAndFields();
 
 private:
     // 建图辅助：load_image 只有输出端口，image_preview 只有输入端口（汇点）。
@@ -185,6 +186,35 @@ void GraphPlanTest::keepsPlanStableAcrossRebuilds() {
     // 同一张图多次编译必须得到相同顺序（缓存命中与测试断言依赖这一点）。
     QCOMPARE(first, second);
     QCOMPARE(first.size(), std::size_t{3});
+}
+
+void GraphPlanTest::exposesExecutionPolicyDefaultsAndFields() {
+    using namespace QNodeGraph::Execution;
+    const ExecutionPolicy defaults;
+    QVERIFY(defaults.roi.full());
+    QCOMPARE(defaults.border, BorderMode::Reflect101);
+    QCOMPARE(defaults.precision, Precision::U8);
+    QCOMPARE(defaults.backend, Backend::Auto);
+    QCOMPARE(defaults.cost, CostClass::Realtime);
+
+    ExecutionPolicy policy;
+    policy.roi = Roi{4, 8, 32, 24};
+    policy.border = BorderMode::Replicate;
+    policy.precision = Precision::F32;
+    policy.backend = Backend::OpenCl;
+    policy.cost = CostClass::Interactive;
+    QVERIFY(!policy.roi.full());
+    QCOMPARE(policy.roi.x, 4);
+    QCOMPARE(policy.roi.height, 24);
+
+    OperatorInvocation invocation;
+    invocation.policy = policy;
+    QCOMPARE(invocation.policy.backend, Backend::OpenCl);
+    PlanStep step;
+    step.policy = policy;
+    QCOMPARE(step.policy.precision, Precision::F32);
+    FrameSpec spec{640, 480, "bgra32", Precision::U16};
+    QCOMPARE(spec.precision, Precision::U16);
 }
 
 QTEST_MAIN(GraphPlanTest)

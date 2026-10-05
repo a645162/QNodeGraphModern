@@ -25,12 +25,62 @@ namespace QNodeGraph::Execution {
 // 不透明帧句柄。0 表示无效/未分配。
 using FrameHandle = std::uint64_t;
 
+// 执行区域。width/height <= 0 表示整帧，便于在没有 ROI 约束时保持现有
+// FrameSpec/算子接口的默认行为。
+struct Roi {
+    int x = 0;
+    int y = 0;
+    int width = 0;
+    int height = 0;
+
+    [[nodiscard]] constexpr bool full() const noexcept {
+        return width <= 0 || height <= 0;
+    }
+};
+
+enum class BorderMode {
+    Constant,
+    Replicate,
+    Reflect,
+    Reflect101,
+    Wrap,
+};
+
+enum class Precision {
+    U8,
+    U16,
+    F32,
+};
+
+enum class Backend {
+    Auto,
+    Cpu,
+    OpenCl,
+};
+
+enum class CostClass {
+    Realtime,
+    Interactive,
+    Offline,
+};
+
+// 算子执行策略是调度契约，不绑定具体图像类型。业务执行器可据此选择
+// ROI、边界扩展、精度和后端；未指定时保持 U8/整帧/自动后端的兼容路径。
+struct ExecutionPolicy {
+    Roi roi;
+    BorderMode border = BorderMode::Reflect101;
+    Precision precision = Precision::U8;
+    Backend backend = Backend::Auto;
+    CostClass cost = CostClass::Realtime;
+};
+
 // 帧规格：库只知道尺寸与格式标签，具体含义由宿主的 FramePool 解释。
 struct FrameSpec {
     int width = 0;
     int height = 0;
     // 格式标签，如 "bgra32" / "rgba8-texture" / "gray8"。库不解释其语义。
     std::string format;
+    Precision precision = Precision::U8;
 };
 
 // 由宿主实现：帧的分配与生命周期。库只持有句柄，不持有帧数据。
@@ -53,6 +103,7 @@ struct OperatorInvocation {
     std::map<std::string, Core::PropertyValue> params;
     std::vector<FrameHandle> inputs;
     FrameHandle output = 0;
+    ExecutionPolicy policy;
 };
 
 // 由宿主实现：单个算子的一次执行。库负责调度，宿主负责算法。
@@ -72,6 +123,7 @@ struct PlanStep {
     std::vector<FrameHandle> inputs;
     FrameHandle output = 0;
     std::map<std::string, Core::PropertyValue> params;
+    ExecutionPolicy policy;
 };
 
 // 由 GraphDocument 编译出的求值计划。
