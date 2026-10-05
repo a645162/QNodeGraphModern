@@ -501,7 +501,17 @@ Rectangle {
                             id: propertyRow
                             required property var modelData
                             width: parent.width
+                            property bool basicVisible:
+                                String(modelData.visibility || "basic") ===
+                                "basic"
+                            visible: basicVisible
+                            height: visible ? implicitHeight : 0
                             spacing: 4
+
+                            HoverHandler { id: propertyHover }
+                            ToolTip.visible: propertyHover.hovered &&
+                                             String(modelData.description || "").length > 0
+                            ToolTip.text: String(modelData.description || "")
 
                             Label {
                                 text: propertyRow.modelData.name
