@@ -51,6 +51,12 @@ QString dataTypeName(Core::PortDataType dataType) {
         return QStringLiteral("text");
     case Core::PortDataType::Boolean:
         return QStringLiteral("boolean");
+    case Core::PortDataType::Scalar:
+        return QStringLiteral("scalar");
+    case Core::PortDataType::Features:
+        return QStringLiteral("features");
+    case Core::PortDataType::Objects:
+        return QStringLiteral("objects");
     }
     return {};
 }
@@ -70,6 +76,15 @@ std::optional<Core::PortDataType> parseDataType(const QString& value) {
     }
     if (value == QStringLiteral("boolean")) {
         return Core::PortDataType::Boolean;
+    }
+    if (value == QStringLiteral("scalar")) {
+        return Core::PortDataType::Scalar;
+    }
+    if (value == QStringLiteral("features")) {
+        return Core::PortDataType::Features;
+    }
+    if (value == QStringLiteral("objects")) {
+        return Core::PortDataType::Objects;
     }
     return std::nullopt;
 }
@@ -241,7 +256,7 @@ Core::GraphResult<QJsonObject> GraphJson::migrate(const QJsonObject& object) {
     if (version == kSchemaVersion) {
         return object;
     }
-    if (version != 0) {
+    if (version != 0 && version != 1) {
         return std::unexpected(error(
             Core::GraphErrorCode::UnsupportedSchemaVersion,
             QStringLiteral("Unsupported graph schema version %1.").arg(version)));

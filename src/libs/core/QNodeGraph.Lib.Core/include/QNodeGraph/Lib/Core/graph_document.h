@@ -26,6 +26,9 @@ enum class PortDataType {
     Number,
     Text,
     Boolean,
+    Scalar,
+    Features,
+    Objects,
 };
 
 enum class GraphErrorCode {

@@ -9,7 +9,7 @@ namespace QNodeGraph::Graph {
 
 class GraphJson final {
 public:
-    static constexpr int kSchemaVersion = 1;
+    static constexpr int kSchemaVersion = 2;
 
     [[nodiscard]] static Core::GraphResult<QJsonObject> toJson(
         const Core::GraphDocument& document);

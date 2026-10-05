@@ -46,13 +46,14 @@ private slots:
     void migratesInitialSchemaAndReportsMissingExternalAssets();
     void loadsLegacyVersionThroughMigration();
     void persistsNodeSizeAndFixedFlag();
+    void roundTripsExtendedPortDataTypes();
 };
 
 void GraphPersistenceTest::roundTripsDocumentAndProperties() {
     const auto original = createImageGraph();
     const auto encoded = QNodeGraph::Graph::GraphJson::toJson(original);
     QVERIFY(encoded.has_value());
-    QCOMPARE(encoded->value(QStringLiteral("schemaVersion")).toInt(), 1);
+    QCOMPARE(encoded->value(QStringLiteral("schemaVersion")).toInt(), 2);
 
     const auto restored = QNodeGraph::Graph::GraphJson::fromJson(*encoded);
     QVERIFY(restored.has_value());
@@ -134,7 +135,7 @@ void GraphPersistenceTest::migratesInitialSchemaAndReportsMissingExternalAssets(
         {QStringLiteral("connections"), QJsonArray{}}};
     const auto migrated = QNodeGraph::Graph::GraphJson::migrate(legacy);
     QVERIFY(migrated.has_value());
-    QCOMPARE(migrated->value(QStringLiteral("schemaVersion")).toInt(), 1);
+    QCOMPARE(migrated->value(QStringLiteral("schemaVersion")).toInt(), 2);
     QVERIFY(QNodeGraph::Graph::GraphJson::fromJson(*migrated).has_value());
 
     QTemporaryDir directory;
@@ -198,6 +199,42 @@ void GraphPersistenceTest::persistsNodeSizeAndFixedFlag() {
     const auto* loadedSecond = loaded->node(*second);
     QVERIFY(loadedSecond != nullptr);
     QCOMPARE(std::get<bool>(loadedSecond->properties.at("fixed")), true);
+}
+
+void GraphPersistenceTest::roundTripsExtendedPortDataTypes() {
+    QNodeGraph::Core::GraphDocument document{"typed"};
+    const auto producer = document.addNode("producer", "Producer");
+    const auto consumer = document.addNode("consumer", "Consumer");
+    QVERIFY(producer.has_value() && consumer.has_value());
+    const auto scalar = document.addPort(
+        *producer, "value", QNodeGraph::Core::PortDirection::Output,
+        QNodeGraph::Core::PortDataType::Scalar);
+    const auto features = document.addPort(
+        *producer, "features", QNodeGraph::Core::PortDirection::Output,
+        QNodeGraph::Core::PortDataType::Features);
+    const auto objects = document.addPort(
+        *consumer, "objects", QNodeGraph::Core::PortDirection::Input,
+        QNodeGraph::Core::PortDataType::Objects);
+    QVERIFY(scalar.has_value() && features.has_value() && objects.has_value());
+
+    const auto encoded = QNodeGraph::Graph::GraphJson::toJson(document);
+    QVERIFY(encoded.has_value());
+    QCOMPARE(encoded->value(QStringLiteral("schemaVersion")).toInt(), 2);
+    const auto loaded = QNodeGraph::Graph::GraphJson::fromJson(*encoded);
+    QVERIFY(loaded.has_value());
+    QCOMPARE(loaded->port(*scalar)->dataType,
+             QNodeGraph::Core::PortDataType::Scalar);
+    QCOMPARE(loaded->port(*features)->dataType,
+             QNodeGraph::Core::PortDataType::Features);
+    QCOMPARE(loaded->port(*objects)->dataType,
+             QNodeGraph::Core::PortDataType::Objects);
+
+    QJsonObject versionOne = *encoded;
+    versionOne.insert(QStringLiteral("schemaVersion"), 1);
+    const auto migrated = QNodeGraph::Graph::GraphJson::migrate(versionOne);
+    QVERIFY(migrated.has_value());
+    QCOMPARE(migrated->value(QStringLiteral("schemaVersion")).toInt(), 2);
+    QVERIFY(QNodeGraph::Graph::GraphJson::fromJson(*migrated).has_value());
 }
 
 QTEST_MAIN(GraphPersistenceTest)

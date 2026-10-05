@@ -252,6 +252,12 @@ QString portDataTypeName(Core::PortDataType type) {
     return QStringLiteral("text");
   case Core::PortDataType::Boolean:
     return QStringLiteral("boolean");
+  case Core::PortDataType::Scalar:
+    return QStringLiteral("scalar");
+  case Core::PortDataType::Features:
+    return QStringLiteral("features");
+  case Core::PortDataType::Objects:
+    return QStringLiteral("objects");
   }
   return {};
 }
