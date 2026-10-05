@@ -1,4 +1,5 @@
 #include <QNodeGraph/Lib/Execution/graph_plan.h>
+#include <QNodeGraph/Lib/Execution/param_accessor.h>
 
 #include <QtTest/QtTest>
 
@@ -19,6 +20,7 @@ private slots:
     void excludesDisplayAndUiKeysFromParams();
     void keepsPlanStableAcrossRebuilds();
     void exposesExecutionPolicyDefaultsAndFields();
+    void coercesAndClampsOperatorParameters();
 
 private:
     // 建图辅助：load_image 只有输出端口，image_preview 只有输入端口（汇点）。
@@ -215,6 +217,20 @@ void GraphPlanTest::exposesExecutionPolicyDefaultsAndFields() {
     QCOMPARE(step.policy.precision, Precision::F32);
     FrameSpec spec{640, 480, "bgra32", Precision::U16};
     QCOMPARE(spec.precision, Precision::U16);
+}
+
+void GraphPlanTest::coercesAndClampsOperatorParameters() {
+    std::map<std::string, QNodeGraph::Core::PropertyValue> values{
+        {"int", std::int64_t{400}}, {"real", std::int64_t{2}},
+        {"flag", true}, {"text", std::string{"median"}}};
+    const QNodeGraph::Execution::ParamAccessor params(values);
+    QCOMPARE(params.integer("int", 1, 0, 255), std::int64_t{255});
+    QCOMPARE(params.integer("real", 0, 0, 10), std::int64_t{2});
+    QCOMPARE(params.integer("missing", 7, 0, 5), std::int64_t{5});
+    QCOMPARE(params.real("real", 0.0, 0.0, 1.0), 1.0);
+    QCOMPARE(params.boolean("flag", false), true);
+    QCOMPARE(params.text("text", "fallback"), std::string{"median"});
+    QCOMPARE(params.text("missing", "fallback"), std::string{"fallback"});
 }
 
 QTEST_MAIN(GraphPlanTest)

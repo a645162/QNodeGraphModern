@@ -3,6 +3,7 @@ add_library(QNodeGraph.Lib.Execution STATIC
     include/QNodeGraph/Lib/Execution/image_execution_service.h
     include/QNodeGraph/Lib/Execution/image_nodes.h
     include/QNodeGraph/Lib/Execution/image_pipeline.h
+    include/QNodeGraph/Lib/Execution/param_accessor.h
     src/graph_plan.cpp
     src/image_execution_service.cpp
     src/image_nodes.cpp
