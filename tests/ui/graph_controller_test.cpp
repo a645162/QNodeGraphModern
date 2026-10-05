@@ -45,6 +45,7 @@ private slots:
     void usesDefaultSizeFromDescriptor();
     void rejectsDuplicateUniqueNode();
     void exposesPropertyEditorMetadata();
+    void exposesExtendedPropertySchemaMetadata();
     void usesInjectedRegistryForCustomNodes();
     void marksPrunedNodesAsIneffective();
 };
@@ -691,6 +692,62 @@ void GraphControllerTest::exposesPropertyEditorMetadata() {
                  QStringLiteral("int64"));
     }
     QVERIFY(sawRadius);
+}
+
+void GraphControllerTest::exposesExtendedPropertySchemaMetadata() {
+    QNodeGraph::UI::GraphController controller;
+    auto registry = QNodeGraph::Graph::NodeRegistry::withBuiltins();
+    QNodeGraph::Graph::NodeDescriptor custom;
+    custom.typeId = "custom.schema";
+    custom.displayName = "Schema";
+    custom.properties = {
+        {.name = "kernel",
+         .editor = QNodeGraph::Graph::PropertyEditor::Matrix,
+         .valueKind = QNodeGraph::Graph::PropertyValueKind::Matrix,
+         .visibility = QNodeGraph::Graph::PropertyVisibility::Advanced,
+         .unit = "coefficients",
+         .matrixRows = 3,
+         .matrixCols = 3,
+         .description = "Convolution kernel",
+         .defaultValue = std::string("1,0,1")},
+        {.name = "color",
+         .editor = QNodeGraph::Graph::PropertyEditor::ColorPicker,
+         .valueKind = QNodeGraph::Graph::PropertyValueKind::Color,
+         .visibility = QNodeGraph::Graph::PropertyVisibility::Basic,
+         .description = "Background color",
+         .defaultValue = std::string("#112233")}};
+    QVERIFY(registry.registerNode(std::move(custom)));
+    controller.setRegistry(std::move(registry));
+    QVERIFY(controller.addNodeType(QStringLiteral("custom.schema")));
+    QVERIFY(controller.selectNode(0));
+
+    const auto properties = controller.selectedProperties();
+    const auto findProperty = [&properties](const QString &name) {
+        return std::find_if(properties.cbegin(), properties.cend(),
+                            [&name](const QVariant &entry) {
+                                return entry.toMap().value(QStringLiteral("name"))
+                                           .toString() == name;
+                            });
+    };
+    const auto kernel = findProperty(QStringLiteral("kernel"));
+    QVERIFY(kernel != properties.cend());
+    QCOMPARE(kernel->toMap().value(QStringLiteral("editor")).toString(),
+             QStringLiteral("matrix"));
+    QCOMPARE(kernel->toMap().value(QStringLiteral("valueKind")).toString(),
+             QStringLiteral("matrix"));
+    QCOMPARE(kernel->toMap().value(QStringLiteral("visibility")).toString(),
+             QStringLiteral("advanced"));
+    QCOMPARE(kernel->toMap().value(QStringLiteral("matrixRows")).toInt(), 3);
+    QCOMPARE(kernel->toMap().value(QStringLiteral("matrixCols")).toInt(), 3);
+    QCOMPARE(kernel->toMap().value(QStringLiteral("description")).toString(),
+             QStringLiteral("Convolution kernel"));
+
+    const auto color = findProperty(QStringLiteral("color"));
+    QVERIFY(color != properties.cend());
+    QCOMPARE(color->toMap().value(QStringLiteral("editor")).toString(),
+             QStringLiteral("color"));
+    QCOMPARE(color->toMap().value(QStringLiteral("valueKind")).toString(),
+             QStringLiteral("color"));
 }
 
 void GraphControllerTest::usesInjectedRegistryForCustomNodes() {

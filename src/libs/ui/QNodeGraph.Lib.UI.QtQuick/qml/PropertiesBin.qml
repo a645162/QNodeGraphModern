@@ -95,6 +95,15 @@ Rectangle {
                     elide: Text.ElideRight
                 }
 
+                Label {
+                    visible: String(modelData.description).length > 0
+                    Layout.fillWidth: true
+                    text: String(modelData.description)
+                    color: Theme.nodeMutedText
+                    wrapMode: Text.WordWrap
+                    font.pixelSize: 11
+                }
+
                 RowLayout {
                     Layout.fillWidth: true
 
@@ -151,6 +160,8 @@ Rectangle {
                         visible: modelData.editor !== "checkbox" &&
                                  modelData.editor !== "slider" &&
                                  modelData.editor !== "combobox" &&
+                                 modelData.editor !== "matrix" &&
+                                 modelData.editor !== "color" &&
                                  modelData.valueType !== "bool"
                         Layout.fillWidth: true
                         text: String(modelData.value)
@@ -161,7 +172,8 @@ Rectangle {
                     }
 
                     Button {
-                        visible: modelData.name === "background"
+                        visible: modelData.editor === "color" ||
+                                 modelData.name === "background"
                         text: qsTr("取色")
                         onClicked: {
                             propertiesBin.colorRow = propertiesBin.controller.selectedRow
@@ -169,6 +181,22 @@ Rectangle {
                             colorDialog.selectedColor = String(modelData.value)
                             colorDialog.open()
                         }
+                    }
+
+                    TextField {
+                        visible: modelData.editor === "matrix"
+                        Layout.fillWidth: true
+                        text: String(modelData.value)
+                        selectByMouse: true
+                        placeholderText: modelData.matrixRows > 0 &&
+                                         modelData.matrixCols > 0
+                                         ? qsTr("%1 x %2 矩阵").arg(
+                                               modelData.matrixRows,
+                                               modelData.matrixCols)
+                                         : qsTr("矩阵")
+                        onEditingFinished: propertiesBin.controller.setNodeProperty(
+                            propertiesBin.controller.selectedRow,
+                            modelData.name, text)
                     }
                 }
             }

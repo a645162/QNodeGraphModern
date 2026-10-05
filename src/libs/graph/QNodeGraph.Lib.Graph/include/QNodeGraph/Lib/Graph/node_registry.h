@@ -39,6 +39,29 @@ enum class PropertyEditor {
     FilePath,  // 文件路径（宿主提供文件选择）。
     Directory, // 目录路径。
     ComboBox,  // 枚举选择，配合 choices。
+    Matrix,    // 矩阵/卷积核编辑器，配合 matrixRows/matrixCols。
+    ColorPicker, // 颜色选择器，值为 #RRGGBB 或 #AARRGGBB。
+};
+
+// 属性值的业务语义。PropertyValue 仍保持轻量的四种存储变体，
+// 这里的类型用于校验、编辑器选择和文档生成，不改变持久化表示。
+enum class PropertyValueKind {
+    Automatic,
+    Int,
+    Real,
+    Bool,
+    String,
+    Enum,
+    Matrix,
+    Color,
+};
+
+// 属性在面板中的可见性层级。Basic 默认展开，Advanced/Developer 可由 UI
+// 折叠，便于复杂算子同时保留完整参数而不挤占主工作区。
+enum class PropertyVisibility {
+    Basic,
+    Advanced,
+    Developer,
 };
 
 struct PropertyDescriptor {
@@ -46,6 +69,13 @@ struct PropertyDescriptor {
     PropertyPlacement placement = PropertyPlacement::Panel;
     // --- 以下为控件元数据，均为可选（0 / 空表示未声明）---
     PropertyEditor editor = PropertyEditor::Automatic;
+    PropertyValueKind valueKind = PropertyValueKind::Automatic;
+    PropertyVisibility visibility = PropertyVisibility::Basic;
+    std::string unit;
+    bool logScale = false;
+    int matrixRows = 0;
+    int matrixCols = 0;
+    std::string description;
     double minimum = 0.0;
     double maximum = 0.0;
     double step = 0.0;

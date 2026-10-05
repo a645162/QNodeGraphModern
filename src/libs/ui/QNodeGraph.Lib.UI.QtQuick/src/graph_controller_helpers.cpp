@@ -78,6 +78,10 @@ QString propertyEditorName(QNodeGraph::Graph::PropertyEditor editor) {
     return QStringLiteral("directory");
   case QNodeGraph::Graph::PropertyEditor::ComboBox:
     return QStringLiteral("combobox");
+  case QNodeGraph::Graph::PropertyEditor::Matrix:
+    return QStringLiteral("matrix");
+  case QNodeGraph::Graph::PropertyEditor::ColorPicker:
+    return QStringLiteral("color");
   }
   return QStringLiteral("automatic");
 }
@@ -114,6 +118,56 @@ void appendPropertyEditorMetadata(
                property != nullptr ? property->maximum : 0.0);
   entry.insert(QStringLiteral("step"),
                property != nullptr ? property->step : 0.0);
+  const auto valueKind = property != nullptr ? property->valueKind
+                                             : QNodeGraph::Graph::PropertyValueKind::Automatic;
+  const auto visibility = property != nullptr ? property->visibility
+                                              : QNodeGraph::Graph::PropertyVisibility::Basic;
+  const auto valueKindName = [](QNodeGraph::Graph::PropertyValueKind kind) {
+    switch (kind) {
+    case QNodeGraph::Graph::PropertyValueKind::Automatic:
+      return QStringLiteral("automatic");
+    case QNodeGraph::Graph::PropertyValueKind::Int:
+      return QStringLiteral("int");
+    case QNodeGraph::Graph::PropertyValueKind::Real:
+      return QStringLiteral("real");
+    case QNodeGraph::Graph::PropertyValueKind::Bool:
+      return QStringLiteral("bool");
+    case QNodeGraph::Graph::PropertyValueKind::String:
+      return QStringLiteral("string");
+    case QNodeGraph::Graph::PropertyValueKind::Enum:
+      return QStringLiteral("enum");
+    case QNodeGraph::Graph::PropertyValueKind::Matrix:
+      return QStringLiteral("matrix");
+    case QNodeGraph::Graph::PropertyValueKind::Color:
+      return QStringLiteral("color");
+    }
+    return QStringLiteral("automatic");
+  };
+  const auto visibilityName = [](QNodeGraph::Graph::PropertyVisibility value) {
+    switch (value) {
+    case QNodeGraph::Graph::PropertyVisibility::Basic:
+      return QStringLiteral("basic");
+    case QNodeGraph::Graph::PropertyVisibility::Advanced:
+      return QStringLiteral("advanced");
+    case QNodeGraph::Graph::PropertyVisibility::Developer:
+      return QStringLiteral("developer");
+    }
+    return QStringLiteral("basic");
+  };
+  entry.insert(QStringLiteral("valueKind"), valueKindName(valueKind));
+  entry.insert(QStringLiteral("visibility"), visibilityName(visibility));
+  entry.insert(QStringLiteral("unit"), property != nullptr
+                                      ? QString::fromStdString(property->unit)
+                                      : QString{});
+  entry.insert(QStringLiteral("logScale"),
+               property != nullptr ? property->logScale : false);
+  entry.insert(QStringLiteral("matrixRows"),
+               property != nullptr ? property->matrixRows : 0);
+  entry.insert(QStringLiteral("matrixCols"),
+               property != nullptr ? property->matrixCols : 0);
+  entry.insert(QStringLiteral("description"), property != nullptr
+                                                   ? QString::fromStdString(property->description)
+                                                   : QString{});
   QVariantList choices;
   if (property != nullptr) {
     for (const auto &choice : property->choices) {
