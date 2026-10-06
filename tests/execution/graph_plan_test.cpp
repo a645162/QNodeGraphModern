@@ -17,6 +17,7 @@ private slots:
     void marksUnreachableNodesAsPruned();
     void computesDownstreamClosure();
     void carriesNodePropertiesAsParams();
+    void carriesOutputPayloadTypeToPlan();
     void excludesDisplayAndUiKeysFromParams();
     void keepsPlanStableAcrossRebuilds();
     void exposesExecutionPolicyDefaultsAndFields();
@@ -34,9 +35,11 @@ private:
         }
         QNodeGraph::Core::PortId addPort(QNodeGraph::Core::NodeId node,
                                          const std::string& name,
-                                         QNodeGraph::Core::PortDirection dir) {
+                                         QNodeGraph::Core::PortDirection dir,
+                                         QNodeGraph::Core::PortDataType type =
+                                             QNodeGraph::Core::PortDataType::Image) {
             const auto port = document.addPort(
-                node, name, dir, QNodeGraph::Core::PortDataType::Image);
+                node, name, dir, type);
             Q_ASSERT(port.has_value());
             return *port;
         }
@@ -144,6 +147,31 @@ void GraphPlanTest::carriesNodePropertiesAsParams() {
     QCOMPARE(std::get<std::int64_t>(iterator->second), std::int64_t{128});
 }
 
+void GraphPlanTest::carriesOutputPayloadTypeToPlan() {
+    using QNodeGraph::Core::PortDataType;
+    Fixture fixture;
+    const auto statistics = fixture.addNode("statistics", "Statistics");
+    const auto valueView = fixture.addNode("value_view", "Value View");
+    const auto statisticsInput = fixture.addPort(
+        statistics, "image", QNodeGraph::Core::PortDirection::Input);
+    static_cast<void>(statisticsInput);
+    const auto statisticsOutput = fixture.addPort(
+        statistics, "mean", QNodeGraph::Core::PortDirection::Output,
+        PortDataType::Number);
+    const auto valueInput = fixture.addPort(
+        valueView, "value", QNodeGraph::Core::PortDirection::Input,
+        PortDataType::Number);
+    fixture.connect(statisticsOutput, valueInput);
+
+    const auto plan =
+        QNodeGraph::Execution::GraphPlanBuilder::build(fixture.document);
+    QCOMPARE(plan.steps.size(), std::size_t{2});
+    QCOMPARE(plan.steps[0].outputDataType, PortDataType::Number);
+    // The sink has no output port, but it must keep its Number payload rather
+    // than reverting to Image solely because it terminates the graph.
+    QCOMPARE(plan.steps[1].outputDataType, PortDataType::Number);
+}
+
 void GraphPlanTest::excludesDisplayAndUiKeysFromParams() {
     Fixture fixture;
     const auto node = fixture.addNode("image_preview", "Sink");
@@ -218,8 +246,10 @@ void GraphPlanTest::exposesExecutionPolicyDefaultsAndFields() {
     PlanStep step;
     step.policy = policy;
     QCOMPARE(step.policy.precision, Precision::F32);
-    FrameSpec spec{640, 480, "bgra32", Precision::U16};
+    FrameSpec spec{640, 480, "bgra32", Precision::U16,
+                   QNodeGraph::Core::PortDataType::Number};
     QCOMPARE(spec.precision, Precision::U16);
+    QCOMPARE(spec.dataType, QNodeGraph::Core::PortDataType::Number);
 }
 
 void GraphPlanTest::coercesAndClampsOperatorParameters() {

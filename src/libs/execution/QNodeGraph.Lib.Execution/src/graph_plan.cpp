@@ -8,6 +8,9 @@ namespace QNodeGraph::Execution {
 
 namespace {
 
+std::vector<Core::PortId> inputPorts(const Core::GraphDocument& document,
+                                     Core::NodeId nodeId);
+
 // 某节点的第一个输出端口 id。无输出端口 → 0。
 Core::PortId firstOutputPort(const Core::GraphDocument& document,
                              Core::NodeId nodeId) {
@@ -22,6 +25,24 @@ Core::PortId firstOutputPort(const Core::GraphDocument& document,
         }
     }
     return 0;
+}
+
+// 每个计划阶段至多生成一份不透明输出载荷。普通节点以首个输出端口决定
+// 类型；无输出端口的汇点沿用首个输入类型，便于宿主保留其消费到的标量、
+// 特征或对象结果。
+Core::PortDataType planOutputDataType(const Core::GraphDocument& document,
+                                      Core::NodeId nodeId) {
+    const auto outputPort = firstOutputPort(document, nodeId);
+    if (const auto* port = document.port(outputPort); port != nullptr) {
+        return port->dataType;
+    }
+    const auto inputs = inputPorts(document, nodeId);
+    if (!inputs.empty()) {
+        if (const auto* port = document.port(inputs.front()); port != nullptr) {
+            return port->dataType;
+        }
+    }
+    return Core::PortDataType::Any;
 }
 
 // 某节点的输入端口（保持声明顺序，供输入槽排列使用）。
@@ -196,6 +217,7 @@ EvaluationPlan GraphPlanBuilder::build(const Core::GraphDocument& document) {
         step.node = nodeId;
         // 算子键取节点类型；宿主按 typeId 注册对应算子实现。
         step.operatorKey = node->type;
+        step.outputDataType = planOutputDataType(document, nodeId);
         // 参数：带出节点属性中除 ".display"（呈现元数据）与纯 UI 键以外的
         // 全部，供宿主算子读取。二值化阈值这类参数由此传入算子。
         for (const auto& [name, value] : node->properties) {

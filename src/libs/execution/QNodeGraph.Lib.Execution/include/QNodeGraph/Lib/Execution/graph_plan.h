@@ -81,6 +81,11 @@ struct FrameSpec {
     // 格式标签，如 "bgra32" / "rgba8-texture" / "gray8"。库不解释其语义。
     std::string format;
     Precision precision = Precision::U8;
+    // The graph-level payload type carried by this frame. Image remains the
+    // compatibility default; Number/Features/Objects let a host allocate an
+    // appropriate opaque payload instead of treating every plan step as an
+    // image buffer.
+    Core::PortDataType dataType = Core::PortDataType::Image;
 };
 
 // 由宿主实现：帧的分配与生命周期。库只持有句柄，不持有帧数据。
@@ -119,6 +124,10 @@ struct PlanStep {
     Core::NodeId node = 0;
     // 宿主注册的算子键（通常即节点描述符的 typeId）。
     std::string operatorKey;
+    // Declared output payload type. For terminal nodes with no output port,
+    // this is their first input type so a pass-through sink can still retain
+    // and expose the consumed result.
+    Core::PortDataType outputDataType = Core::PortDataType::Image;
     // 输入槽：按该节点输入端口的顺序排列。
     std::vector<FrameHandle> inputs;
     FrameHandle output = 0;
