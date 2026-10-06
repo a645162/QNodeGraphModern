@@ -47,6 +47,7 @@ private slots:
     void loadsLegacyVersionThroughMigration();
     void persistsNodeSizeAndFixedFlag();
     void roundTripsExtendedPortDataTypes();
+    void roundTripsMatrixAndColorProperties();
 };
 
 void GraphPersistenceTest::roundTripsDocumentAndProperties() {
@@ -235,6 +236,27 @@ void GraphPersistenceTest::roundTripsExtendedPortDataTypes() {
     QVERIFY(migrated.has_value());
     QCOMPARE(migrated->value(QStringLiteral("schemaVersion")).toInt(), 2);
     QVERIFY(QNodeGraph::Graph::GraphJson::fromJson(*migrated).has_value());
+}
+
+void GraphPersistenceTest::roundTripsMatrixAndColorProperties() {
+    QNodeGraph::Core::GraphDocument document{"matrix-color"};
+    const auto node = document.addNode("op.convolution", "Convolution");
+    QVERIFY(node.has_value());
+    const std::string matrix = "-1,0,1;-2,0,2;-1,0,1";
+    const std::string color = "#1a2b3c";
+    QVERIFY(document.setProperty(*node, "kernel", matrix).has_value());
+    QVERIFY(document.setProperty(*node, "borderValue", color).has_value());
+
+    const auto encoded = QNodeGraph::Graph::GraphJson::toJson(document);
+    QVERIFY(encoded.has_value());
+    const auto loaded = QNodeGraph::Graph::GraphJson::fromJson(*encoded);
+    QVERIFY(loaded.has_value());
+    const auto* restored = loaded->node(*node);
+    QVERIFY(restored != nullptr);
+    QCOMPARE(std::get<std::string>(restored->properties.at("kernel")),
+             matrix);
+    QCOMPARE(std::get<std::string>(restored->properties.at("borderValue")),
+             color);
 }
 
 QTEST_MAIN(GraphPersistenceTest)
