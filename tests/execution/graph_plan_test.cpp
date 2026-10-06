@@ -42,7 +42,10 @@ private:
         }
         void connect(QNodeGraph::Core::PortId out,
                      QNodeGraph::Core::PortId in) {
-            Q_ASSERT(document.connect(out, in).has_value());
+            const auto result = document.connect(out, in);
+            if (!result.has_value()) {
+                QFAIL(qPrintable(QString::fromStdString(result.error().message)));
+            }
         }
     };
 };

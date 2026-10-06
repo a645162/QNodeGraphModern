@@ -228,11 +228,21 @@ void GraphCanvasVisualTest::addsPaletteNodeThroughMouseDrag() {
     window.show();
     QTest::qWait(150);
 
-    QTest::mousePress(&window, Qt::LeftButton, Qt::NoModifier,
-                      QPoint(80, 105));
-    QTest::mouseMove(&window, QPoint(400, 220), 150);
-    QTest::mouseRelease(&window, Qt::LeftButton, Qt::NoModifier,
-                        QPoint(400, 220));
+    const auto *nodeList = palette->findChild<QQuickItem *>(
+        QStringLiteral("workflowNodePaletteList"));
+    QVERIFY2(nodeList != nullptr, "palette did not create its node list");
+    QVERIFY2(nodeList->property("count").toInt() > 0,
+             "palette node list is empty");
+    const auto startPoint = nodeList->mapToItem(
+        window.contentItem(), QPointF(nodeList->width() / 2.0, 26.0));
+    const auto endPoint = canvas->mapToItem(
+        window.contentItem(), QPointF(canvas->width() / 2.0,
+                                      canvas->height() / 2.0));
+    const QPoint start(qRound(startPoint.x()), qRound(startPoint.y()));
+    const QPoint end(qRound(endPoint.x()), qRound(endPoint.y()));
+    QTest::mousePress(&window, Qt::LeftButton, Qt::NoModifier, start);
+    QTest::mouseMove(&window, end, 150);
+    QTest::mouseRelease(&window, Qt::LeftButton, Qt::NoModifier, end);
     QTest::qWait(150);
 
     QCOMPARE(controller->property("nodeCount").toInt(), 1);

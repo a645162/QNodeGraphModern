@@ -82,6 +82,7 @@ Rectangle {
 
         ListView {
             id: nodeList
+            objectName: "workflowNodePaletteList"
             visible: !nodesPalette.collapsed
             property var nodeController: nodesPalette.controller
             Layout.fillWidth: true
@@ -92,6 +93,7 @@ Rectangle {
 
             delegate: Rectangle {
                 id: paletteDelegate
+                objectName: "workflowNodePaletteDelegate"
                 required property string nodeType
                 required property string nodeName
                 required property string category
