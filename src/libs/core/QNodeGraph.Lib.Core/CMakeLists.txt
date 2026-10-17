@@ -1,4 +1,5 @@
 add_library(QNodeGraph.Lib.Core STATIC
+    include/QNodeGraph/Lib/Core/execution_policy.h
     include/QNodeGraph/Lib/Core/graph_commands.h
     include/QNodeGraph/Lib/Core/graph_document.h
     src/graph_commands.cpp

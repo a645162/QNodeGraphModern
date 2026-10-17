@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QNodeGraph/Lib/Core/execution_policy.h>
 #include <QNodeGraph/Lib/Core/graph_document.h>
 
 #include <map>
@@ -125,6 +126,11 @@ struct NodeDescriptor {
 
     // 视觉角色（取代 typeId 字符串比较）。
     NodeVisualRole visualRole = NodeVisualRole::Standard;
+
+    // 执行契约（代价等级、后端偏好、精度、边界）。GraphPlanBuilder 在编译
+    // 计划时把它复制到每个 PlanStep，使调度器与执行器不必按 typeId 硬编码，
+    // 也让「这个算子有多贵」成为描述符声明的事实。
+    Core::ExecutionPolicy executionPolicy;
 };
 
 class NodeRegistry final {

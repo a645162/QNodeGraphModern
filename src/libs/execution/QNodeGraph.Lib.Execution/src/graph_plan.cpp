@@ -1,5 +1,7 @@
 #include <QNodeGraph/Lib/Execution/graph_plan.h>
 
+#include <QNodeGraph/Lib/Graph/node_registry.h>
+
 #include <algorithm>
 #include <queue>
 #include <unordered_map>
@@ -64,6 +66,35 @@ std::vector<Core::PortId> inputPorts(const Core::GraphDocument& document,
 
 bool hasOutputPort(const Core::GraphDocument& document, Core::NodeId nodeId) {
     return firstOutputPort(document, nodeId) != 0;
+}
+
+// 某节点的全部输出端口（保持节点端口顺序）。
+//
+// 逐个端口建槽而不是只取 primary：Type D/E 节点会同时产出图像与结构化载荷，
+// 下游按端口取用，一个槽位无法区分两条分支。
+std::vector<Core::PortId> outputPorts(const Core::GraphDocument& document,
+                                      Core::NodeId nodeId) {
+    std::vector<Core::PortId> ports;
+    const auto* node = document.node(nodeId);
+    if (node == nullptr) {
+        return ports;
+    }
+    for (const auto portId : node->ports) {
+        const auto* port = document.port(portId);
+        if (port != nullptr && port->direction == Core::PortDirection::Output) {
+            ports.push_back(portId);
+        }
+    }
+    return ports;
+}
+
+// 某输出端口声明的载荷类型；端口缺失时退回 Any。
+Core::PortDataType outputDataType(const Core::GraphDocument& document,
+                                  Core::PortId portId) {
+    if (const auto* port = document.port(portId); port != nullptr) {
+        return port->dataType;
+    }
+    return Core::PortDataType::Any;
 }
 
 } // namespace
@@ -198,7 +229,8 @@ std::vector<Core::NodeId> GraphPlanBuilder::downstreamClosure(
     return result;
 }
 
-EvaluationPlan GraphPlanBuilder::build(const Core::GraphDocument& document) {
+EvaluationPlan GraphPlanBuilder::build(const Core::GraphDocument& document,
+                                       const Graph::NodeRegistry* registry) {
     EvaluationPlan plan;
     const auto order = topologicalOrder(document);
     const auto reachable = reachableFromSinks(document);
@@ -218,6 +250,31 @@ EvaluationPlan GraphPlanBuilder::build(const Core::GraphDocument& document) {
         // 算子键取节点类型；宿主按 typeId 注册对应算子实现。
         step.operatorKey = node->type;
         step.outputDataType = planOutputDataType(document, nodeId);
+        // 每个输出端口一槽：多输出算子（图像 + Objects/Features）要靠端口
+        // 区分分支，单一 primary 槽位无法表达。
+        for (const auto portId : outputPorts(document, nodeId)) {
+            OutputSlot slot;
+            slot.port = portId;
+            slot.dataType = outputDataType(document, portId);
+            step.outputs.push_back(slot);
+        }
+        // 终端汇点没有输出端口，但仍要分配一块承载「被消费结果」的帧：运行时按
+        // 槽位分配帧，空槽位会让汇点拿不到帧（主视口因此整片黑）。这里补一个
+        // port 0 的虚拟槽位，其载荷类型沿用 outputDataType 的输入类型回退。
+        if (step.outputs.empty()) {
+            OutputSlot sink;
+            sink.port = 0;
+            sink.dataType = step.outputDataType;
+            step.outputs.push_back(sink);
+        }
+        // 描述符声明的执行契约（代价等级、后端偏好等）。没有注册表时保持
+        // 默认策略，让只关心拓扑的调用方不必构造注册表。
+        if (registry != nullptr) {
+            if (const auto* descriptor = registry->find(node->type);
+                descriptor != nullptr) {
+                step.policy = descriptor->executionPolicy;
+            }
+        }
         // 参数：带出节点属性中除 ".display"（呈现元数据）与纯 UI 键以外的
         // 全部，供宿主算子读取。二值化阈值这类参数由此传入算子。
         for (const auto& [name, value] : node->properties) {

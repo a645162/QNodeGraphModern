@@ -17,6 +17,7 @@ target_include_directories(QNodeGraph.Lib.Execution
 
 target_link_libraries(QNodeGraph.Lib.Execution
     PUBLIC
+        QNodeGraph.Lib.Graph
         QNodeGraph.Lib.Image
         Qt6::Core
         Qt6::Concurrent

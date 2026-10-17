@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QNodeGraph/Lib/Core/execution_policy.h>
 #include <QNodeGraph/Lib/Core/graph_document.h>
 
 #include <cstdint>
@@ -7,6 +8,10 @@
 #include <set>
 #include <string>
 #include <vector>
+
+namespace QNodeGraph::Graph {
+struct NodeRegistry;
+} // namespace QNodeGraph::Graph
 
 // 求值计划与脏传播：把 GraphDocument 编译成一份可执行的阶段序列，并描述
 // 「哪些节点需要重算」。
@@ -25,67 +30,51 @@ namespace QNodeGraph::Execution {
 // 不透明帧句柄。0 表示无效/未分配。
 using FrameHandle = std::uint64_t;
 
-// 执行区域。width/height <= 0 表示整帧，便于在没有 ROI 约束时保持现有
-// FrameSpec/算子接口的默认行为。
-struct Roi {
-    int x = 0;
-    int y = 0;
-    int width = 0;
-    int height = 0;
-
-    [[nodiscard]] constexpr bool full() const noexcept {
-        return width <= 0 || height <= 0;
-    }
-};
-
-enum class BorderMode {
-    Constant,
-    Replicate,
-    Reflect,
-    Reflect101,
-    Wrap,
-};
-
-enum class Precision {
-    U8,
-    U16,
-    F32,
-};
-
-enum class Backend {
-    Auto,
-    Cpu,
-    OpenCl,
-};
-
-enum class CostClass {
-    Realtime,
-    Interactive,
-    Offline,
-};
-
-// 算子执行策略是调度契约，不绑定具体图像类型。业务执行器可据此选择
-// ROI、边界扩展、精度和后端；未指定时保持 U8/整帧/自动后端的兼容路径。
-struct ExecutionPolicy {
-    Roi roi;
-    BorderMode border = BorderMode::Reflect101;
-    Precision precision = Precision::U8;
-    Backend backend = Backend::Auto;
-    CostClass cost = CostClass::Realtime;
-};
+// 执行契约（ROI / 边界 / 精度 / 后端 / 代价等级）由 Core 定义，因为节点描述符
+// （Graph 层）也要声明它。这里重新导出，既有的
+// `QNodeGraph::Execution::Precision` 等写法继续可用，且与 Core 是同一类型。
+using Core::Backend;
+using Core::BorderMode;
+using Core::CostClass;
+using Core::ExecutionPolicy;
+using Core::Precision;
+using Core::Roi;
 
 // 帧规格：库只知道尺寸与格式标签，具体含义由宿主的 FramePool 解释。
+//
+// 字段顺序即聚合初始化顺序：宿主写 `FrameSpec{w, h, "bgra32", dataType,
+// precision, roi}` 时必须能一眼读出每个位置的含义，所以载荷类型紧跟在格式标签
+// 之后，精度在它之后（类型比精度更重要：Number 帧根本谈不上像素精度）。
 struct FrameSpec {
     int width = 0;
     int height = 0;
     // 格式标签，如 "bgra32" / "rgba8-texture" / "gray8"。库不解释其语义。
     std::string format;
-    Precision precision = Precision::U8;
     // The graph-level payload type carried by this frame. Image remains the
     // compatibility default; Number/Features/Objects let a host allocate an
     // appropriate opaque payload instead of treating every plan step as an
     // image buffer.
     Core::PortDataType dataType = Core::PortDataType::Image;
+    Precision precision = Precision::U8;
+    // Source region this frame holds. It is part of the storage contract, not
+    // merely metadata: a 512x512 tile at a different source position must
+    // allocate (and invalidate) a different frame, otherwise two tiles would
+    // alias one cache entry and present stale pixels.
+    Roi roi;
+};
+
+// 一个具体输出端口的槽位。
+//
+// 为什么计划阶段要为「每个输出端口」而不是「每个节点」保留槽位：Type D/E 节点
+// （例如连通域）同时产出标签图与 Objects，下游按端口取用。只留一个 primary
+// 槽位会让「Objects 端口被接到汇点」与「图像端口被接到汇点」无法区分。
+struct OutputSlot {
+    // 输出端口 id；0 表示该节点没有输出端口（终端汇点）。
+    Core::PortId port = 0;
+    // 该端口声明的载荷类型。汇点没有输出端口时取第一个输入端口类型，使透传
+    // 汇点仍能保留并暴露被消费的结果。
+    Core::PortDataType dataType = Core::PortDataType::Image;
+    FrameHandle handle = 0;
 };
 
 // 由宿主实现：帧的分配与生命周期。库只持有句柄，不持有帧数据。
@@ -103,11 +92,15 @@ public:
 };
 
 // 一次算子调用：算子键 + 参数 + 输入槽 + 输出槽。
+//
+// `output` 是 primary（第一个已连接输出），保留给只实现单输出语义的执行器；
+// 需要区分多输出的执行器读 `outputs`。
 struct OperatorInvocation {
     std::string operatorKey;
     std::map<std::string, Core::PropertyValue> params;
     std::vector<FrameHandle> inputs;
     FrameHandle output = 0;
+    std::vector<OutputSlot> outputs;
     ExecutionPolicy policy;
 };
 
@@ -130,7 +123,11 @@ struct PlanStep {
     Core::PortDataType outputDataType = Core::PortDataType::Image;
     // 输入槽：按该节点输入端口的顺序排列。
     std::vector<FrameHandle> inputs;
+    // primary 输出：第一个输出端口的槽位句柄（无输出端口时为 0）。
     FrameHandle output = 0;
+    // 每个具体输出端口一槽，按节点输出端口顺序排列；终端汇点没有输出端口，
+    // 因此这里是空的，其语义由 outputDataType 的回退承载。
+    std::vector<OutputSlot> outputs;
     std::map<std::string, Core::PropertyValue> params;
     ExecutionPolicy policy;
 };
@@ -176,8 +173,13 @@ struct GraphChangeSet {
 class GraphPlanBuilder final {
 public:
     // 编译计划。汇点定义为「没有输出端口的节点」。
+    //
+    // `registry` 是可选的节点描述符表：提供时每个阶段的 ExecutionPolicy 取自
+    // 描述符声明的 executionPolicy（代价等级、后端偏好等），否则保持默认策略，
+    // 使只关心拓扑的调用方不必构造注册表。
     [[nodiscard]] static EvaluationPlan build(
-        const Core::GraphDocument& document);
+        const Core::GraphDocument& document,
+        const Graph::NodeRegistry* registry = nullptr);
 
     // 计算某节点的下游闭包（含自身），按拓扑序返回。
     [[nodiscard]] static std::vector<Core::NodeId> downstreamClosure(

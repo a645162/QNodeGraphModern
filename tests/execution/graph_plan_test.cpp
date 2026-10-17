@@ -1,5 +1,6 @@
 #include <QNodeGraph/Lib/Execution/graph_plan.h>
 #include <QNodeGraph/Lib/Execution/param_accessor.h>
+#include <QNodeGraph/Lib/Graph/node_registry.h>
 
 #include <QtTest/QtTest>
 
@@ -18,6 +19,8 @@ private slots:
     void computesDownstreamClosure();
     void carriesNodePropertiesAsParams();
     void carriesOutputPayloadTypeToPlan();
+    void carriesConcreteOutputSlotsToPlan();
+    void appliesDescriptorExecutionPolicy();
     void excludesDisplayAndUiKeysFromParams();
     void keepsPlanStableAcrossRebuilds();
     void exposesExecutionPolicyDefaultsAndFields();
@@ -172,6 +175,73 @@ void GraphPlanTest::carriesOutputPayloadTypeToPlan() {
     QCOMPARE(plan.steps[1].outputDataType, PortDataType::Number);
 }
 
+void GraphPlanTest::carriesConcreteOutputSlotsToPlan() {
+    using QNodeGraph::Core::PortDataType;
+    Fixture fixture;
+    // 一个多输出节点：图像与 Objects 同时产出，下游只消费 Objects 分支。
+    const auto components = fixture.addNode("connected_components", "CC");
+    const auto sink = fixture.addNode("objects_view", "Objects");
+    const auto input = fixture.addPort(
+        components, "image", QNodeGraph::Core::PortDirection::Input);
+    static_cast<void>(input);
+    const auto labelOutput = fixture.addPort(
+        components, "labels", QNodeGraph::Core::PortDirection::Output);
+    const auto objectsOutput = fixture.addPort(
+        components, "objects", QNodeGraph::Core::PortDirection::Output,
+        PortDataType::Objects);
+    const auto sinkInput = fixture.addPort(
+        sink, "objects", QNodeGraph::Core::PortDirection::Input,
+        PortDataType::Objects);
+    fixture.connect(objectsOutput, sinkInput);
+
+    const auto plan =
+        QNodeGraph::Execution::GraphPlanBuilder::build(fixture.document);
+    QCOMPARE(plan.steps.size(), std::size_t{2});
+    // 每个输出端口一槽，且保留端口 id 与载荷类型，供执行器按分支取用。
+    QCOMPARE(plan.steps[0].outputs.size(), std::size_t{2});
+    QCOMPARE(plan.steps[0].outputs[0].port, labelOutput);
+    QCOMPARE(plan.steps[0].outputs[0].dataType, PortDataType::Image);
+    QCOMPARE(plan.steps[0].outputs[1].port, objectsOutput);
+    QCOMPARE(plan.steps[0].outputs[1].dataType, PortDataType::Objects);
+    // primary 输出仍是第一个输出端口。
+    QCOMPARE(plan.steps[0].outputDataType, PortDataType::Image);
+    // 终端汇点没有输出端口，但必须留一个 port 0 的虚拟槽位，否则运行时不分配
+    // 帧，主视口/预览拿不到被消费的结果。
+    QCOMPARE(plan.steps[1].outputs.size(), std::size_t{1});
+    QCOMPARE(plan.steps[1].outputs[0].port, QNodeGraph::Core::PortId{0});
+    QCOMPARE(plan.steps[1].outputs[0].dataType, PortDataType::Objects);
+}
+
+void GraphPlanTest::appliesDescriptorExecutionPolicy() {
+    using QNodeGraph::Core::CostClass;
+    Fixture fixture;
+    const auto node = fixture.addNode("expensive", "Expensive");
+    const auto output = fixture.addPort(
+        node, "image", QNodeGraph::Core::PortDirection::Output);
+    const auto sink = fixture.addNode("image_preview", "Sink");
+    const auto sinkInput = fixture.addPort(
+        sink, "image", QNodeGraph::Core::PortDirection::Input);
+    fixture.connect(output, sinkInput);
+
+    QNodeGraph::Graph::NodeRegistry registry;
+    QNodeGraph::Graph::NodeDescriptor descriptor;
+    descriptor.typeId = "expensive";
+    descriptor.executionPolicy.costClass = CostClass::Offline;
+    descriptor.executionPolicy.backend = QNodeGraph::Core::Backend::OpenCl;
+    QVERIFY(registry.registerNode(descriptor).has_value());
+
+    const auto plan = QNodeGraph::Execution::GraphPlanBuilder::build(
+        fixture.document, &registry);
+    QCOMPARE(plan.steps[0].policy.costClass, CostClass::Offline);
+    QCOMPARE(plan.steps[0].policy.backend, QNodeGraph::Core::Backend::OpenCl);
+    // 未登记的节点保持默认策略，说明注册表只是覆盖来源而不是必需条件。
+    QCOMPARE(plan.steps[1].policy.costClass, CostClass::Realtime);
+
+    const auto withoutRegistry =
+        QNodeGraph::Execution::GraphPlanBuilder::build(fixture.document);
+    QCOMPARE(withoutRegistry.steps[0].policy.costClass, CostClass::Realtime);
+}
+
 void GraphPlanTest::excludesDisplayAndUiKeysFromParams() {
     Fixture fixture;
     const auto node = fixture.addNode("image_preview", "Sink");
@@ -228,14 +298,14 @@ void GraphPlanTest::exposesExecutionPolicyDefaultsAndFields() {
     QCOMPARE(defaults.border, BorderMode::Reflect101);
     QCOMPARE(defaults.precision, Precision::U8);
     QCOMPARE(defaults.backend, Backend::Auto);
-    QCOMPARE(defaults.cost, CostClass::Realtime);
+    QCOMPARE(defaults.costClass, CostClass::Realtime);
 
     ExecutionPolicy policy;
     policy.roi = Roi{4, 8, 32, 24};
     policy.border = BorderMode::Replicate;
     policy.precision = Precision::F32;
     policy.backend = Backend::OpenCl;
-    policy.cost = CostClass::Interactive;
+    policy.costClass = CostClass::Interactive;
     QVERIFY(!policy.roi.full());
     QCOMPARE(policy.roi.x, 4);
     QCOMPARE(policy.roi.height, 24);
@@ -246,8 +316,8 @@ void GraphPlanTest::exposesExecutionPolicyDefaultsAndFields() {
     PlanStep step;
     step.policy = policy;
     QCOMPARE(step.policy.precision, Precision::F32);
-    FrameSpec spec{640, 480, "bgra32", Precision::U16,
-                   QNodeGraph::Core::PortDataType::Number};
+    FrameSpec spec{640, 480, "bgra32", QNodeGraph::Core::PortDataType::Number,
+                   Precision::U16};
     QCOMPARE(spec.precision, Precision::U16);
     QCOMPARE(spec.dataType, QNodeGraph::Core::PortDataType::Number);
 }
@@ -257,10 +327,13 @@ void GraphPlanTest::coercesAndClampsOperatorParameters() {
         {"int", std::int64_t{400}}, {"real", std::int64_t{2}},
         {"flag", true}, {"text", std::string{"median"}}};
     const QNodeGraph::Execution::ParamAccessor params(values);
-    QCOMPARE(params.integer("int", 1, 0, 255), std::int64_t{255});
-    QCOMPARE(params.integer("real", 0, 0, 10), std::int64_t{2});
-    QCOMPARE(params.integer("missing", 7, 0, 5), std::int64_t{5});
-    QCOMPARE(params.real("real", 0.0, 0.0, 1.0), 1.0);
+    QCOMPARE(params.integerClamped("int", 1, 0, 255), std::int64_t{255});
+    QCOMPARE(params.integerClamped("real", 0, 0, 10), std::int64_t{2});
+    QCOMPARE(params.integerClamped("missing", 7, 0, 5), std::int64_t{5});
+    QCOMPARE(params.realClamped("real", 0.0, 0.0, 1.0), 1.0);
+    // 不带范围的简写只做类型兼容读取，不做额外收窄。
+    QCOMPARE(params.integer("int", 1), std::int64_t{400});
+    QCOMPARE(params.real("real", 0.0), 2.0);
     QCOMPARE(params.boolean("flag", false), true);
     QCOMPARE(params.text("text", "fallback"), std::string{"median"});
     QCOMPARE(params.text("missing", "fallback"), std::string{"fallback"});
