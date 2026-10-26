@@ -10,6 +10,9 @@ Rectangle {
     property var helpProvider: null
     property Item dropTarget: null
     property bool collapsed: false
+    // 宿主（如 ImageViewer）需要拿到节点面板模型才能安装自己的算子注册表，
+    // 因此把内部的 NodePaletteModel 暴露出去。
+    property alias nodePaletteModel: paletteModel
     color: Theme.panelBg
     border.color: Theme.panelBorder
     radius: Theme.radius

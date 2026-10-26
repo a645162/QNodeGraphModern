@@ -8,6 +8,8 @@ ColumnLayout {
     property alias controller: graph.controller
     property alias pipeLayout: graph.pipeLayout
     property alias wireColor: graph.wireColor
+    // 节点面板模型：宿主用它安装自己的算子注册表（否则面板里没有业务算子）。
+    property alias toolboxModel: palette.nodePaletteModel
     // WorkflowPanel injects the QWidget bridge. The standalone probe leaves
     // this null and keeps the canvas usable without application settings.
     property var workflowHost: typeof workflowPanel === "undefined"

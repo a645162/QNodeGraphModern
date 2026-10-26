@@ -267,12 +267,25 @@ Rectangle {
                 spacing: 6
 
                 ToolButton {
+                    id: advancedToggle
                     Layout.fillWidth: true
                     text: (propertiesBin.advancedExpanded ? "- " : "+ ") +
                           qsTr("高级参数")
-                    horizontalAlignment: Text.AlignLeft
                     onClicked: propertiesBin.advancedExpanded =
                                    !propertiesBin.advancedExpanded
+                    // ToolButton 没有 horizontalAlignment 属性（那是 Text/Label 的）。
+                    // 写它会让 PropertiesBin 整个加载失败，连带 WorkflowEditor 报
+                    // "Type PropertiesBin unavailable"，节点图面板就显示不出来。
+                    // 需要左对齐时自定义 contentItem。
+                    contentItem: Text {
+                        text: advancedToggle.text
+                        horizontalAlignment: Text.AlignLeft
+                        verticalAlignment: Text.AlignVCenter
+                        leftPadding: 6
+                        rightPadding: 6
+                        elide: Text.ElideRight
+                        color: Theme.textSecondary
+                    }
                 }
 
                 Repeater {
@@ -288,12 +301,22 @@ Rectangle {
                 spacing: 6
 
                 ToolButton {
+                    id: developerToggle
                     Layout.fillWidth: true
                     text: (propertiesBin.developerExpanded ? "- " : "+ ") +
                           qsTr("开发者参数")
-                    horizontalAlignment: Text.AlignLeft
                     onClicked: propertiesBin.developerExpanded =
                                    !propertiesBin.developerExpanded
+                    // 同 advancedToggle：ToolButton 不支持 horizontalAlignment。
+                    contentItem: Text {
+                        text: developerToggle.text
+                        horizontalAlignment: Text.AlignLeft
+                        verticalAlignment: Text.AlignVCenter
+                        leftPadding: 6
+                        rightPadding: 6
+                        elide: Text.ElideRight
+                        color: Theme.textSecondary
+                    }
                 }
 
                 Repeater {
