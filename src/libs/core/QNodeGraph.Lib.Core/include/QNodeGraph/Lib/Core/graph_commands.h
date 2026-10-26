@@ -25,6 +25,7 @@ public:
     GraphResult<void> undo(GraphDocument& document) override;
     [[nodiscard]] const char* name() const noexcept override;
     [[nodiscard]] std::optional<NodeId> nodeId() const noexcept;
+
 private:
     std::string m_type;
     std::string m_name;
@@ -37,6 +38,7 @@ public:
     GraphResult<void> execute(GraphDocument& document) override;
     GraphResult<void> undo(GraphDocument& document) override;
     [[nodiscard]] const char* name() const noexcept override;
+
 private:
     NodeId m_nodeId;
     std::optional<NodeSnapshot> m_snapshot;
@@ -48,6 +50,7 @@ public:
     GraphResult<void> execute(GraphDocument& document) override;
     GraphResult<void> undo(GraphDocument& document) override;
     [[nodiscard]] const char* name() const noexcept override;
+
 private:
     NodeId m_nodeId;
     Point m_position;
@@ -72,6 +75,7 @@ public:
     GraphResult<void> execute(GraphDocument& document) override;
     GraphResult<void> undo(GraphDocument& document) override;
     [[nodiscard]] const char* name() const noexcept override;
+
 private:
     PortId m_outputPort;
     PortId m_inputPort;
@@ -83,6 +87,7 @@ public:
     GraphResult<void> execute(GraphDocument& document) override;
     GraphResult<void> undo(GraphDocument& document) override;
     [[nodiscard]] const char* name() const noexcept override;
+
 private:
     PortId m_outputPort;
     PortId m_inputPort;
@@ -94,6 +99,7 @@ public:
     GraphResult<void> execute(GraphDocument& document) override;
     GraphResult<void> undo(GraphDocument& document) override;
     [[nodiscard]] const char* name() const noexcept override;
+
 private:
     NodeId m_nodeId;
     std::string m_name;
@@ -139,6 +145,7 @@ public:
     [[nodiscard]] bool canUndo() const noexcept;
     [[nodiscard]] bool canRedo() const noexcept;
     void clear() noexcept;
+
 private:
     std::vector<std::unique_ptr<GraphCommand>> m_undoStack;
     std::vector<std::unique_ptr<GraphCommand>> m_redoStack;

@@ -82,8 +82,8 @@ class FramePool {
 public:
     virtual ~FramePool() = default;
     // 分配一个符合 spec 的帧。
-    [[nodiscard]] virtual Core::GraphResult<FrameHandle> allocate(
-        const FrameSpec& spec) = 0;
+    [[nodiscard]] virtual Core::GraphResult<FrameHandle>
+    allocate(const FrameSpec& spec) = 0;
     // 引用计数 +1 / -1。库在多个阶段复用同一帧时会 retain。
     virtual void retain(FrameHandle handle) = 0;
     virtual void release(FrameHandle handle) = 0;
@@ -108,8 +108,8 @@ struct OperatorInvocation {
 class OperatorExecutor {
 public:
     virtual ~OperatorExecutor() = default;
-    [[nodiscard]] virtual Core::GraphResult<void> execute(
-        const OperatorInvocation& invocation) = 0;
+    [[nodiscard]] virtual Core::GraphResult<void>
+    execute(const OperatorInvocation& invocation) = 0;
 };
 
 // 求值计划中的一个阶段。
@@ -177,21 +177,21 @@ public:
     // `registry` 是可选的节点描述符表：提供时每个阶段的 ExecutionPolicy 取自
     // 描述符声明的 executionPolicy（代价等级、后端偏好等），否则保持默认策略，
     // 使只关心拓扑的调用方不必构造注册表。
-    [[nodiscard]] static EvaluationPlan build(
-        const Core::GraphDocument& document,
-        const Graph::NodeRegistry* registry = nullptr);
+    [[nodiscard]] static EvaluationPlan
+    build(const Core::GraphDocument& document,
+          const Graph::NodeRegistry* registry = nullptr);
 
     // 计算某节点的下游闭包（含自身），按拓扑序返回。
-    [[nodiscard]] static std::vector<Core::NodeId> downstreamClosure(
-        const Core::GraphDocument& document, Core::NodeId origin);
+    [[nodiscard]] static std::vector<Core::NodeId>
+    downstreamClosure(const Core::GraphDocument& document, Core::NodeId origin);
 
     // 从汇点反向可达的节点集合（即「输出被使用」的节点）。
-    [[nodiscard]] static std::set<Core::NodeId> reachableFromSinks(
-        const Core::GraphDocument& document);
+    [[nodiscard]] static std::set<Core::NodeId>
+    reachableFromSinks(const Core::GraphDocument& document);
 
     // 拓扑序。若图有环则返回已排序部分（Core 已禁止成环连接，故正常不发生）。
-    [[nodiscard]] static std::vector<Core::NodeId> topologicalOrder(
-        const Core::GraphDocument& document);
+    [[nodiscard]] static std::vector<Core::NodeId>
+    topologicalOrder(const Core::GraphDocument& document);
 };
 
 } // namespace QNodeGraph::Execution

@@ -37,14 +37,14 @@ bool NodePaletteModel::hideFixedNodes() const noexcept {
     return m_hideFixedNodes;
 }
 
-QObject *NodePaletteModel::controller() const noexcept { return m_controller; }
+QObject* NodePaletteModel::controller() const noexcept { return m_controller; }
 
-void NodePaletteModel::setController(QObject *controller) {
+void NodePaletteModel::setController(QObject* controller) {
     if (m_controller == controller) {
         return;
     }
     m_controller = controller;
-    if (const auto *graph = qobject_cast<GraphController *>(controller)) {
+    if (const auto* graph = qobject_cast<GraphController*>(controller)) {
         setRegistry(graph->registry());
         setHideFixedNodes(true);
         QObject::connect(graph, &GraphController::registryChanged, this,
@@ -62,8 +62,10 @@ QVariant NodePaletteModel::data(const QModelIndex& index, int role) const {
         index.row() >= static_cast<int>(m_visibleRows.size())) {
         return {};
     }
-    const auto descriptorIndex = m_visibleRows[static_cast<std::size_t>(index.row())];
-    const auto& descriptor = m_descriptors[static_cast<std::size_t>(descriptorIndex)];
+    const auto descriptorIndex =
+        m_visibleRows[static_cast<std::size_t>(index.row())];
+    const auto& descriptor =
+        m_descriptors[static_cast<std::size_t>(descriptorIndex)];
     switch (role) {
     case Qt::DisplayRole:
     case NodeNameRole:
@@ -112,7 +114,8 @@ void NodePaletteModel::setFilter(QString value) {
 
 void NodePaletteModel::rebuildVisibleRows() {
     m_visibleRows.clear();
-    for (int index = 0; index < static_cast<int>(m_descriptors.size()); ++index) {
+    for (int index = 0; index < static_cast<int>(m_descriptors.size());
+         ++index) {
         const auto& descriptor = m_descriptors[static_cast<std::size_t>(index)];
         // 固定/唯一节点由宿主预置，不出现在可拖拽添加的调色板里。
         // deletable=false 与 fixed=true 都表达「不可删除」，两者都要判 ——
@@ -124,7 +127,8 @@ void NodePaletteModel::rebuildVisibleRows() {
         const auto type = QString::fromStdString(descriptor.typeId);
         const auto name = QString::fromStdString(descriptor.displayName);
         const auto category = categoryFor(type);
-        if (m_filter.isEmpty() || type.contains(m_filter, Qt::CaseInsensitive) ||
+        if (m_filter.isEmpty() ||
+            type.contains(m_filter, Qt::CaseInsensitive) ||
             name.contains(m_filter, Qt::CaseInsensitive) ||
             category.contains(m_filter, Qt::CaseInsensitive)) {
             m_visibleRows.push_back(index);

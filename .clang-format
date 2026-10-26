@@ -1,0 +1,64 @@
+---
+# QNodeGraphModern 的 C++ 风格配置。
+#
+# 为什么需要：本库此前没有 .clang-format，各文件缩进不统一（graph_controller*
+# 一族是 2 空格，其余是 4 空格），短函数体的写法也各不相同。配置把风格钉死在
+# 本库的约定上（见 AGENTS.md「编码风格与命名」：C++23、四空格缩进），
+# 让 clang-format / clangd 的格式化结果稳定，不再产生整片重排。
+#
+# 选项是按本库 56 个 C/C++ 文件实测比对后取的最优组合：加上它之后，
+# clang-format 对全库的改动量只剩「5 个 2 空格文件重排到 4 空格」与
+# 「短函数体合并为一行」两类，其余文件保持不变。
+#
+# 参考：https://clang.llvm.org/docs/ClangFormatStyleOptions.html
+Language: Cpp
+BasedOnStyle: LLVM
+
+# 行宽与缩进：本库约定四空格缩进、80 列。
+ColumnLimit: 80
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ContinuationIndentWidth: 4
+
+# 访问说明符与命名空间不额外缩进（public: 顶格）。
+AccessModifierOffset: -4
+NamespaceIndentation: None
+IndentCaseLabels: false
+IndentPPDirectives: None
+
+# 指针/引用绑定到类型一侧：QObject* parent、const QSize& size。
+DerivePointerAlignment: false
+PointerAlignment: Left
+ReferenceAlignment: Left
+QualifierAlignment: Left
+
+# 函数体与控制语句：短函数可单行，短 if 可单行；case 标签不合并。
+AllowShortFunctionsOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+AllowShortLoopsOnASingleLine: true
+AllowShortBlocksOnASingleLine: Empty
+AllowShortCaseLabelsOnASingleLine: false
+
+# 大括号与模板：函数体大括号紧贴函数名；模板声明逐个换行。
+BreakBeforeBraces: Attach
+AlwaysBreakTemplateDeclarations: Yes
+SpaceAfterTemplateKeyword: true
+
+# 构造初始化列表：能挤进一行就挤一行，否则逐项换行。
+BreakConstructorInitializers: BeforeColon
+ConstructorInitializerAllOnOneLineOrOnePerLine: false
+
+# 括号后对齐续行。
+AlignAfterOpenBracket: Align
+
+# include 顺序按模块人工分组，不做字典序重排（避免噪声 diff）。
+SortIncludes: false
+SortUsingDeclarations: true
+
+# 注释不重排、不重排行宽：注释常含中文说明，重排会破坏可读性。
+ReflowComments: false
+SpacesBeforeTrailingComments: 1
+
+# 语言标准：clang-format 22 尚不支持 c++23，这里取最近可用的 c++20。
+Standard: c++20

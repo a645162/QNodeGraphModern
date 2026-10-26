@@ -45,9 +45,10 @@ void NodePaletteModelTest::hidesFixedNodesWhenRequested() {
     // 行数必须减少。
     QVERIFY(model.rowCount() < defaultRows);
     for (int row = 0; row < model.rowCount(); ++row) {
-        const auto type = model.index(row, 0)
-                              .data(QNodeGraph::UI::NodePaletteModel::NodeTypeRole)
-                              .toString();
+        const auto type =
+            model.index(row, 0)
+                .data(QNodeGraph::UI::NodePaletteModel::NodeTypeRole)
+                .toString();
         QVERIFY(type != QStringLiteral("load_image"));
         QVERIFY(type != QStringLiteral("save_image"));
     }

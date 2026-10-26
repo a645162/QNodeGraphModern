@@ -21,29 +21,28 @@ quint64 ImageExecutionService::submit(const Image::ImageFrame& input,
     auto* watcher = new Watcher(this);
     m_watchers.emplace(requestId, watcher);
 
-    connect(watcher, &Watcher::finished, this,
-            [this, requestId, watcher]() {
-                const auto iterator = m_watchers.find(requestId);
-                if (iterator == m_watchers.end()) {
-                    watcher->deleteLater();
-                    return;
-                }
-                const auto result = watcher->result();
-                m_watchers.erase(iterator);
-                watcher->deleteLater();
-                if (m_cancelled.erase(requestId) > 0) {
-                    return;
-                }
-                if (result) {
-                    emit finished(requestId, *result);
-                } else {
-                    emit failed(requestId,
-                                QString::fromStdString(result.error().message));
-                }
-            });
+    connect(watcher, &Watcher::finished, this, [this, requestId, watcher]() {
+        const auto iterator = m_watchers.find(requestId);
+        if (iterator == m_watchers.end()) {
+            watcher->deleteLater();
+            return;
+        }
+        const auto result = watcher->result();
+        m_watchers.erase(iterator);
+        watcher->deleteLater();
+        if (m_cancelled.erase(requestId) > 0) {
+            return;
+        }
+        if (result) {
+            emit finished(requestId, *result);
+        } else {
+            emit failed(requestId,
+                        QString::fromStdString(result.error().message));
+        }
+    });
 
-    watcher->setFuture(QtConcurrent::run(
-        [input, processor = std::move(processor)]() mutable {
+    watcher->setFuture(
+        QtConcurrent::run([input, processor = std::move(processor)]() mutable {
             return processor(input);
         }));
     return requestId;
@@ -62,4 +61,3 @@ int ImageExecutionService::pendingCount() const noexcept {
 }
 
 } // namespace QNodeGraph::Execution
-

@@ -10,8 +10,8 @@ namespace QNodeGraph::Image {
 class ImageFrame final {
 public:
     ImageFrame() = default;
-    static Core::GraphResult<ImageFrame> fromQImage(
-        QImage image, QString source = {});
+    static Core::GraphResult<ImageFrame> fromQImage(QImage image,
+                                                    QString source = {});
 
     [[nodiscard]] const QImage& image() const noexcept;
     [[nodiscard]] int width() const noexcept;

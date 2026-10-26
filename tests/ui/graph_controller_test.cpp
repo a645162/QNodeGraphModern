@@ -62,13 +62,17 @@ void GraphControllerTest::addsNodeWithRoles() {
     QCOMPARE(controller.rowCount(), 1);
 
     const auto index = controller.index(0, 0);
-    QCOMPARE(index.data(QNodeGraph::UI::GraphController::NodeNameRole).toString(),
-             QStringLiteral("Demo Node 1"));
-    QCOMPARE(index.data(QNodeGraph::UI::GraphController::NodeTypeRole).toString(),
-             QStringLiteral("demo"));
-    QCOMPARE(index.data(QNodeGraph::UI::GraphController::InputPortCountRole).toInt(),
-             1);
-    QCOMPARE(index.data(QNodeGraph::UI::GraphController::OutputPortCountRole).toInt(),
+    QCOMPARE(
+        index.data(QNodeGraph::UI::GraphController::NodeNameRole).toString(),
+        QStringLiteral("Demo Node 1"));
+    QCOMPARE(
+        index.data(QNodeGraph::UI::GraphController::NodeTypeRole).toString(),
+        QStringLiteral("demo"));
+    QCOMPARE(
+        index.data(QNodeGraph::UI::GraphController::InputPortCountRole).toInt(),
+        1);
+    QCOMPARE(index.data(QNodeGraph::UI::GraphController::OutputPortCountRole)
+                 .toInt(),
              1);
 }
 
@@ -84,8 +88,8 @@ void GraphControllerTest::connectsAdjacentDemoNodes() {
 
 void GraphControllerTest::addsNodeAtCanvasPosition() {
     QNodeGraph::UI::GraphController controller;
-    QVERIFY(controller.addNodeTypeAt(QStringLiteral("grayscale"), 420.0,
-                                     260.0));
+    QVERIFY(
+        controller.addNodeTypeAt(QStringLiteral("grayscale"), 420.0, 260.0));
     QCOMPARE(controller.nodeCount(), 1);
     const auto index = controller.index(0, 0);
     QCOMPARE(index.data(QNodeGraph::UI::GraphController::NodeXRole).toDouble(),
@@ -209,12 +213,12 @@ void GraphControllerTest::addsRegisteredNodeType() {
     QVERIFY(controller.addNodeType(QStringLiteral("grayscale"), false));
     QCOMPARE(controller.nodeCount(), 1);
     const auto index = controller.index(0, 0);
-    QCOMPARE(index.data(QNodeGraph::UI::GraphController::NodeTypeRole)
-                 .toString(),
-             QStringLiteral("grayscale"));
-    QCOMPARE(index.data(QNodeGraph::UI::GraphController::InputPortCountRole)
-                 .toInt(),
-             1);
+    QCOMPARE(
+        index.data(QNodeGraph::UI::GraphController::NodeTypeRole).toString(),
+        QStringLiteral("grayscale"));
+    QCOMPARE(
+        index.data(QNodeGraph::UI::GraphController::InputPortCountRole).toInt(),
+        1);
     QCOMPARE(index.data(QNodeGraph::UI::GraphController::OutputPortCountRole)
                  .toInt(),
              1);
@@ -255,7 +259,8 @@ void GraphControllerTest::savesAndLoadsGraphThroughController() {
     QCOMPARE(loaded.connections().size(), qsizetype{1});
     QVERIFY(loaded.lastError().isEmpty());
 
-    QVERIFY(!loaded.loadGraph(directory.filePath(QStringLiteral("missing.json"))));
+    QVERIFY(
+        !loaded.loadGraph(directory.filePath(QStringLiteral("missing.json"))));
     QVERIFY(!loaded.lastError().isEmpty());
 }
 
@@ -315,18 +320,18 @@ void GraphControllerTest::exposesNodeVisualRolesAndDisabledState() {
     QVERIFY(index.data(QNodeGraph::UI::GraphController::NodeAccentRole)
                 .toString()
                 .startsWith(QStringLiteral("#")));
-    QVERIFY(index.data(QNodeGraph::UI::GraphController::NodeEnabledRole)
-                .toBool());
+    QVERIFY(
+        index.data(QNodeGraph::UI::GraphController::NodeEnabledRole).toBool());
     QVERIFY(controller.setNodeProperty(0, QStringLiteral("enabled"), false));
-    QVERIFY(!index.data(QNodeGraph::UI::GraphController::NodeEnabledRole)
-                 .toBool());
+    QVERIFY(
+        !index.data(QNodeGraph::UI::GraphController::NodeEnabledRole).toBool());
 }
 
 void GraphControllerTest::exposesNodeImagePreviewRoles() {
     QNodeGraph::UI::GraphController controller;
     controller.addNodeType(QStringLiteral("image_preview"), false);
-    QVERIFY(controller.setNodePreview(0, QStringLiteral("image://pipeline/preview"),
-                                      64, 48, 4));
+    QVERIFY(controller.setNodePreview(
+        0, QStringLiteral("image://pipeline/preview"), 64, 48, 4));
     const auto index = controller.index(0, 0);
     QCOMPARE(index.data(QNodeGraph::UI::GraphController::NodePreviewSourceRole)
                  .toString(),
@@ -337,9 +342,10 @@ void GraphControllerTest::exposesNodeImagePreviewRoles() {
     QCOMPARE(index.data(QNodeGraph::UI::GraphController::NodePreviewHeightRole)
                  .toInt(),
              48);
-    QCOMPARE(index.data(QNodeGraph::UI::GraphController::NodePreviewChannelsRole)
-                 .toInt(),
-             4);
+    QCOMPARE(
+        index.data(QNodeGraph::UI::GraphController::NodePreviewChannelsRole)
+            .toInt(),
+        4);
     QVERIFY(controller.clearNodePreview(0));
     QVERIFY(index.data(QNodeGraph::UI::GraphController::NodePreviewSourceRole)
                 .toString()
@@ -350,16 +356,20 @@ void GraphControllerTest::exposesPortNameRoles() {
     QNodeGraph::UI::GraphController controller;
     controller.addNodeType(QStringLiteral("grayscale"), false);
     const auto index = controller.index(0, 0);
-    const auto inputs = index.data(
-        QNodeGraph::UI::GraphController::NodeInputPortsRole).toList();
-    const auto outputs = index.data(
-        QNodeGraph::UI::GraphController::NodeOutputPortsRole).toList();
+    const auto inputs =
+        index.data(QNodeGraph::UI::GraphController::NodeInputPortsRole)
+            .toList();
+    const auto outputs =
+        index.data(QNodeGraph::UI::GraphController::NodeOutputPortsRole)
+            .toList();
     QCOMPARE(inputs.size(), qsizetype{1});
     QCOMPARE(outputs.size(), qsizetype{1});
-    QCOMPARE(inputs.constFirst().toMap().value(QStringLiteral("name"))
-                 .toString(),
-             QStringLiteral("image"));
-    QCOMPARE(outputs.constFirst().toMap().value(QStringLiteral("dataType"))
+    QCOMPARE(
+        inputs.constFirst().toMap().value(QStringLiteral("name")).toString(),
+        QStringLiteral("image"));
+    QCOMPARE(outputs.constFirst()
+                 .toMap()
+                 .value(QStringLiteral("dataType"))
                  .toString(),
              QStringLiteral("image"));
 }
@@ -406,8 +416,8 @@ void GraphControllerTest::slicesConnectionsAlongGesture() {
     QVERIFY(controller.addNodeType(QStringLiteral("edge_detect"), true));
     QCOMPARE(controller.connections().size(), qsizetype{2});
 
-    const auto removed = controller.sliceConnections(295.0, 100.0, 295.0,
-                                                     200.0);
+    const auto removed =
+        controller.sliceConnections(295.0, 100.0, 295.0, 200.0);
     QCOMPARE(removed, 1);
     QCOMPARE(controller.connections().size(), qsizetype{1});
     QVERIFY(controller.undo());
@@ -420,8 +430,7 @@ void GraphControllerTest::exposesGroupAndBackdropVisualRoles() {
     QVERIFY(controller.addNodeType(QStringLiteral("group"), false));
 
     const auto backdrop = controller.index(0, 0);
-    QVERIFY(backdrop.data(
-                         QNodeGraph::UI::GraphController::NodeIsBackdropRole)
+    QVERIFY(backdrop.data(QNodeGraph::UI::GraphController::NodeIsBackdropRole)
                 .toBool());
     QVERIFY(backdrop.data(QNodeGraph::UI::GraphController::NodeWidthRole)
                 .toDouble() > 180.0);
@@ -430,8 +439,8 @@ void GraphControllerTest::exposesGroupAndBackdropVisualRoles() {
                 .startsWith(QStringLiteral("#")));
 
     const auto group = controller.index(1, 0);
-    QVERIFY(group.data(QNodeGraph::UI::GraphController::NodeIsGroupRole)
-                .toBool());
+    QVERIFY(
+        group.data(QNodeGraph::UI::GraphController::NodeIsGroupRole).toBool());
     QVERIFY(!group.data(QNodeGraph::UI::GraphController::NodeIsBackdropRole)
                  .toBool());
 }
@@ -506,8 +515,11 @@ void GraphControllerTest::replacesExistingInputConnection() {
     QVERIFY(controller.beginConnection(2));
     QVERIFY(controller.completeConnectionAt(330.0, 144.0));
     QCOMPARE(controller.connections().size(), qsizetype{1});
-    QCOMPARE(controller.connections().constFirst().toMap()
-                 .value(QStringLiteral("outputRow")).toInt(),
+    QCOMPARE(controller.connections()
+                 .constFirst()
+                 .toMap()
+                 .value(QStringLiteral("outputRow"))
+                 .toInt(),
              2);
 
     QSignalSpy disconnectedSpy(
@@ -515,8 +527,11 @@ void GraphControllerTest::replacesExistingInputConnection() {
     QVERIFY(controller.beginConnection(0));
     QVERIFY(controller.completeConnectionAt(330.0, 144.0));
     QCOMPARE(controller.connections().size(), qsizetype{1});
-    QCOMPARE(controller.connections().constFirst().toMap()
-                 .value(QStringLiteral("outputRow")).toInt(),
+    QCOMPARE(controller.connections()
+                 .constFirst()
+                 .toMap()
+                 .value(QStringLiteral("outputRow"))
+                 .toInt(),
              0);
     QCOMPARE(disconnectedSpy.count(), 1);
 }
@@ -671,10 +686,10 @@ void GraphControllerTest::rejectsDuplicateUniqueNode() {
 void GraphControllerTest::exposesPropertyEditorMetadata() {
     QNodeGraph::UI::GraphController controller;
     controller.addNodeType(QStringLiteral("blur"));
-    const auto properties = controller.index(0, 0)
-                                .data(QNodeGraph::UI::GraphController::
-                                          NodeOnNodePropertiesRole)
-                                .toList();
+    const auto properties =
+        controller.index(0, 0)
+            .data(QNodeGraph::UI::GraphController::NodeOnNodePropertiesRole)
+            .toList();
     bool sawRadius = false;
     for (const auto& entry : properties) {
         const auto map = entry.toMap();
@@ -722,12 +737,13 @@ void GraphControllerTest::exposesExtendedPropertySchemaMetadata() {
     QVERIFY(controller.selectNode(0));
 
     const auto properties = controller.selectedProperties();
-    const auto findProperty = [&properties](const QString &name) {
-        return std::find_if(properties.cbegin(), properties.cend(),
-                            [&name](const QVariant &entry) {
-                                return entry.toMap().value(QStringLiteral("name"))
-                                           .toString() == name;
-                            });
+    const auto findProperty = [&properties](const QString& name) {
+        return std::find_if(
+            properties.cbegin(), properties.cend(),
+            [&name](const QVariant& entry) {
+                return entry.toMap().value(QStringLiteral("name")).toString() ==
+                       name;
+            });
     };
     const auto kernel = findProperty(QStringLiteral("kernel"));
     QVERIFY(kernel != properties.cend());
@@ -789,7 +805,8 @@ void GraphControllerTest::marksPrunedNodesAsIneffective() {
     controller.addNodeType(QStringLiteral("demo"));
     controller.addNodeType(QStringLiteral("image_preview"));
 
-    const auto effectiveRole = QNodeGraph::UI::GraphController::NodeEffectiveRole;
+    const auto effectiveRole =
+        QNodeGraph::UI::GraphController::NodeEffectiveRole;
     // 未接线时：两个 demo 的输出无人使用 → 剪枝；preview 自身是汇点 → 有效。
     QCOMPARE(controller.index(0, 0).data(effectiveRole).toBool(), false);
     QCOMPARE(controller.index(1, 0).data(effectiveRole).toBool(), false);

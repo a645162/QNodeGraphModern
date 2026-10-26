@@ -27,8 +27,8 @@ public:
     [[nodiscard]] std::int64_t integerClamped(
         const std::string& name, std::int64_t fallback,
         std::int64_t minimum = std::numeric_limits<std::int64_t>::min(),
-        std::int64_t maximum = std::numeric_limits<std::int64_t>::max()) const
-        noexcept {
+        std::int64_t maximum =
+            std::numeric_limits<std::int64_t>::max()) const noexcept {
         const auto iterator = m_params.find(name);
         if (iterator == m_params.end()) {
             return std::clamp(fallback, minimum, maximum);
@@ -37,7 +37,8 @@ public:
         if (std::holds_alternative<std::int64_t>(iterator->second)) {
             value = std::get<std::int64_t>(iterator->second);
         } else if (std::holds_alternative<double>(iterator->second)) {
-            value = static_cast<std::int64_t>(std::get<double>(iterator->second));
+            value =
+                static_cast<std::int64_t>(std::get<double>(iterator->second));
         }
         return std::clamp(value, minimum, maximum);
     }
@@ -54,7 +55,8 @@ public:
         if (std::holds_alternative<double>(iterator->second)) {
             value = std::get<double>(iterator->second);
         } else if (std::holds_alternative<std::int64_t>(iterator->second)) {
-            value = static_cast<double>(std::get<std::int64_t>(iterator->second));
+            value =
+                static_cast<double>(std::get<std::int64_t>(iterator->second));
         }
         return std::clamp(value, minimum, maximum);
     }
@@ -71,8 +73,8 @@ public:
         return realClamped(name, fallback);
     }
 
-    [[nodiscard]] bool boolean(const std::string& name, bool fallback) const
-        noexcept {
+    [[nodiscard]] bool boolean(const std::string& name,
+                               bool fallback) const noexcept {
         const auto iterator = m_params.find(name);
         return iterator != m_params.end() &&
                        std::holds_alternative<bool>(iterator->second)

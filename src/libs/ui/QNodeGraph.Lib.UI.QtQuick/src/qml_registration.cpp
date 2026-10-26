@@ -28,8 +28,7 @@ int qInitResources_qmlcache_QNodeGraph_Lib_UI_QtQuick() {
 namespace QNodeGraph::UI {
 
 void registerQNodeGraphQmlTypes() {
-    qmlRegisterType<GraphController>("QNodeGraph.UI", 1, 0,
-                                     "GraphController");
+    qmlRegisterType<GraphController>("QNodeGraph.UI", 1, 0, "GraphController");
     qmlRegisterType<NodePaletteModel>("QNodeGraph.UI", 1, 0,
                                       "NodePaletteModel");
 }

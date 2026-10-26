@@ -43,12 +43,12 @@ void GraphDocumentTest::rejectsInvalidDirectionAndDuplicateConnection() {
     QNodeGraph::Core::GraphDocument document;
     const auto source = document.addNode("source", "Source");
     const auto sink = document.addNode("sink", "Sink");
-    const auto output = document.addPort(*source, "out",
-        QNodeGraph::Core::PortDirection::Output,
+    const auto output = document.addPort(
+        *source, "out", QNodeGraph::Core::PortDirection::Output,
         QNodeGraph::Core::PortDataType::Image);
-    const auto input = document.addPort(*sink, "in",
-        QNodeGraph::Core::PortDirection::Input,
-        QNodeGraph::Core::PortDataType::Image);
+    const auto input =
+        document.addPort(*sink, "in", QNodeGraph::Core::PortDirection::Input,
+                         QNodeGraph::Core::PortDataType::Image);
 
     const auto invalid = document.connect(*input, *output);
     QVERIFY(!invalid.has_value());
@@ -68,12 +68,12 @@ void GraphDocumentTest::createsNodeAndPorts() {
     QVERIFY(source.has_value());
     QVERIFY(sink.has_value());
 
-    const auto output = document.addPort(*source, "out",
-        QNodeGraph::Core::PortDirection::Output,
+    const auto output = document.addPort(
+        *source, "out", QNodeGraph::Core::PortDirection::Output,
         QNodeGraph::Core::PortDataType::Image);
-    const auto input = document.addPort(*sink, "in",
-        QNodeGraph::Core::PortDirection::Input,
-        QNodeGraph::Core::PortDataType::Image);
+    const auto input =
+        document.addPort(*sink, "in", QNodeGraph::Core::PortDirection::Input,
+                         QNodeGraph::Core::PortDataType::Image);
     QVERIFY(output.has_value());
     QVERIFY(input.has_value());
     QVERIFY(document.connect(*output, *input).has_value());
@@ -85,12 +85,12 @@ void GraphDocumentTest::rejectsIncompatiblePortTypes() {
     QNodeGraph::Core::GraphDocument document;
     const auto source = document.addNode("source", "Source");
     const auto sink = document.addNode("sink", "Sink");
-    const auto output = document.addPort(*source, "out",
-        QNodeGraph::Core::PortDirection::Output,
+    const auto output = document.addPort(
+        *source, "out", QNodeGraph::Core::PortDirection::Output,
         QNodeGraph::Core::PortDataType::Image);
-    const auto input = document.addPort(*sink, "in",
-        QNodeGraph::Core::PortDirection::Input,
-        QNodeGraph::Core::PortDataType::Number);
+    const auto input =
+        document.addPort(*sink, "in", QNodeGraph::Core::PortDirection::Input,
+                         QNodeGraph::Core::PortDataType::Number);
 
     const auto result = document.connect(*output, *input);
     QVERIFY(!result.has_value());
@@ -103,15 +103,15 @@ void GraphDocumentTest::rejectsSecondConnectionToSingleInput() {
     const auto sourceA = document.addNode("source", "Source A");
     const auto sourceB = document.addNode("source", "Source B");
     const auto sink = document.addNode("sink", "Sink");
-    const auto outputA = document.addPort(*sourceA, "out",
-        QNodeGraph::Core::PortDirection::Output,
+    const auto outputA = document.addPort(
+        *sourceA, "out", QNodeGraph::Core::PortDirection::Output,
         QNodeGraph::Core::PortDataType::Image);
-    const auto outputB = document.addPort(*sourceB, "out",
-        QNodeGraph::Core::PortDirection::Output,
+    const auto outputB = document.addPort(
+        *sourceB, "out", QNodeGraph::Core::PortDirection::Output,
         QNodeGraph::Core::PortDataType::Image);
-    const auto input = document.addPort(*sink, "in",
-        QNodeGraph::Core::PortDirection::Input,
-        QNodeGraph::Core::PortDataType::Image);
+    const auto input =
+        document.addPort(*sink, "in", QNodeGraph::Core::PortDirection::Input,
+                         QNodeGraph::Core::PortDataType::Image);
 
     QVERIFY(document.connect(*outputA, *input).has_value());
     const auto result = document.connect(*outputB, *input);
@@ -124,23 +124,24 @@ void GraphDocumentTest::rejectsCycles() {
     QNodeGraph::Core::GraphDocument document;
     const auto nodeA = document.addNode("node", "A");
     const auto nodeB = document.addNode("node", "B");
-    const auto aOut = document.addPort(*nodeA, "out",
-        QNodeGraph::Core::PortDirection::Output,
-        QNodeGraph::Core::PortDataType::Any);
-    const auto aIn = document.addPort(*nodeA, "in",
-        QNodeGraph::Core::PortDirection::Input,
-        QNodeGraph::Core::PortDataType::Any);
-    const auto bOut = document.addPort(*nodeB, "out",
-        QNodeGraph::Core::PortDirection::Output,
-        QNodeGraph::Core::PortDataType::Any);
-    const auto bIn = document.addPort(*nodeB, "in",
-        QNodeGraph::Core::PortDirection::Input,
-        QNodeGraph::Core::PortDataType::Any);
+    const auto aOut =
+        document.addPort(*nodeA, "out", QNodeGraph::Core::PortDirection::Output,
+                         QNodeGraph::Core::PortDataType::Any);
+    const auto aIn =
+        document.addPort(*nodeA, "in", QNodeGraph::Core::PortDirection::Input,
+                         QNodeGraph::Core::PortDataType::Any);
+    const auto bOut =
+        document.addPort(*nodeB, "out", QNodeGraph::Core::PortDirection::Output,
+                         QNodeGraph::Core::PortDataType::Any);
+    const auto bIn =
+        document.addPort(*nodeB, "in", QNodeGraph::Core::PortDirection::Input,
+                         QNodeGraph::Core::PortDataType::Any);
 
     QVERIFY(document.connect(*aOut, *bIn).has_value());
     const auto result = document.connect(*bOut, *aIn);
     QVERIFY(!result.has_value());
-    QCOMPARE(result.error().code, QNodeGraph::Core::GraphErrorCode::CycleDetected);
+    QCOMPARE(result.error().code,
+             QNodeGraph::Core::GraphErrorCode::CycleDetected);
 }
 
 void GraphDocumentTest::storesNodePositionAndProperties() {
@@ -161,12 +162,12 @@ void GraphDocumentTest::clearRemovesNodesAndConnections() {
     QNodeGraph::Core::GraphDocument document;
     const auto source = document.addNode("source", "Source");
     const auto sink = document.addNode("sink", "Sink");
-    const auto output = document.addPort(*source, "out",
-        QNodeGraph::Core::PortDirection::Output,
+    const auto output = document.addPort(
+        *source, "out", QNodeGraph::Core::PortDirection::Output,
         QNodeGraph::Core::PortDataType::Image);
-    const auto input = document.addPort(*sink, "in",
-        QNodeGraph::Core::PortDirection::Input,
-        QNodeGraph::Core::PortDataType::Image);
+    const auto input =
+        document.addPort(*sink, "in", QNodeGraph::Core::PortDirection::Input,
+                         QNodeGraph::Core::PortDataType::Image);
     QVERIFY(document.connect(*output, *input).has_value());
     document.clear();
     QCOMPARE(document.nodeCount(), std::size_t{0});

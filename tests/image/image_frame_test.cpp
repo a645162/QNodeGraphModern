@@ -71,8 +71,8 @@ void ImageFrameTest::detectsEdges() {
     QImage image(5, 5, QImage::Format_Grayscale8);
     for (int y = 0; y < image.height(); ++y) {
         for (int x = 0; x < image.width(); ++x) {
-            image.setPixelColor(x, y, x < 2 ? QColor(0, 0, 0)
-                                           : QColor(255, 255, 255));
+            image.setPixelColor(
+                x, y, x < 2 ? QColor(0, 0, 0) : QColor(255, 255, 255));
         }
     }
     const auto frame = QNodeGraph::Image::ImageFrame::fromQImage(image);

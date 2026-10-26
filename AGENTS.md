@@ -32,7 +32,9 @@ python scripts/run.py image-pipeline
 - 类、QObject 和 QML 类型使用 PascalCase；方法和属性使用 camelCase。
 - 公共头文件放在目标库的 `include/QNodeGraph/...`，实现放在对应 `src/`。
 - QML 组件使用 PascalCase 文件名；保持 QML 视觉状态与 C++ 模型状态分离。
-- 当前未配置自动格式化工具；修改后应保持现有 CMake 和 Qt 风格，并避免新增编译警告。
+- 已配置 `.clang-format`（四空格缩进、80 列、指针与引用绑定到类型一侧）。
+  提交前用 `clang-format -i --style=file:.clang-format <文件>` 收敛改动，
+  或在 IDE 中启用该配置；修改后仍应保持现有 CMake 和 Qt 风格，并避免新增编译警告。
 
 ## 测试约定
 

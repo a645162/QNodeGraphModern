@@ -53,8 +53,7 @@ void GraphCanvasVisualTest::rendersConnectionWireBetweenNodes() {
     int wirePixels = 0;
     for (int x = 270; x <= 320; ++x) {
         const auto color = image.pixelColor(x, 144);
-        if (color != background)
-            ++wirePixels;
+        if (color != background) ++wirePixels;
     }
     QVERIFY2(wirePixels > 0,
              "the connection wire is not visible between the two ports");
@@ -67,12 +66,12 @@ void GraphCanvasVisualTest::togglesThemeBetweenLightAndDark() {
              qPrintable(QStringLiteral("GraphCanvas module failed to load")));
     auto* canvas = qobject_cast<QQuickItem*>(engine.rootObjects().first());
     QVERIFY(canvas != nullptr);
-    QVERIFY(QMetaObject::invokeMethod(canvas, "setThemeMode",
-                                      Q_ARG(QVariant, 2)));
+    QVERIFY(
+        QMetaObject::invokeMethod(canvas, "setThemeMode", Q_ARG(QVariant, 2)));
     QTest::qWait(50);
     const auto dark = canvas->property("darkTheme").toBool();
-    QVERIFY(QMetaObject::invokeMethod(canvas, "setThemeMode",
-                                      Q_ARG(QVariant, 1)));
+    QVERIFY(
+        QMetaObject::invokeMethod(canvas, "setThemeMode", Q_ARG(QVariant, 1)));
     QTest::qWait(50);
     const auto light = canvas->property("darkTheme").toBool();
     qDebug() << "dark:" << dark << "light:" << light;
@@ -102,9 +101,8 @@ void GraphCanvasVisualTest::loadsCustomNodeContent() {
 
     auto* controller = canvas->property("controller").value<QObject*>();
     QVERIFY(controller != nullptr);
-    QVERIFY(QMetaObject::invokeMethod(controller, "addNodeType",
-                                      Q_ARG(QString, "blur"),
-                                      Q_ARG(bool, false)));
+    QVERIFY(QMetaObject::invokeMethod(
+        controller, "addNodeType", Q_ARG(QString, "blur"), Q_ARG(bool, false)));
     QTest::qWait(300);
     QCOMPARE(controller->property("nodeCount").toInt(), 1);
     const auto image = window.grabWindow();
@@ -135,8 +133,8 @@ void GraphCanvasVisualTest::rendersGraphCanvasWithNode() {
     QVERIFY(controllerValue.isValid());
     auto* controller = controllerValue.value<QObject*>();
     QVERIFY(controller != nullptr);
-    QVERIFY(QMetaObject::invokeMethod(controller,
-                                      "addNodeType", Q_ARG(QString, "grayscale"),
+    QVERIFY(QMetaObject::invokeMethod(controller, "addNodeType",
+                                      Q_ARG(QString, "grayscale"),
                                       Q_ARG(bool, false)));
     QVERIFY(QMetaObject::invokeMethod(
         controller, "setNodePreview", Q_ARG(int, 0),
@@ -202,7 +200,8 @@ void GraphCanvasVisualTest::addsPaletteNodeThroughMouseDrag() {
              qPrintable(paletteComponent.errorString()));
 
     std::unique_ptr<QObject> canvasObject(canvasComponent.create());
-    QVERIFY2(canvasObject != nullptr, qPrintable(canvasComponent.errorString()));
+    QVERIFY2(canvasObject != nullptr,
+             qPrintable(canvasComponent.errorString()));
     auto* canvas = qobject_cast<QQuickItem*>(canvasObject.get());
     QVERIFY(canvas != nullptr);
     auto* controller = canvas->property("controller").value<QObject*>();
@@ -228,7 +227,7 @@ void GraphCanvasVisualTest::addsPaletteNodeThroughMouseDrag() {
     window.show();
     QTest::qWait(150);
 
-    const auto *nodeList = palette->findChild<QQuickItem *>(
+    const auto* nodeList = palette->findChild<QQuickItem*>(
         QStringLiteral("workflowNodePaletteList"));
     QVERIFY2(nodeList != nullptr, "palette did not create its node list");
     QVERIFY2(nodeList->property("count").toInt() > 0,
@@ -236,8 +235,8 @@ void GraphCanvasVisualTest::addsPaletteNodeThroughMouseDrag() {
     const auto startPoint = nodeList->mapToItem(
         window.contentItem(), QPointF(nodeList->width() / 2.0, 26.0));
     const auto endPoint = canvas->mapToItem(
-        window.contentItem(), QPointF(canvas->width() / 2.0,
-                                      canvas->height() / 2.0));
+        window.contentItem(),
+        QPointF(canvas->width() / 2.0, canvas->height() / 2.0));
     const QPoint start(qRound(startPoint.x()), qRound(startPoint.y()));
     const QPoint end(qRound(endPoint.x()), qRound(endPoint.y()));
     QTest::mousePress(&window, Qt::LeftButton, Qt::NoModifier, start);

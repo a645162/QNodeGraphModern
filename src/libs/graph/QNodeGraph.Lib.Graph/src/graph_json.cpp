@@ -26,7 +26,7 @@ Core::GraphError error(Core::GraphErrorCode code, const QString& message) {
 
 QString directionName(Core::PortDirection direction) {
     return direction == Core::PortDirection::Input ? QStringLiteral("input")
-                                                    : QStringLiteral("output");
+                                                   : QStringLiteral("output");
 }
 
 std::optional<Core::PortDirection> parseDirection(const QString& value) {
@@ -102,7 +102,8 @@ bool parseId(const QJsonValue& value, std::uint64_t& id) {
     } else if (value.isDouble()) {
         const auto number = value.toDouble();
         if (number >= 0.0 && std::isfinite(number) &&
-            number <= static_cast<double>(std::numeric_limits<qulonglong>::max())) {
+            number <=
+                static_cast<double>(std::numeric_limits<qulonglong>::max())) {
             parsed = static_cast<qulonglong>(number);
             ok = std::floor(number) == number;
         }
@@ -144,26 +145,26 @@ QJsonObject propertyValue(const Core::PropertyValue& value) {
                 object.insert(QStringLiteral("value"), typed);
             } else if constexpr (std::is_same_v<Value, std::int64_t>) {
                 object.insert(QStringLiteral("type"), QStringLiteral("int64"));
-                object.insert(QStringLiteral("value"),
-                              QString::number(typed));
+                object.insert(QStringLiteral("value"), QString::number(typed));
             } else if constexpr (std::is_same_v<Value, std::string>) {
                 object.insert(QStringLiteral("type"), QStringLiteral("string"));
-                object.insert(QStringLiteral("value"),
-                              QString::fromUtf8(typed.data(),
-                                                static_cast<qsizetype>(typed.size())));
+                object.insert(
+                    QStringLiteral("value"),
+                    QString::fromUtf8(typed.data(),
+                                      static_cast<qsizetype>(typed.size())));
             }
         },
         value);
     return object;
 }
 
-Core::GraphResult<Core::PropertyValue> parsePropertyValue(
-    const QJsonObject& object) {
+Core::GraphResult<Core::PropertyValue>
+parsePropertyValue(const QJsonObject& object) {
     const auto type = object.value(QStringLiteral("type"));
     const auto value = object.value(QStringLiteral("value"));
     if (!type.isString()) {
         return std::unexpected(error(Core::GraphErrorCode::InvalidDocument,
-                                      "A property is missing its type."));
+                                     "A property is missing its type."));
     }
     const auto typeName = type.toString();
     if (typeName == QStringLiteral("bool") && value.isBool()) {
@@ -184,18 +185,20 @@ Core::GraphResult<Core::PropertyValue> parsePropertyValue(
     if (typeName == QStringLiteral("string") && value.isString()) {
         return value.toString().toStdString();
     }
-    return std::unexpected(error(
-        Core::GraphErrorCode::InvalidDocument,
-        QStringLiteral("Property value does not match type %1.").arg(typeName)));
+    return std::unexpected(
+        error(Core::GraphErrorCode::InvalidDocument,
+              QStringLiteral("Property value does not match type %1.")
+                  .arg(typeName)));
 }
 
 } // namespace
 
-Core::GraphResult<QJsonObject> GraphJson::toJson(
-    const Core::GraphDocument& document) {
+Core::GraphResult<QJsonObject>
+GraphJson::toJson(const Core::GraphDocument& document) {
     QJsonObject root;
     root.insert(QStringLiteral("schemaVersion"), kSchemaVersion);
-    root.insert(QStringLiteral("name"), QString::fromStdString(document.name()));
+    root.insert(QStringLiteral("name"),
+                QString::fromStdString(document.name()));
 
     QJsonArray nodes;
     for (const auto nodeId : document.nodeIds()) {
@@ -205,15 +208,18 @@ Core::GraphResult<QJsonObject> GraphJson::toJson(
         }
         QJsonObject object;
         object.insert(QStringLiteral("id"), idValue(node->id));
-        object.insert(QStringLiteral("type"), QString::fromStdString(node->type));
-        object.insert(QStringLiteral("name"), QString::fromStdString(node->name));
+        object.insert(QStringLiteral("type"),
+                      QString::fromStdString(node->type));
+        object.insert(QStringLiteral("name"),
+                      QString::fromStdString(node->name));
         object.insert(QStringLiteral("position"),
                       QJsonObject{{QStringLiteral("x"), node->position.x},
                                   {QStringLiteral("y"), node->position.y}});
 
         QJsonObject properties;
         for (const auto& [name, value] : node->properties) {
-            properties.insert(QString::fromStdString(name), propertyValue(value));
+            properties.insert(QString::fromStdString(name),
+                              propertyValue(value));
         }
         object.insert(QStringLiteral("properties"), properties);
 
@@ -250,16 +256,17 @@ Core::GraphResult<QJsonObject> GraphJson::migrate(const QJsonObject& object) {
     const auto schemaVersion = object.value(QStringLiteral("schemaVersion"));
     if (!schemaVersion.isDouble()) {
         return std::unexpected(error(Core::GraphErrorCode::InvalidDocument,
-                                      "The document has no schema version."));
+                                     "The document has no schema version."));
     }
     const auto version = schemaVersion.toInt();
     if (version == kSchemaVersion) {
         return object;
     }
     if (version != 0 && version != 1) {
-        return std::unexpected(error(
-            Core::GraphErrorCode::UnsupportedSchemaVersion,
-            QStringLiteral("Unsupported graph schema version %1.").arg(version)));
+        return std::unexpected(
+            error(Core::GraphErrorCode::UnsupportedSchemaVersion,
+                  QStringLiteral("Unsupported graph schema version %1.")
+                      .arg(version)));
     }
 
     auto migrated = object;
@@ -276,36 +283,37 @@ Core::GraphResult<QJsonObject> GraphJson::migrate(const QJsonObject& object) {
     return migrated;
 }
 
-Core::GraphResult<Core::GraphDocument> GraphJson::fromJson(
-    const QJsonObject& object) {
+Core::GraphResult<Core::GraphDocument>
+GraphJson::fromJson(const QJsonObject& object) {
     const auto schemaVersion = object.value(QStringLiteral("schemaVersion"));
     if (!schemaVersion.isDouble()) {
         return std::unexpected(error(Core::GraphErrorCode::InvalidDocument,
-                                      "The document has no schema version."));
+                                     "The document has no schema version."));
     }
     if (schemaVersion.toInt() != kSchemaVersion) {
-        return std::unexpected(error(
-            Core::GraphErrorCode::UnsupportedSchemaVersion,
-            QStringLiteral("Unsupported graph schema version %1.")
-                .arg(schemaVersion.toInt())));
+        return std::unexpected(
+            error(Core::GraphErrorCode::UnsupportedSchemaVersion,
+                  QStringLiteral("Unsupported graph schema version %1.")
+                      .arg(schemaVersion.toInt())));
     }
     const auto nodesValue = object.value(QStringLiteral("nodes"));
     const auto connectionsValue = object.value(QStringLiteral("connections"));
     if (!nodesValue.isArray() || !connectionsValue.isArray()) {
-        return std::unexpected(error(Core::GraphErrorCode::InvalidDocument,
-                                      "The document nodes or connections are invalid."));
+        return std::unexpected(
+            error(Core::GraphErrorCode::InvalidDocument,
+                  "The document nodes or connections are invalid."));
     }
 
     const auto name = object.value(QStringLiteral("name"));
     if (!name.isString()) {
         return std::unexpected(error(Core::GraphErrorCode::InvalidDocument,
-                                      "The document name is invalid."));
+                                     "The document name is invalid."));
     }
     Core::GraphDocument document(name.toString().toStdString());
     for (const auto& value : nodesValue.toArray()) {
         if (!value.isObject()) {
             return std::unexpected(error(Core::GraphErrorCode::InvalidDocument,
-                                          "A node entry is not an object."));
+                                         "A node entry is not an object."));
         }
         const auto nodeObject = value.toObject();
         std::uint64_t nodeId = 0;
@@ -313,13 +321,13 @@ Core::GraphResult<Core::GraphDocument> GraphJson::fromJson(
         const auto nodeName = nodeObject.value(QStringLiteral("name"));
         if (!parseId(nodeObject.value(QStringLiteral("id")), nodeId) ||
             !type.isString() || !nodeName.isString()) {
-            return std::unexpected(error(
-                Core::GraphErrorCode::InvalidDocument,
-                "A node is missing a valid id, type, or name."));
+            return std::unexpected(
+                error(Core::GraphErrorCode::InvalidDocument,
+                      "A node is missing a valid id, type, or name."));
         }
-        const auto node = document.addNode(type.toString().toStdString(),
-                                           nodeName.toString().toStdString(),
-                                           nodeId);
+        const auto node =
+            document.addNode(type.toString().toStdString(),
+                             nodeName.toString().toStdString(), nodeId);
         if (!node) {
             return std::unexpected(node.error());
         }
@@ -327,27 +335,30 @@ Core::GraphResult<Core::GraphDocument> GraphJson::fromJson(
         Core::Point position;
         if (!parsePosition(nodeObject, position)) {
             return std::unexpected(error(Core::GraphErrorCode::InvalidDocument,
-                                          "A node position is invalid."));
+                                         "A node position is invalid."));
         }
         if (const auto result = document.setNodePosition(*node, position);
             !result) {
             return std::unexpected(result.error());
         }
 
-        const auto propertiesValue = nodeObject.value(QStringLiteral("properties"));
+        const auto propertiesValue =
+            nodeObject.value(QStringLiteral("properties"));
         if (!propertiesValue.isUndefined() && !propertiesValue.isObject()) {
-            return std::unexpected(error(Core::GraphErrorCode::InvalidDocument,
-                                          "A node properties value is invalid."));
+            return std::unexpected(
+                error(Core::GraphErrorCode::InvalidDocument,
+                      "A node properties value is invalid."));
         }
         const auto properties = propertiesValue.toObject();
         for (auto iterator = properties.begin(); iterator != properties.end();
              ++iterator) {
             if (!iterator.value().isObject()) {
-                return std::unexpected(error(
-                    Core::GraphErrorCode::InvalidDocument,
-                    "A node property entry is not an object."));
+                return std::unexpected(
+                    error(Core::GraphErrorCode::InvalidDocument,
+                          "A node property entry is not an object."));
             }
-            const auto property = parsePropertyValue(iterator.value().toObject());
+            const auto property =
+                parsePropertyValue(iterator.value().toObject());
             if (!property) {
                 return std::unexpected(property.error());
             }
@@ -361,12 +372,13 @@ Core::GraphResult<Core::GraphDocument> GraphJson::fromJson(
         const auto portsValue = nodeObject.value(QStringLiteral("ports"));
         if (!portsValue.isArray()) {
             return std::unexpected(error(Core::GraphErrorCode::InvalidDocument,
-                                          "A node ports value is invalid."));
+                                         "A node ports value is invalid."));
         }
         for (const auto& portValue : portsValue.toArray()) {
             if (!portValue.isObject()) {
-                return std::unexpected(error(Core::GraphErrorCode::InvalidDocument,
-                                              "A port entry is not an object."));
+                return std::unexpected(
+                    error(Core::GraphErrorCode::InvalidDocument,
+                          "A port entry is not an object."));
             }
             const auto portObject = portValue.toObject();
             std::uint64_t portId = 0;
@@ -378,8 +390,9 @@ Core::GraphResult<Core::GraphDocument> GraphJson::fromJson(
             if (!parseId(portObject.value(QStringLiteral("id")), portId) ||
                 !portName.isString() || !direction.has_value() ||
                 !dataType.has_value()) {
-                return std::unexpected(error(Core::GraphErrorCode::InvalidDocument,
-                                              "A port entry is invalid."));
+                return std::unexpected(
+                    error(Core::GraphErrorCode::InvalidDocument,
+                          "A port entry is invalid."));
             }
             const auto port = document.addPort(
                 *node, portName.toString().toStdString(), *direction, *dataType,
@@ -394,16 +407,19 @@ Core::GraphResult<Core::GraphDocument> GraphJson::fromJson(
 
     for (const auto& value : connectionsValue.toArray()) {
         if (!value.isObject()) {
-            return std::unexpected(error(Core::GraphErrorCode::InvalidDocument,
-                                          "A connection entry is not an object."));
+            return std::unexpected(
+                error(Core::GraphErrorCode::InvalidDocument,
+                      "A connection entry is not an object."));
         }
         const auto connection = value.toObject();
         std::uint64_t outputPort = 0;
         std::uint64_t inputPort = 0;
-        if (!parseId(connection.value(QStringLiteral("outputPort")), outputPort) ||
-            !parseId(connection.value(QStringLiteral("inputPort")), inputPort)) {
+        if (!parseId(connection.value(QStringLiteral("outputPort")),
+                     outputPort) ||
+            !parseId(connection.value(QStringLiteral("inputPort")),
+                     inputPort)) {
             return std::unexpected(error(Core::GraphErrorCode::InvalidDocument,
-                                          "A connection entry is invalid."));
+                                         "A connection entry is invalid."));
         }
         const auto result = document.connect(outputPort, inputPort);
         if (!result) {
@@ -413,8 +429,9 @@ Core::GraphResult<Core::GraphDocument> GraphJson::fromJson(
     return document;
 }
 
-Core::GraphResult<void> GraphJson::validateExternalAssets(
-    const Core::GraphDocument& document, const QString& baseDirectory) {
+Core::GraphResult<void>
+GraphJson::validateExternalAssets(const Core::GraphDocument& document,
+                                  const QString& baseDirectory) {
     const QDir base(baseDirectory);
     for (const auto nodeId : document.nodeIds()) {
         const auto* node = document.node(nodeId);
@@ -428,19 +445,18 @@ Core::GraphResult<void> GraphJson::validateExternalAssets(
             if (!std::holds_alternative<std::string>(value)) {
                 continue;
             }
-            const auto path = QString::fromStdString(
-                std::get<std::string>(value));
+            const auto path =
+                QString::fromStdString(std::get<std::string>(value));
             if (path.isEmpty()) {
                 continue;
             }
-            const QFileInfo fileInfo(QDir::isAbsolutePath(path)
-                                         ? path
-                                         : base.filePath(path));
+            const QFileInfo fileInfo(
+                QDir::isAbsolutePath(path) ? path : base.filePath(path));
             if (!fileInfo.exists() || !fileInfo.isFile()) {
-                return std::unexpected(error(
-                    Core::GraphErrorCode::ExternalAssetMissing,
-                    QStringLiteral("External asset is missing: %1")
-                        .arg(fileInfo.filePath())));
+                return std::unexpected(
+                    error(Core::GraphErrorCode::ExternalAssetMissing,
+                          QStringLiteral("External asset is missing: %1")
+                              .arg(fileInfo.filePath())));
             }
         }
     }
@@ -456,30 +472,30 @@ Core::GraphResult<void> GraphJson::save(const Core::GraphDocument& document,
     QFile file(filePath);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
         return std::unexpected(error(Core::GraphErrorCode::SerializationError,
-                                      file.errorString()));
+                                     file.errorString()));
     }
     const auto bytes = QJsonDocument(*object).toJson(QJsonDocument::Indented);
     if (file.write(bytes) != bytes.size()) {
         return std::unexpected(error(Core::GraphErrorCode::SerializationError,
-                                      file.errorString()));
+                                     file.errorString()));
     }
     return {};
 }
 
-Core::GraphResult<Core::GraphDocument> GraphJson::load(
-    const QString& filePath) {
+Core::GraphResult<Core::GraphDocument>
+GraphJson::load(const QString& filePath) {
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly)) {
         return std::unexpected(error(Core::GraphErrorCode::SerializationError,
-                                      file.errorString()));
+                                     file.errorString()));
     }
     QJsonParseError parseError;
     const auto document = QJsonDocument::fromJson(file.readAll(), &parseError);
     if (!document.isObject()) {
-        return std::unexpected(error(
-            Core::GraphErrorCode::SerializationError,
-            QStringLiteral("Unable to parse graph JSON: %1")
-                .arg(parseError.errorString())));
+        return std::unexpected(
+            error(Core::GraphErrorCode::SerializationError,
+                  QStringLiteral("Unable to parse graph JSON: %1")
+                      .arg(parseError.errorString())));
     }
     // 先迁移再解析。此前 load() 直接调用 fromJson()，而 fromJson() 对版本号是
     // 严格校验 `== kSchemaVersion`，导致 migrate() 在库内零调用者、旧版本文件

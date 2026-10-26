@@ -20,15 +20,23 @@ class GraphController : public QAbstractListModel {
     Q_OBJECT
     QML_ELEMENT
     Q_PROPERTY(int nodeCount READ nodeCount NOTIFY nodeCountChanged)
-    Q_PROPERTY(QVariantList connections READ connections NOTIFY connectionsChanged)
-    Q_PROPERTY(bool connectionPending READ connectionPending NOTIFY connectionPendingChanged)
-    Q_PROPERTY(int pendingOutputRow READ pendingOutputRow NOTIFY connectionPendingChanged)
-    Q_PROPERTY(QVariantMap connectionPreview READ connectionPreview NOTIFY connectionPreviewChanged)
-    Q_PROPERTY(int selectedConnectionOutputRow READ selectedConnectionOutputRow NOTIFY selectionChanged)
-    Q_PROPERTY(int selectedConnectionInputRow READ selectedConnectionInputRow NOTIFY selectionChanged)
+    Q_PROPERTY(
+        QVariantList connections READ connections NOTIFY connectionsChanged)
+    Q_PROPERTY(bool connectionPending READ connectionPending NOTIFY
+                   connectionPendingChanged)
+    Q_PROPERTY(int pendingOutputRow READ pendingOutputRow NOTIFY
+                   connectionPendingChanged)
+    Q_PROPERTY(QVariantMap connectionPreview READ connectionPreview NOTIFY
+                   connectionPreviewChanged)
+    Q_PROPERTY(int selectedConnectionOutputRow READ selectedConnectionOutputRow
+                   NOTIFY selectionChanged)
+    Q_PROPERTY(int selectedConnectionInputRow READ selectedConnectionInputRow
+                   NOTIFY selectionChanged)
     Q_PROPERTY(int selectedRow READ selectedRow NOTIFY selectedRowChanged)
-    Q_PROPERTY(QVariantList selectedRows READ selectedRows NOTIFY selectionChanged)
-    Q_PROPERTY(QVariantList selectedProperties READ selectedProperties NOTIFY propertiesChanged)
+    Q_PROPERTY(
+        QVariantList selectedRows READ selectedRows NOTIFY selectionChanged)
+    Q_PROPERTY(QVariantList selectedProperties READ selectedProperties NOTIFY
+                   propertiesChanged)
     Q_PROPERTY(QString lastError READ lastError NOTIFY errorChanged)
     Q_PROPERTY(bool canUndo READ canUndo NOTIFY historyChanged)
     Q_PROPERTY(bool canRedo READ canRedo NOTIFY historyChanged)
@@ -78,7 +86,8 @@ public:
     // 注入宿主注册表：宿主注册自定义节点类型后传入，使画布与调色板共享同一
     // 份类型定义。未注入时使用 NodeRegistry::withBuiltins()（保持既有行为）。
     void setRegistry(QNodeGraph::Graph::NodeRegistry registry);
-    [[nodiscard]] const QNodeGraph::Graph::NodeRegistry& registry() const noexcept;
+    [[nodiscard]] const QNodeGraph::Graph::NodeRegistry&
+    registry() const noexcept;
     [[nodiscard]] const Core::GraphDocument& document() const noexcept {
         return m_document;
     }
@@ -86,10 +95,10 @@ public:
     // 注册表变更后需通知视图刷新（图标/强调色/尺寸等 role 全部来自描述符）。
     void refreshRegistryDependentRoles();
 
-    [[nodiscard]] int rowCount(
-        const QModelIndex& parent = QModelIndex()) const override;
-    [[nodiscard]] QVariant data(
-        const QModelIndex& index, int role = Qt::DisplayRole) const override;
+    [[nodiscard]] int
+    rowCount(const QModelIndex& parent = QModelIndex()) const override;
+    [[nodiscard]] QVariant data(const QModelIndex& index,
+                                int role = Qt::DisplayRole) const override;
     [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
     [[nodiscard]] int nodeCount() const noexcept;
     [[nodiscard]] QVariantList connections() const;
@@ -121,8 +130,8 @@ public:
     Q_INVOKABLE bool moveNode(int row, double x, double y);
     Q_INVOKABLE bool moveSelectedNodes(int anchorRow, double x, double y);
     Q_INVOKABLE bool autoLayout();
-    Q_INVOKABLE int sliceConnections(double startX, double startY,
-                                     double endX, double endY);
+    Q_INVOKABLE int sliceConnections(double startX, double startY, double endX,
+                                     double endY);
     Q_INVOKABLE QVariantMap portAt(double worldX, double worldY) const;
     Q_INVOKABLE QVariantMap connectionAt(double worldX, double worldY) const;
     Q_INVOKABLE bool selectConnectionAt(double worldX, double worldY);
@@ -187,8 +196,8 @@ private:
     // 剪枝相关 role 的 dataChanged。所有改动连接的路径都必须走这里，否则
     // 剪枝标记会与图不同步。
     void notifyTopologyChanged();
-    [[nodiscard]] bool nodePortConnected(
-        Core::NodeId nodeId, Core::PortDirection direction) const;
+    [[nodiscard]] bool nodePortConnected(Core::NodeId nodeId,
+                                         Core::PortDirection direction) const;
 
     Core::GraphDocument m_document;
     QNodeGraph::Graph::NodeRegistry m_registry;

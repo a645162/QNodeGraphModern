@@ -49,7 +49,7 @@ Core::PortDataType planOutputDataType(const Core::GraphDocument& document,
 
 // 某节点的输入端口（保持声明顺序，供输入槽排列使用）。
 std::vector<Core::PortId> inputPorts(const Core::GraphDocument& document,
-                                    Core::NodeId nodeId) {
+                                     Core::NodeId nodeId) {
     std::vector<Core::PortId> ports;
     const auto* node = document.node(nodeId);
     if (node == nullptr) {
@@ -99,8 +99,8 @@ Core::PortDataType outputDataType(const Core::GraphDocument& document,
 
 } // namespace
 
-std::set<Core::NodeId> GraphPlanBuilder::reachableFromSinks(
-    const Core::GraphDocument& document) {
+std::set<Core::NodeId>
+GraphPlanBuilder::reachableFromSinks(const Core::GraphDocument& document) {
     // 汇点 = 没有输出端口的节点（图像预览 / 保存 / 视口输出）。它们的输入被
     // 消费，因此其上游「输出被使用」，沿连接反向可达。
     //
@@ -118,7 +118,8 @@ std::set<Core::NodeId> GraphPlanBuilder::reachableFromSinks(
     std::set<Core::NodeId> reachable;
     std::queue<Core::NodeId> pending;
     for (const auto nodeId : document.nodeIds()) {
-        if (!hasOutputPort(document, nodeId) && reachable.insert(nodeId).second) {
+        if (!hasOutputPort(document, nodeId) &&
+            reachable.insert(nodeId).second) {
             pending.push(nodeId);
         }
     }
@@ -140,8 +141,8 @@ std::set<Core::NodeId> GraphPlanBuilder::reachableFromSinks(
     return reachable;
 }
 
-std::vector<Core::NodeId> GraphPlanBuilder::topologicalOrder(
-    const Core::GraphDocument& document) {
+std::vector<Core::NodeId>
+GraphPlanBuilder::topologicalOrder(const Core::GraphDocument& document) {
     // Kahn 算法。边方向为 上游 → 下游。
     const auto nodeIds = document.nodeIds();
     std::unordered_map<Core::NodeId, int> indegree;
@@ -187,8 +188,9 @@ std::vector<Core::NodeId> GraphPlanBuilder::topologicalOrder(
     return order;
 }
 
-std::vector<Core::NodeId> GraphPlanBuilder::downstreamClosure(
-    const Core::GraphDocument& document, Core::NodeId origin) {
+std::vector<Core::NodeId>
+GraphPlanBuilder::downstreamClosure(const Core::GraphDocument& document,
+                                    Core::NodeId origin) {
     // 正向邻接表一次构建。
     std::unordered_map<Core::NodeId, std::vector<Core::NodeId>> downstream;
     for (const auto& connection : document.connections()) {

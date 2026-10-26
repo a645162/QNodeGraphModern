@@ -32,15 +32,15 @@ enum class PropertyPlacement {
 // 数据（bool/double/int64/string），无法承载「用哪种控件」「取值范围多少」，
 // 而这些属于描述符层的元数据。
 enum class PropertyEditor {
-    Automatic, // 由 UI 按 valueType 推断（默认）。
-    CheckBox,  // bool 开关。
-    Slider,    // 数值滑块，配合 minimum/maximum/step。
-    SpinBox,   // 数值输入框，配合 minimum/maximum/step。
-    LineEdit,  // 单行文本。
-    FilePath,  // 文件路径（宿主提供文件选择）。
-    Directory, // 目录路径。
-    ComboBox,  // 枚举选择，配合 choices。
-    Matrix,    // 矩阵/卷积核编辑器，配合 matrixRows/matrixCols。
+    Automatic,   // 由 UI 按 valueType 推断（默认）。
+    CheckBox,    // bool 开关。
+    Slider,      // 数值滑块，配合 minimum/maximum/step。
+    SpinBox,     // 数值输入框，配合 minimum/maximum/step。
+    LineEdit,    // 单行文本。
+    FilePath,    // 文件路径（宿主提供文件选择）。
+    Directory,   // 目录路径。
+    ComboBox,    // 枚举选择，配合 choices。
+    Matrix,      // 矩阵/卷积核编辑器，配合 matrixRows/matrixCols。
     ColorPicker, // 颜色选择器，值为 #RRGGBB 或 #AARRGGBB。
 };
 
@@ -89,9 +89,9 @@ struct PropertyDescriptor {
 // 节点的视觉角色。UI 层据此决定层级与容器语义，取代按 typeId 字符串硬比较
 // （如 type == "backdrop"）。
 enum class NodeVisualRole {
-    Standard,  // 普通节点。
-    Group,     // 分组容器：可容纳其它节点。
-    Backdrop,  // 背景板：置于最底层。
+    Standard, // 普通节点。
+    Group,    // 分组容器：可容纳其它节点。
+    Backdrop, // 背景板：置于最底层。
 };
 
 struct NodeDescriptor {
@@ -135,21 +135,22 @@ struct NodeDescriptor {
 
 class NodeRegistry final {
 public:
-    [[nodiscard]] Core::GraphResult<void> registerNode(
-        NodeDescriptor descriptor);
-    [[nodiscard]] const NodeDescriptor* find(
-        std::string_view typeId) const noexcept;
+    [[nodiscard]] Core::GraphResult<void>
+    registerNode(NodeDescriptor descriptor);
+    [[nodiscard]] const NodeDescriptor*
+    find(std::string_view typeId) const noexcept;
     [[nodiscard]] std::vector<NodeDescriptor> descriptors() const;
-    [[nodiscard]] Core::GraphResult<Core::NodeId> createNode(
-        Core::GraphDocument& document, std::string_view typeId,
-        std::string name = {}, Core::Point position = {}) const;
+    [[nodiscard]] Core::GraphResult<Core::NodeId>
+    createNode(Core::GraphDocument& document, std::string_view typeId,
+               std::string name = {}, Core::Point position = {}) const;
 
     [[nodiscard]] static NodeRegistry withBuiltins();
 
     // 统计文档中某类型节点的数量。唯一性校验（Descriptor::unique）由调用方
     // 在创建前使用；放在注册表上是因为它同时需要描述符与文档。
-    [[nodiscard]] static std::size_t countNodesOfType(
-        const Core::GraphDocument& document, std::string_view typeId);
+    [[nodiscard]] static std::size_t
+    countNodesOfType(const Core::GraphDocument& document,
+                     std::string_view typeId);
 
 private:
     std::map<std::string, NodeDescriptor> m_descriptors;

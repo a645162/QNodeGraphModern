@@ -36,13 +36,12 @@ private:
             Q_ASSERT(node.has_value());
             return *node;
         }
-        QNodeGraph::Core::PortId addPort(QNodeGraph::Core::NodeId node,
-                                         const std::string& name,
-                                         QNodeGraph::Core::PortDirection dir,
-                                         QNodeGraph::Core::PortDataType type =
-                                             QNodeGraph::Core::PortDataType::Image) {
-            const auto port = document.addPort(
-                node, name, dir, type);
+        QNodeGraph::Core::PortId
+        addPort(QNodeGraph::Core::NodeId node, const std::string& name,
+                QNodeGraph::Core::PortDirection dir,
+                QNodeGraph::Core::PortDataType type =
+                    QNodeGraph::Core::PortDataType::Image) {
+            const auto port = document.addPort(node, name, dir, type);
             Q_ASSERT(port.has_value());
             return *port;
         }
@@ -50,7 +49,8 @@ private:
                      QNodeGraph::Core::PortId in) {
             const auto result = document.connect(out, in);
             if (!result.has_value()) {
-                QFAIL(qPrintable(QString::fromStdString(result.error().message)));
+                QFAIL(
+                    qPrintable(QString::fromStdString(result.error().message)));
             }
         }
     };
@@ -67,8 +67,8 @@ void GraphPlanTest::topologicallyOrdersLinearChain() {
         middle, "image", QNodeGraph::Core::PortDirection::Input);
     const auto middleOut = fixture.addPort(
         middle, "image", QNodeGraph::Core::PortDirection::Output);
-    const auto sinkIn = fixture.addPort(
-        sink, "image", QNodeGraph::Core::PortDirection::Input);
+    const auto sinkIn =
+        fixture.addPort(sink, "image", QNodeGraph::Core::PortDirection::Input);
     fixture.connect(sourceOut, middleIn);
     fixture.connect(middleOut, sinkIn);
 
@@ -113,8 +113,8 @@ void GraphPlanTest::computesDownstreamClosure() {
         second, "image", QNodeGraph::Core::PortDirection::Input);
     const auto secondOut = fixture.addPort(
         second, "image", QNodeGraph::Core::PortDirection::Output);
-    const auto thirdIn = fixture.addPort(
-        third, "image", QNodeGraph::Core::PortDirection::Input);
+    const auto thirdIn =
+        fixture.addPort(third, "image", QNodeGraph::Core::PortDirection::Input);
     const auto branchIn = fixture.addPort(
         branch, "image", QNodeGraph::Core::PortDirection::Input);
     fixture.connect(firstOut, secondIn);
@@ -137,8 +137,7 @@ void GraphPlanTest::carriesNodePropertiesAsParams() {
     Fixture fixture;
     const auto node = fixture.addNode("image_preview", "Sink");
     fixture.addPort(node, "image", QNodeGraph::Core::PortDirection::Input);
-    QVERIFY(fixture.document
-                .setProperty(node, "threshold", std::int64_t{128})
+    QVERIFY(fixture.document.setProperty(node, "threshold", std::int64_t{128})
                 .has_value());
 
     const auto plan =
@@ -181,17 +180,17 @@ void GraphPlanTest::carriesConcreteOutputSlotsToPlan() {
     // 一个多输出节点：图像与 Objects 同时产出，下游只消费 Objects 分支。
     const auto components = fixture.addNode("connected_components", "CC");
     const auto sink = fixture.addNode("objects_view", "Objects");
-    const auto input = fixture.addPort(
-        components, "image", QNodeGraph::Core::PortDirection::Input);
+    const auto input = fixture.addPort(components, "image",
+                                       QNodeGraph::Core::PortDirection::Input);
     static_cast<void>(input);
     const auto labelOutput = fixture.addPort(
         components, "labels", QNodeGraph::Core::PortDirection::Output);
     const auto objectsOutput = fixture.addPort(
         components, "objects", QNodeGraph::Core::PortDirection::Output,
         PortDataType::Objects);
-    const auto sinkInput = fixture.addPort(
-        sink, "objects", QNodeGraph::Core::PortDirection::Input,
-        PortDataType::Objects);
+    const auto sinkInput =
+        fixture.addPort(sink, "objects", QNodeGraph::Core::PortDirection::Input,
+                        PortDataType::Objects);
     fixture.connect(objectsOutput, sinkInput);
 
     const auto plan =
@@ -216,11 +215,11 @@ void GraphPlanTest::appliesDescriptorExecutionPolicy() {
     using QNodeGraph::Core::CostClass;
     Fixture fixture;
     const auto node = fixture.addNode("expensive", "Expensive");
-    const auto output = fixture.addPort(
-        node, "image", QNodeGraph::Core::PortDirection::Output);
+    const auto output =
+        fixture.addPort(node, "image", QNodeGraph::Core::PortDirection::Output);
     const auto sink = fixture.addNode("image_preview", "Sink");
-    const auto sinkInput = fixture.addPort(
-        sink, "image", QNodeGraph::Core::PortDirection::Input);
+    const auto sinkInput =
+        fixture.addPort(sink, "image", QNodeGraph::Core::PortDirection::Input);
     fixture.connect(output, sinkInput);
 
     QNodeGraph::Graph::NodeRegistry registry;
@@ -250,8 +249,7 @@ void GraphPlanTest::excludesDisplayAndUiKeysFromParams() {
                 .setProperty(node, "radius.display", std::string{"both"})
                 .has_value());
     QVERIFY(fixture.document.setProperty(node, "fixed", true).has_value());
-    QVERIFY(fixture.document
-                .setProperty(node, "groupId", std::int64_t{7})
+    QVERIFY(fixture.document.setProperty(node, "groupId", std::int64_t{7})
                 .has_value());
 
     const auto plan =
@@ -268,24 +266,26 @@ void GraphPlanTest::keepsPlanStableAcrossRebuilds() {
     const auto a = fixture.addNode("load_image", "A");
     const auto b = fixture.addNode("blur", "B");
     const auto c = fixture.addNode("edge_detect", "C");
-    const auto aOut = fixture.addPort(
-        a, "image", QNodeGraph::Core::PortDirection::Output);
-    const auto bIn = fixture.addPort(
-        b, "image", QNodeGraph::Core::PortDirection::Input);
-    const auto bOut = fixture.addPort(
-        b, "image", QNodeGraph::Core::PortDirection::Output);
-    const auto cIn = fixture.addPort(
-        c, "image", QNodeGraph::Core::PortDirection::Input);
-    const auto cOut = fixture.addPort(
-        c, "image", QNodeGraph::Core::PortDirection::Output);
+    const auto aOut =
+        fixture.addPort(a, "image", QNodeGraph::Core::PortDirection::Output);
+    const auto bIn =
+        fixture.addPort(b, "image", QNodeGraph::Core::PortDirection::Input);
+    const auto bOut =
+        fixture.addPort(b, "image", QNodeGraph::Core::PortDirection::Output);
+    const auto cIn =
+        fixture.addPort(c, "image", QNodeGraph::Core::PortDirection::Input);
+    const auto cOut =
+        fixture.addPort(c, "image", QNodeGraph::Core::PortDirection::Output);
     fixture.connect(aOut, bIn);
     fixture.connect(bOut, cIn);
     static_cast<void>(cOut);
 
-    const auto first = QNodeGraph::Execution::GraphPlanBuilder::topologicalOrder(
-        fixture.document);
-    const auto second = QNodeGraph::Execution::GraphPlanBuilder::topologicalOrder(
-        fixture.document);
+    const auto first =
+        QNodeGraph::Execution::GraphPlanBuilder::topologicalOrder(
+            fixture.document);
+    const auto second =
+        QNodeGraph::Execution::GraphPlanBuilder::topologicalOrder(
+            fixture.document);
     // 同一张图多次编译必须得到相同顺序（缓存命中与测试断言依赖这一点）。
     QCOMPARE(first, second);
     QCOMPARE(first.size(), std::size_t{3});
@@ -324,8 +324,10 @@ void GraphPlanTest::exposesExecutionPolicyDefaultsAndFields() {
 
 void GraphPlanTest::coercesAndClampsOperatorParameters() {
     std::map<std::string, QNodeGraph::Core::PropertyValue> values{
-        {"int", std::int64_t{400}}, {"real", std::int64_t{2}},
-        {"flag", true}, {"text", std::string{"median"}}};
+        {"int", std::int64_t{400}},
+        {"real", std::int64_t{2}},
+        {"flag", true},
+        {"text", std::string{"median"}}};
     const QNodeGraph::Execution::ParamAccessor params(values);
     QCOMPARE(params.integerClamped("int", 1, 0, 255), std::int64_t{255});
     QCOMPARE(params.integerClamped("real", 0, 0, 10), std::int64_t{2});

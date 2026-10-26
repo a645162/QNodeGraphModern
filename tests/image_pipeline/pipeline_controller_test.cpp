@@ -22,8 +22,8 @@ void PipelineControllerTest::producesPreviewAfterProcessing() {
     QVERIFY(!previewChanged.isEmpty());
 
     QSize size;
-    const auto preview = provider.requestImage(QStringLiteral("preview"),
-                                               &size, {});
+    const auto preview =
+        provider.requestImage(QStringLiteral("preview"), &size, {});
     QVERIFY(!preview.isNull());
     QCOMPARE(size, QSize(320, 180));
     QCOMPARE(preview.format(), QImage::Format_Grayscale8);

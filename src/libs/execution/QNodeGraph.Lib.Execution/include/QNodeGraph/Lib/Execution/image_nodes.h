@@ -15,32 +15,32 @@ public:
 
 class GrayscaleNode final {
 public:
-    [[nodiscard]] static ImageNodeResult execute(
-        const Image::ImageFrame& input);
+    [[nodiscard]] static ImageNodeResult
+    execute(const Image::ImageFrame& input);
 };
 
 class BlurNode final {
 public:
-    [[nodiscard]] static ImageNodeResult execute(
-        const Image::ImageFrame& input, int radius = 1);
+    [[nodiscard]] static ImageNodeResult execute(const Image::ImageFrame& input,
+                                                 int radius = 1);
 };
 
 class EdgeDetectNode final {
 public:
-    [[nodiscard]] static ImageNodeResult execute(
-        const Image::ImageFrame& input);
+    [[nodiscard]] static ImageNodeResult
+    execute(const Image::ImageFrame& input);
 };
 
 class ImagePreviewNode final {
 public:
-    [[nodiscard]] static ImageNodeResult execute(
-        const Image::ImageFrame& input);
+    [[nodiscard]] static ImageNodeResult
+    execute(const Image::ImageFrame& input);
 };
 
 class SaveImageNode final {
 public:
-    [[nodiscard]] static Core::GraphResult<void> execute(
-        const Image::ImageFrame& input, const QString& path);
+    [[nodiscard]] static Core::GraphResult<void>
+    execute(const Image::ImageFrame& input, const QString& path);
 };
 
 } // namespace QNodeGraph::Execution

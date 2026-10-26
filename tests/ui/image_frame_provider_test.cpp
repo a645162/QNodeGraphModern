@@ -26,8 +26,8 @@ void ImageFrameProviderTest::servesCachedFrameAndRequestedSize() {
     QCOMPARE(size, QSize(4, 2));
     QCOMPARE(result.pixelColor(0, 0), QColor(Qt::red));
 
-    const auto missing = provider.requestImage(QStringLiteral("missing"),
-                                               &size, {});
+    const auto missing =
+        provider.requestImage(QStringLiteral("missing"), &size, {});
     QVERIFY(missing.isNull());
 }
 

@@ -12,14 +12,14 @@ class GraphConnectionsItem : public QQuickItem {
     Q_OBJECT
     Q_PROPERTY(QVariantList connections READ connections WRITE setConnections
                    NOTIFY connectionsChanged)
-    Q_PROPERTY(QVariantMap preview READ preview WRITE setPreview
-                   NOTIFY previewChanged)
-    Q_PROPERTY(QPointF panOffset READ panOffset WRITE setPanOffset
-                   NOTIFY panOffsetChanged)
-    Q_PROPERTY(qreal zoomFactor READ zoomFactor WRITE setZoomFactor
-                   NOTIFY zoomFactorChanged)
-    Q_PROPERTY(int layoutMode READ layoutMode WRITE setLayoutMode
-                   NOTIFY layoutModeChanged)
+    Q_PROPERTY(
+        QVariantMap preview READ preview WRITE setPreview NOTIFY previewChanged)
+    Q_PROPERTY(QPointF panOffset READ panOffset WRITE setPanOffset NOTIFY
+                   panOffsetChanged)
+    Q_PROPERTY(qreal zoomFactor READ zoomFactor WRITE setZoomFactor NOTIFY
+                   zoomFactorChanged)
+    Q_PROPERTY(int layoutMode READ layoutMode WRITE setLayoutMode NOTIFY
+                   layoutModeChanged)
 
 public:
     explicit GraphConnectionsItem(QQuickItem* parent = nullptr);

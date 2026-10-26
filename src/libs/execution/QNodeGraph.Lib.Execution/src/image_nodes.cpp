@@ -15,13 +15,13 @@ Core::GraphError ioError(const QString& message) {
 
 ImageNodeResult LoadImageNode::execute(const QString& path) {
     if (path.isEmpty()) {
-        return std::unexpected(ioError(
-            QStringLiteral("The image path cannot be empty.")));
+        return std::unexpected(
+            ioError(QStringLiteral("The image path cannot be empty.")));
     }
     QImage image;
     if (!image.load(path)) {
-        return std::unexpected(ioError(
-            QStringLiteral("Unable to load image: %1").arg(path)));
+        return std::unexpected(
+            ioError(QStringLiteral("Unable to load image: %1").arg(path)));
     }
     return Image::ImageFrame::fromQImage(image, path);
 }
@@ -45,12 +45,12 @@ ImageNodeResult ImagePreviewNode::execute(const Image::ImageFrame& input) {
 Core::GraphResult<void> SaveImageNode::execute(const Image::ImageFrame& input,
                                                const QString& path) {
     if (path.isEmpty()) {
-        return std::unexpected(ioError(
-            QStringLiteral("The image output path cannot be empty.")));
+        return std::unexpected(
+            ioError(QStringLiteral("The image output path cannot be empty.")));
     }
     if (!input.image().save(path)) {
-        return std::unexpected(ioError(
-            QStringLiteral("Unable to save image: %1").arg(path)));
+        return std::unexpected(
+            ioError(QStringLiteral("Unable to save image: %1").arg(path)));
     }
     return {};
 }

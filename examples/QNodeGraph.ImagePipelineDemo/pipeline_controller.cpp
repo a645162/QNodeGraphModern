@@ -11,8 +11,7 @@
 #include <utility>
 
 PipelineController::PipelineController(
-    QNodeGraph::UI::ImageFrameProvider* provider,
-                                       QObject* parent)
+    QNodeGraph::UI::ImageFrameProvider* provider, QObject* parent)
     : QObject(parent), m_provider(provider), m_executor(this) {
     Q_ASSERT(m_provider != nullptr);
     connect(&m_executor,
@@ -22,8 +21,9 @@ PipelineController::PipelineController(
                     return;
                 }
                 m_provider->setFrame(QStringLiteral("preview"), result);
-                m_previewUrl = QStringLiteral("image://pipeline/preview?revision=%1")
-                                   .arg(++m_revision);
+                m_previewUrl =
+                    QStringLiteral("image://pipeline/preview?revision=%1")
+                        .arg(++m_revision);
                 emit previewUrlChanged();
                 m_imageWidth = result.width();
                 m_imageHeight = result.height();
@@ -31,26 +31,26 @@ PipelineController::PipelineController(
                 emit imageMetadataChanged();
                 const auto savedPath = QDir::temp().filePath(
                     QStringLiteral("qnodegraph-image-pipeline-preview.png"));
-                if (!QNodeGraph::Execution::SaveImageNode::execute(
-                         result, savedPath)) {
+                if (!QNodeGraph::Execution::SaveImageNode::execute(result,
+                                                                   savedPath)) {
                     setProcessing(false);
-                    setStatus(QStringLiteral(
-                        "Load Image -> Grayscale -> Edge Detect -> Preview complete; "
-                        "Save Image failed"));
+                    setStatus(QStringLiteral("Load Image -> Grayscale -> Edge "
+                                             "Detect -> Preview complete; "
+                                             "Save Image failed"));
                     return;
                 }
                 setOutputPath(savedPath);
                 setProcessing(false);
-                setStatus(QStringLiteral(
-                              "Load Image -> Grayscale -> Edge Detect -> Preview -> "
-                              "Save complete: %1 x %2, %3 channel")
-                              .arg(m_imageWidth)
-                              .arg(m_imageHeight)
-                              .arg(m_imageChannels));
+                setStatus(
+                    QStringLiteral(
+                        "Load Image -> Grayscale -> Edge Detect -> Preview -> "
+                        "Save complete: %1 x %2, %3 channel")
+                        .arg(m_imageWidth)
+                        .arg(m_imageHeight)
+                        .arg(m_imageChannels));
             });
-    connect(&m_executor,
-            &QNodeGraph::Execution::ImageExecutionService::failed, this,
-            [this](quint64 requestId, const QString& message) {
+    connect(&m_executor, &QNodeGraph::Execution::ImageExecutionService::failed,
+            this, [this](quint64 requestId, const QString& message) {
                 if (requestId != m_requestId) {
                     return;
                 }
@@ -69,7 +69,9 @@ int PipelineController::imageWidth() const noexcept { return m_imageWidth; }
 
 int PipelineController::imageHeight() const noexcept { return m_imageHeight; }
 
-int PipelineController::imageChannels() const noexcept { return m_imageChannels; }
+int PipelineController::imageChannels() const noexcept {
+    return m_imageChannels;
+}
 
 QString PipelineController::outputPath() const { return m_outputPath; }
 
@@ -96,14 +98,16 @@ void PipelineController::runDemo() {
         m_imageChannels = 0;
         emit imageMetadataChanged();
     }
-    setStatus(QStringLiteral("Load Image -> Grayscale -> Edge Detect -> Preview -> Save..."));
+    setStatus(QStringLiteral(
+        "Load Image -> Grayscale -> Edge Detect -> Preview -> Save..."));
     auto pipeline = std::make_shared<QNodeGraph::Execution::ImagePipeline>();
     pipeline->addStep(QStringLiteral("Grayscale").toStdString(),
                       QNodeGraph::Execution::GrayscaleNode::execute);
     pipeline->addStep(QStringLiteral("Edge Detect").toStdString(),
                       QNodeGraph::Execution::EdgeDetectNode::execute);
-    m_requestId = m_executor.submit(
-        *frame, [pipeline](const auto& input) { return pipeline->process(input); });
+    m_requestId = m_executor.submit(*frame, [pipeline](const auto& input) {
+        return pipeline->process(input);
+    });
     if (m_requestId == 0) {
         setProcessing(false);
         setStatus(QStringLiteral("Unable to start image processing"));

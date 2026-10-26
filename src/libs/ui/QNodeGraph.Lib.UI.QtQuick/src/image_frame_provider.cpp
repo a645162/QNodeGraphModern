@@ -3,8 +3,7 @@
 namespace QNodeGraph::UI {
 
 ImageFrameProvider::ImageFrameProvider(int cacheCapacity)
-    : QQuickImageProvider(QQuickImageProvider::Image),
-      m_cache(cacheCapacity) {}
+    : QQuickImageProvider(QQuickImageProvider::Image), m_cache(cacheCapacity) {}
 
 QImage ImageFrameProvider::requestImage(const QString& id, QSize* size,
                                         const QSize& requestedSize) {
@@ -28,8 +27,7 @@ QImage ImageFrameProvider::requestImage(const QString& id, QSize* size,
     return image;
 }
 
-void ImageFrameProvider::setFrame(QString id,
-                                   const Image::ImageFrame& frame) {
+void ImageFrameProvider::setFrame(QString id, const Image::ImageFrame& frame) {
     m_cache.put(std::move(id), frame);
 }
 

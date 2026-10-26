@@ -24,19 +24,20 @@ void ImageExecutionTest::completesProcessorOnWorkerThread() {
         QImage(4, 4, QImage::Format_RGB888), QStringLiteral("input"));
     QVERIFY(frame.has_value());
     QNodeGraph::Execution::ImageExecutionService service;
-    QSignalSpy finished(&service,
-                       &QNodeGraph::Execution::ImageExecutionService::finished);
+    QSignalSpy finished(
+        &service, &QNodeGraph::Execution::ImageExecutionService::finished);
     QSignalSpy failed(&service,
-                     &QNodeGraph::Execution::ImageExecutionService::failed);
+                      &QNodeGraph::Execution::ImageExecutionService::failed);
 
-    const auto request = service.submit(
-        *frame, QNodeGraph::Image::ImageProcessors::grayscale);
+    const auto request =
+        service.submit(*frame, QNodeGraph::Image::ImageProcessors::grayscale);
     QVERIFY(request != 0);
     QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 3000);
     QCOMPARE(failed.count(), 0);
     QCOMPARE(finished.at(0).at(0).toULongLong(), request);
-    QCOMPARE(finished.at(0).at(1).value<QNodeGraph::Image::ImageFrame>().channels(),
-             1);
+    QCOMPARE(
+        finished.at(0).at(1).value<QNodeGraph::Image::ImageFrame>().channels(),
+        1);
 }
 
 void ImageExecutionTest::reportsProcessorFailure() {
@@ -45,7 +46,7 @@ void ImageExecutionTest::reportsProcessorFailure() {
     QVERIFY(frame.has_value());
     QNodeGraph::Execution::ImageExecutionService service;
     QSignalSpy failed(&service,
-                     &QNodeGraph::Execution::ImageExecutionService::failed);
+                      &QNodeGraph::Execution::ImageExecutionService::failed);
 
     const auto request = service.submit(*frame, [](const auto&) {
         return QNodeGraph::Core::GraphResult<QNodeGraph::Image::ImageFrame>(
@@ -64,8 +65,8 @@ void ImageExecutionTest::ignoresCancelledResult() {
         QImage(2, 2, QImage::Format_RGB888));
     QVERIFY(frame.has_value());
     QNodeGraph::Execution::ImageExecutionService service;
-    QSignalSpy finished(&service,
-                       &QNodeGraph::Execution::ImageExecutionService::finished);
+    QSignalSpy finished(
+        &service, &QNodeGraph::Execution::ImageExecutionService::finished);
     const auto request = service.submit(*frame, [](const auto& input) {
         QThread::msleep(20);
         return QNodeGraph::Image::ImageProcessors::grayscale(input);
@@ -81,7 +82,8 @@ void ImageExecutionTest::runsProcessorPipelineInOrder() {
     QVERIFY(frame.has_value());
 
     QNodeGraph::Execution::ImagePipeline pipeline;
-    pipeline.addStep("grayscale", QNodeGraph::Image::ImageProcessors::grayscale);
+    pipeline.addStep("grayscale",
+                     QNodeGraph::Image::ImageProcessors::grayscale);
     pipeline.addStep("edge", QNodeGraph::Image::ImageProcessors::edgeDetect);
     QCOMPARE(pipeline.stepNames().size(), std::size_t{2});
 
@@ -113,15 +115,15 @@ void ImageExecutionTest::executesBuiltInImageNodes() {
     const auto blurred =
         QNodeGraph::Execution::BlurNode::execute(*grayscale, 1);
     QVERIFY(blurred.has_value());
-    const auto edges =
-        QNodeGraph::Execution::EdgeDetectNode::execute(*blurred);
+    const auto edges = QNodeGraph::Execution::EdgeDetectNode::execute(*blurred);
     QVERIFY(edges.has_value());
     const auto preview =
         QNodeGraph::Execution::ImagePreviewNode::execute(*edges);
     QVERIFY(preview.has_value());
     QCOMPARE(preview->image(), edges->image());
 
-    QVERIFY(QNodeGraph::Execution::SaveImageNode::execute(*preview, outputPath));
+    QVERIFY(
+        QNodeGraph::Execution::SaveImageNode::execute(*preview, outputPath));
     QVERIFY(QFileInfo::exists(outputPath));
 }
 

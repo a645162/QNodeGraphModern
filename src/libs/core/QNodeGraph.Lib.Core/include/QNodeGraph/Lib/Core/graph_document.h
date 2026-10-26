@@ -126,11 +126,9 @@ public:
     [[nodiscard]] const std::vector<Connection>& connections() const noexcept;
 
     GraphResult<NodeId> addNode(std::string type = "generic",
-                                std::string name = "Node",
-                                NodeId id = 0);
+                                std::string name = "Node", NodeId id = 0);
     GraphResult<PortId> addPort(NodeId nodeId, std::string name,
-                                PortDirection direction,
-                                PortDataType dataType,
+                                PortDirection direction, PortDataType dataType,
                                 bool acceptsMultipleConnections = false,
                                 PortId id = 0);
     GraphResult<void> connect(PortId outputPort, PortId inputPort);
@@ -144,8 +142,8 @@ public:
 
     [[nodiscard]] const Node* node(NodeId id) const noexcept;
     [[nodiscard]] const Port* port(PortId id) const noexcept;
-    [[nodiscard]] const PropertyValue* property(
-        NodeId nodeId, const std::string& name) const noexcept;
+    [[nodiscard]] const PropertyValue*
+    property(NodeId nodeId, const std::string& name) const noexcept;
 
     void clear();
 

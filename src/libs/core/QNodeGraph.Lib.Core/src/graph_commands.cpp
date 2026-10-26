@@ -28,7 +28,8 @@ GraphResult<void> CreateNodeCommand::execute(GraphDocument& document) {
 
 GraphResult<void> CreateNodeCommand::undo(GraphDocument& document) {
     if (!m_nodeId.has_value()) {
-        return std::unexpected(commandError("The create command was not executed."));
+        return std::unexpected(
+            commandError("The create command was not executed."));
     }
     const auto result = document.removeNode(*m_nodeId);
     if (!result) {
@@ -56,7 +57,8 @@ GraphResult<void> DeleteNodeCommand::execute(GraphDocument& document) {
 
 GraphResult<void> DeleteNodeCommand::undo(GraphDocument& document) {
     if (!m_snapshot.has_value()) {
-        return std::unexpected(commandError("The delete command was not executed."));
+        return std::unexpected(
+            commandError("The delete command was not executed."));
     }
     return document.restoreNode(*m_snapshot);
 }
@@ -69,8 +71,9 @@ MoveNodeCommand::MoveNodeCommand(NodeId nodeId, Point position)
 GraphResult<void> MoveNodeCommand::execute(GraphDocument& document) {
     const auto* value = document.node(m_nodeId);
     if (value == nullptr) {
-        return std::unexpected(GraphError{GraphErrorCode::NodeNotFound,
-                                           "The move target node does not exist."});
+        return std::unexpected(
+            GraphError{GraphErrorCode::NodeNotFound,
+                       "The move target node does not exist."});
     }
     if (!m_previousPosition.has_value()) {
         m_previousPosition = value->position;
@@ -80,7 +83,8 @@ GraphResult<void> MoveNodeCommand::execute(GraphDocument& document) {
 
 GraphResult<void> MoveNodeCommand::undo(GraphDocument& document) {
     if (!m_previousPosition.has_value()) {
-        return std::unexpected(commandError("The move command was not executed."));
+        return std::unexpected(
+            commandError("The move command was not executed."));
     }
     return document.setNodePosition(m_nodeId, *m_previousPosition);
 }
@@ -102,9 +106,9 @@ GraphResult<void> MoveNodesCommand::execute(GraphDocument& document) {
             const auto* node = document.node(nodeId);
             if (node == nullptr) {
                 m_previousPositions.clear();
-                return std::unexpected(GraphError{
-                    GraphErrorCode::NodeNotFound,
-                    "A multi-node move target does not exist."});
+                return std::unexpected(
+                    GraphError{GraphErrorCode::NodeNotFound,
+                               "A multi-node move target does not exist."});
             }
             m_previousPositions.emplace_back(nodeId, node->position);
         }
@@ -197,7 +201,8 @@ const char* SetPropertyCommand::name() const noexcept { return "Set Property"; }
 
 ResizeNodeCommand::ResizeNodeCommand(NodeId nodeId, Point position,
                                      double width, double height)
-    : m_nodeId(nodeId), m_position(position), m_width(width), m_height(height) {}
+    : m_nodeId(nodeId), m_position(position), m_width(width), m_height(height) {
+}
 
 GraphResult<void> ResizeNodeCommand::execute(GraphDocument& document) {
     const auto* node = document.node(m_nodeId);
@@ -226,7 +231,8 @@ GraphResult<void> ResizeNodeCommand::execute(GraphDocument& document) {
         return std::unexpected(result.error());
     }
     if (const auto result = document.setProperty(
-            m_nodeId, "width", std::int64_t{static_cast<std::int64_t>(m_width)});
+            m_nodeId, "width",
+            std::int64_t{static_cast<std::int64_t>(m_width)});
         !result) {
         return std::unexpected(result.error());
     }
@@ -276,10 +282,12 @@ GraphResult<void> ResizeNodeCommand::undo(GraphDocument& document) {
 
 const char* ResizeNodeCommand::name() const noexcept { return "Resize Node"; }
 
-GraphResult<void> GraphCommandStack::execute(std::unique_ptr<GraphCommand> command,
-                                             GraphDocument& document) {
+GraphResult<void>
+GraphCommandStack::execute(std::unique_ptr<GraphCommand> command,
+                           GraphDocument& document) {
     if (command == nullptr) {
-        return std::unexpected(commandError("A null command cannot be executed."));
+        return std::unexpected(
+            commandError("A null command cannot be executed."));
     }
     const auto result = command->execute(document);
     if (!result) {
@@ -320,9 +328,13 @@ GraphResult<void> GraphCommandStack::redo(GraphDocument& document) {
     return {};
 }
 
-bool GraphCommandStack::canUndo() const noexcept { return !m_undoStack.empty(); }
+bool GraphCommandStack::canUndo() const noexcept {
+    return !m_undoStack.empty();
+}
 
-bool GraphCommandStack::canRedo() const noexcept { return !m_redoStack.empty(); }
+bool GraphCommandStack::canRedo() const noexcept {
+    return !m_redoStack.empty();
+}
 
 void GraphCommandStack::clear() noexcept {
     m_undoStack.clear();

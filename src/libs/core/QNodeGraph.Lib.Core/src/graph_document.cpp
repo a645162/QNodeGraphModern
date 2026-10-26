@@ -37,17 +37,11 @@ void GraphDocument::notifyChange(GraphChange change) {
     }
 }
 
-const std::string& GraphDocument::name() const noexcept {
-    return m_name;
-}
+const std::string& GraphDocument::name() const noexcept { return m_name; }
 
-void GraphDocument::setName(std::string name) {
-    m_name = std::move(name);
-}
+void GraphDocument::setName(std::string name) { m_name = std::move(name); }
 
-std::size_t GraphDocument::nodeCount() const noexcept {
-    return m_nodes.size();
-}
+std::size_t GraphDocument::nodeCount() const noexcept { return m_nodes.size(); }
 
 std::size_t GraphDocument::connectionCount() const noexcept {
     return m_connections.size();
@@ -72,9 +66,9 @@ GraphResult<NodeId> GraphDocument::addNode(std::string type, std::string name,
     if (id == 0) {
         id = m_nextNodeId++;
     } else if (m_nodes.contains(id)) {
-        return std::unexpected(error(GraphErrorCode::DuplicateNodeId,
-                                      "Node id " + idText(id) +
-                                          " is already registered."));
+        return std::unexpected(
+            error(GraphErrorCode::DuplicateNodeId,
+                  "Node id " + idText(id) + " is already registered."));
     } else {
         m_nextNodeId = std::max(m_nextNodeId, id + 1);
     }
@@ -84,20 +78,22 @@ GraphResult<NodeId> GraphDocument::addNode(std::string type, std::string name,
     return id;
 }
 
-GraphResult<PortId> GraphDocument::addPort(
-    NodeId nodeId, std::string name, PortDirection direction,
-    PortDataType dataType, bool acceptsMultipleConnections, PortId id) {
+GraphResult<PortId> GraphDocument::addPort(NodeId nodeId, std::string name,
+                                           PortDirection direction,
+                                           PortDataType dataType,
+                                           bool acceptsMultipleConnections,
+                                           PortId id) {
     if (!m_nodes.contains(nodeId)) {
-        return std::unexpected(error(GraphErrorCode::NodeNotFound,
-                                      "Node id " + idText(nodeId) +
-                                          " does not exist."));
+        return std::unexpected(
+            error(GraphErrorCode::NodeNotFound,
+                  "Node id " + idText(nodeId) + " does not exist."));
     }
     if (id == 0) {
         id = m_nextPortId++;
     } else if (m_ports.contains(id)) {
-        return std::unexpected(error(GraphErrorCode::DuplicatePortId,
-                                      "Port id " + idText(id) +
-                                          " is already registered."));
+        return std::unexpected(
+            error(GraphErrorCode::DuplicatePortId,
+                  "Port id " + idText(id) + " is already registered."));
     } else {
         m_nextPortId = std::max(m_nextPortId, id + 1);
     }
@@ -125,35 +121,35 @@ GraphResult<void> GraphDocument::connect(PortId outputPort, PortId inputPort) {
             "Connections require an output port followed by an input port."));
     }
     if (!compatible((*output)->dataType, (*input)->dataType)) {
-        return std::unexpected(error(
-            GraphErrorCode::IncompatiblePortTypes,
-            "The output and input port data types are incompatible."));
+        return std::unexpected(
+            error(GraphErrorCode::IncompatiblePortTypes,
+                  "The output and input port data types are incompatible."));
     }
-    const auto duplicate = std::find_if(
-        m_connections.begin(), m_connections.end(),
-        [outputPort, inputPort](const Connection& connection) {
-            return connection.outputPort == outputPort &&
-                   connection.inputPort == inputPort;
-        });
+    const auto duplicate =
+        std::find_if(m_connections.begin(), m_connections.end(),
+                     [outputPort, inputPort](const Connection& connection) {
+                         return connection.outputPort == outputPort &&
+                                connection.inputPort == inputPort;
+                     });
     if (duplicate != m_connections.end()) {
         return std::unexpected(error(GraphErrorCode::DuplicateConnection,
-                                      "The connection already exists."));
+                                     "The connection already exists."));
     }
     if (!(*input)->acceptsMultipleConnections) {
-        const auto existing = std::find_if(
-            m_connections.begin(), m_connections.end(),
-            [inputPort](const Connection& connection) {
-                return connection.inputPort == inputPort;
-            });
+        const auto existing =
+            std::find_if(m_connections.begin(), m_connections.end(),
+                         [inputPort](const Connection& connection) {
+                             return connection.inputPort == inputPort;
+                         });
         if (existing != m_connections.end()) {
-            return std::unexpected(error(
-                GraphErrorCode::InputAlreadyConnected,
-                "The input port already has a connection."));
+            return std::unexpected(
+                error(GraphErrorCode::InputAlreadyConnected,
+                      "The input port already has a connection."));
         }
     }
     if (wouldCreateCycle((*output)->nodeId, (*input)->nodeId)) {
         return std::unexpected(error(GraphErrorCode::CycleDetected,
-                                      "The connection would create a cycle."));
+                                     "The connection would create a cycle."));
     }
 
     m_connections.push_back(Connection{outputPort, inputPort});
@@ -164,15 +160,15 @@ GraphResult<void> GraphDocument::connect(PortId outputPort, PortId inputPort) {
 
 GraphResult<void> GraphDocument::disconnect(PortId outputPort,
                                             PortId inputPort) {
-    const auto iterator = std::find_if(
-        m_connections.begin(), m_connections.end(),
-        [outputPort, inputPort](const Connection& connection) {
-            return connection.outputPort == outputPort &&
-                   connection.inputPort == inputPort;
-        });
+    const auto iterator =
+        std::find_if(m_connections.begin(), m_connections.end(),
+                     [outputPort, inputPort](const Connection& connection) {
+                         return connection.outputPort == outputPort &&
+                                connection.inputPort == inputPort;
+                     });
     if (iterator == m_connections.end()) {
         return std::unexpected(error(GraphErrorCode::PortNotFound,
-                                      "The connection does not exist."));
+                                     "The connection does not exist."));
     }
     m_connections.erase(iterator);
     const auto* output = port(outputPort);
@@ -183,11 +179,11 @@ GraphResult<void> GraphDocument::disconnect(PortId outputPort,
 }
 
 GraphResult<void> GraphDocument::setNodePosition(NodeId nodeId,
-                                                  Point position) {
+                                                 Point position) {
     if (!m_nodes.contains(nodeId)) {
-        return std::unexpected(error(GraphErrorCode::NodeNotFound,
-                                      "Node id " + idText(nodeId) +
-                                          " does not exist."));
+        return std::unexpected(
+            error(GraphErrorCode::NodeNotFound,
+                  "Node id " + idText(nodeId) + " does not exist."));
     }
     m_nodes.at(nodeId).position = position;
     notifyChange(GraphChange{GraphChangeKind::NodeMoved, nodeId, 0});
@@ -197,9 +193,9 @@ GraphResult<void> GraphDocument::setNodePosition(NodeId nodeId,
 GraphResult<void> GraphDocument::setProperty(NodeId nodeId, std::string name,
                                              PropertyValue value) {
     if (!m_nodes.contains(nodeId)) {
-        return std::unexpected(error(GraphErrorCode::NodeNotFound,
-                                      "Node id " + idText(nodeId) +
-                                          " does not exist."));
+        return std::unexpected(
+            error(GraphErrorCode::NodeNotFound,
+                  "Node id " + idText(nodeId) + " does not exist."));
     }
     m_nodes.at(nodeId).properties.insert_or_assign(std::move(name),
                                                    std::move(value));
@@ -208,11 +204,11 @@ GraphResult<void> GraphDocument::setProperty(NodeId nodeId, std::string name,
 }
 
 GraphResult<void> GraphDocument::clearProperty(NodeId nodeId,
-                                                const std::string& name) {
+                                               const std::string& name) {
     if (!m_nodes.contains(nodeId)) {
-        return std::unexpected(error(GraphErrorCode::NodeNotFound,
-                                      "Node id " + idText(nodeId) +
-                                          " does not exist."));
+        return std::unexpected(
+            error(GraphErrorCode::NodeNotFound,
+                  "Node id " + idText(nodeId) + " does not exist."));
     }
     m_nodes.at(nodeId).properties.erase(name);
     notifyChange(GraphChange{GraphChangeKind::PropertyChanged, nodeId, 0});
@@ -229,8 +225,8 @@ const Port* GraphDocument::port(PortId id) const noexcept {
     return iterator == m_ports.end() ? nullptr : &iterator->second;
 }
 
-const PropertyValue* GraphDocument::property(
-    NodeId nodeId, const std::string& name) const noexcept {
+const PropertyValue*
+GraphDocument::property(NodeId nodeId, const std::string& name) const noexcept {
     const auto* value = node(nodeId);
     if (value == nullptr) {
         return nullptr;
@@ -242,9 +238,9 @@ const PropertyValue* GraphDocument::property(
 GraphResult<NodeSnapshot> GraphDocument::removeNode(NodeId nodeId) {
     const auto iterator = m_nodes.find(nodeId);
     if (iterator == m_nodes.end()) {
-        return std::unexpected(error(GraphErrorCode::NodeNotFound,
-                                      "Node id " + idText(nodeId) +
-                                          " does not exist."));
+        return std::unexpected(
+            error(GraphErrorCode::NodeNotFound,
+                  "Node id " + idText(nodeId) + " does not exist."));
     }
 
     NodeSnapshot snapshot;
@@ -281,17 +277,18 @@ GraphResult<NodeSnapshot> GraphDocument::removeNode(NodeId nodeId) {
 GraphResult<void> GraphDocument::restoreNode(NodeSnapshot snapshot) {
     if (m_nodes.contains(snapshot.node.id)) {
         return std::unexpected(error(GraphErrorCode::DuplicateNodeId,
-                                      "The node snapshot id is already used."));
+                                     "The node snapshot id is already used."));
     }
     for (const auto& value : snapshot.ports) {
         if (m_ports.contains(value.id)) {
-            return std::unexpected(error(GraphErrorCode::DuplicatePortId,
-                                          "The port snapshot id is already used."));
+            return std::unexpected(
+                error(GraphErrorCode::DuplicatePortId,
+                      "The port snapshot id is already used."));
         }
         if (value.nodeId != snapshot.node.id) {
-            return std::unexpected(error(
-                GraphErrorCode::NodeNotFound,
-                "The port snapshot references another node."));
+            return std::unexpected(
+                error(GraphErrorCode::NodeNotFound,
+                      "The port snapshot references another node."));
         }
     }
 
@@ -320,9 +317,9 @@ void GraphDocument::clear() {
 GraphResult<const Node*> GraphDocument::requireNode(NodeId id) const {
     const auto* value = node(id);
     if (value == nullptr) {
-        return std::unexpected(error(GraphErrorCode::NodeNotFound,
-                                      "Node id " + idText(id) +
-                                          " does not exist."));
+        return std::unexpected(
+            error(GraphErrorCode::NodeNotFound,
+                  "Node id " + idText(id) + " does not exist."));
     }
     return value;
 }
@@ -330,14 +327,15 @@ GraphResult<const Node*> GraphDocument::requireNode(NodeId id) const {
 GraphResult<const Port*> GraphDocument::requirePort(PortId id) const {
     const auto* value = port(id);
     if (value == nullptr) {
-        return std::unexpected(error(GraphErrorCode::PortNotFound,
-                                      "Port id " + idText(id) +
-                                          " does not exist."));
+        return std::unexpected(
+            error(GraphErrorCode::PortNotFound,
+                  "Port id " + idText(id) + " does not exist."));
     }
     return value;
 }
 
-bool GraphDocument::wouldCreateCycle(NodeId outputNode, NodeId inputNode) const {
+bool GraphDocument::wouldCreateCycle(NodeId outputNode,
+                                     NodeId inputNode) const {
     return outputNode == inputNode || hasPath(inputNode, outputNode);
 }
 
@@ -350,7 +348,8 @@ bool GraphDocument::hasPath(NodeId from, NodeId target) const {
         if (current == target) {
             return true;
         }
-        if (std::find(visited.begin(), visited.end(), current) != visited.end()) {
+        if (std::find(visited.begin(), visited.end(), current) !=
+            visited.end()) {
             continue;
         }
         visited.push_back(current);

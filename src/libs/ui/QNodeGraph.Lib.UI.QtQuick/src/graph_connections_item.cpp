@@ -35,9 +35,8 @@ void appendPath(QSGNode* root, const std::vector<QPointF>& points,
     if (points.size() < 2) {
         return;
     }
-    auto* geometry = new QSGGeometry(
-        QSGGeometry::defaultAttributes_Point2D(),
-        static_cast<int>(points.size()));
+    auto* geometry = new QSGGeometry(QSGGeometry::defaultAttributes_Point2D(),
+                                     static_cast<int>(points.size()));
     geometry->setDrawingMode(QSGGeometry::DrawLineStrip);
     auto* vertices = geometry->vertexDataAsPoint2D();
     for (std::size_t index = 0; index < points.size(); ++index) {
@@ -64,8 +63,8 @@ void appendConnection(QSGNode* root, const QVariantMap& connection,
     }
     if (layoutMode == 1) {
         const auto middleX = (start.x() + end.x()) * 0.5;
-        appendPath(root, {start, {middleX, start.y()},
-                          {middleX, end.y()}, end}, color);
+        appendPath(root, {start, {middleX, start.y()}, {middleX, end.y()}, end},
+                   color);
         return;
     }
     const auto distance = std::max(40.0, std::abs(end.x() - start.x()) * 0.5);
@@ -149,8 +148,8 @@ void GraphConnectionsItem::setLayoutMode(int value) {
     update();
 }
 
-QSGNode* GraphConnectionsItem::updatePaintNode(
-    QSGNode* oldNode, UpdatePaintNodeData*) {
+QSGNode* GraphConnectionsItem::updatePaintNode(QSGNode* oldNode,
+                                               UpdatePaintNodeData*) {
     auto* root = oldNode == nullptr ? new QSGNode() : oldNode;
     while (auto* child = root->firstChild()) {
         root->removeChildNode(child);

@@ -65,13 +65,12 @@ void GraphPersistenceTest::roundTripsDocumentAndProperties() {
     QCOMPARE(restored->node(9)->position.y, 42.0);
     QCOMPARE(std::get<std::string>(restored->node(7)->properties.at("path")),
              std::string("assets/input.png"));
-    QCOMPARE(std::get<bool>(restored->node(9)->properties.at("enabled")),
-             true);
+    QCOMPARE(std::get<bool>(restored->node(9)->properties.at("enabled")), true);
     QCOMPARE(std::get<double>(restored->node(9)->properties.at("strength")),
              0.75);
-    QCOMPARE(std::get<std::int64_t>(
-                 restored->node(9)->properties.at("iterations")),
-             std::int64_t{3});
+    QCOMPARE(
+        std::get<std::int64_t>(restored->node(9)->properties.at("iterations")),
+        std::int64_t{3});
 }
 
 void GraphPersistenceTest::savesAndLoadsJsonFile() {
@@ -115,8 +114,8 @@ void GraphPersistenceTest::registersAndInstantiatesBuiltInImageNodes() {
     QVERIFY(registry.find("edge_detect") != nullptr);
 
     QNodeGraph::Core::GraphDocument document;
-    const auto node = registry.createNode(document, "grayscale", "Gray",
-                                           {120.0, 80.0});
+    const auto node =
+        registry.createNode(document, "grayscale", "Gray", {120.0, 80.0});
     QVERIFY(node.has_value());
     QCOMPARE(document.node(*node)->type, std::string("grayscale"));
     QCOMPARE(document.node(*node)->ports.size(), std::size_t{2});
@@ -128,12 +127,12 @@ void GraphPersistenceTest::registersAndInstantiatesBuiltInImageNodes() {
              QNodeGraph::Core::GraphErrorCode::UnknownNodeType);
 }
 
-void GraphPersistenceTest::migratesInitialSchemaAndReportsMissingExternalAssets() {
-    QJsonObject legacy{
-        {QStringLiteral("schemaVersion"), 0},
-        {QStringLiteral("name"), QStringLiteral("Legacy")},
-        {QStringLiteral("nodes"), QJsonArray{}},
-        {QStringLiteral("connections"), QJsonArray{}}};
+void GraphPersistenceTest::
+    migratesInitialSchemaAndReportsMissingExternalAssets() {
+    QJsonObject legacy{{QStringLiteral("schemaVersion"), 0},
+                       {QStringLiteral("name"), QStringLiteral("Legacy")},
+                       {QStringLiteral("nodes"), QJsonArray{}},
+                       {QStringLiteral("connections"), QJsonArray{}}};
     const auto migrated = QNodeGraph::Graph::GraphJson::migrate(legacy);
     QVERIFY(migrated.has_value());
     QCOMPARE(migrated->value(QStringLiteral("schemaVersion")).toInt(), 2);
@@ -141,9 +140,8 @@ void GraphPersistenceTest::migratesInitialSchemaAndReportsMissingExternalAssets(
 
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
-    const auto missing =
-        QNodeGraph::Graph::GraphJson::validateExternalAssets(
-            createImageGraph(), directory.path());
+    const auto missing = QNodeGraph::Graph::GraphJson::validateExternalAssets(
+        createImageGraph(), directory.path());
     QVERIFY(!missing.has_value());
     QCOMPARE(missing.error().code,
              QNodeGraph::Core::GraphErrorCode::ExternalAssetMissing);
@@ -168,7 +166,8 @@ void GraphPersistenceTest::loadsLegacyVersionThroughMigration() {
     const auto loaded = QNodeGraph::Graph::GraphJson::load(path);
     QVERIFY(loaded.has_value());
     // 迁移会补上缺失的 name。
-    QCOMPARE(QString::fromStdString(loaded->name()), QStringLiteral("Untitled"));
+    QCOMPARE(QString::fromStdString(loaded->name()),
+             QStringLiteral("Untitled"));
     QCOMPARE(loaded->nodeCount(), std::size_t{0});
 }
 
@@ -180,8 +179,10 @@ void GraphPersistenceTest::persistsNodeSizeAndFixedFlag() {
     const auto second = document.addNode("image_preview", "Second");
     QVERIFY(first.has_value());
     QVERIFY(second.has_value());
-    QVERIFY(document.setProperty(*first, "width", std::int64_t{400}).has_value());
-    QVERIFY(document.setProperty(*first, "height", std::int64_t{240}).has_value());
+    QVERIFY(
+        document.setProperty(*first, "width", std::int64_t{400}).has_value());
+    QVERIFY(
+        document.setProperty(*first, "height", std::int64_t{240}).has_value());
     QVERIFY(document.setProperty(*second, "fixed", true).has_value());
 
     QTemporaryDir directory;
@@ -253,8 +254,7 @@ void GraphPersistenceTest::roundTripsMatrixAndColorProperties() {
     QVERIFY(loaded.has_value());
     const auto* restored = loaded->node(*node);
     QVERIFY(restored != nullptr);
-    QCOMPARE(std::get<std::string>(restored->properties.at("kernel")),
-             matrix);
+    QCOMPARE(std::get<std::string>(restored->properties.at("kernel")), matrix);
     QCOMPARE(std::get<std::string>(restored->properties.at("borderValue")),
              color);
 }

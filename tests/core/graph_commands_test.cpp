@@ -17,8 +17,10 @@ private slots:
 void GraphCommandsTest::createCommandSupportsUndoAndRedo() {
     QNodeGraph::Core::GraphDocument document;
     QNodeGraph::Core::GraphCommandStack stack;
-    QVERIFY(stack.execute(std::make_unique<QNodeGraph::Core::CreateNodeCommand>(
-                             "blur", "Blur"), document)
+    QVERIFY(stack
+                .execute(std::make_unique<QNodeGraph::Core::CreateNodeCommand>(
+                             "blur", "Blur"),
+                         document)
                 .has_value());
     QCOMPARE(document.nodeCount(), std::size_t{1});
     QVERIFY(stack.undo(document).has_value());
@@ -31,16 +33,18 @@ void GraphCommandsTest::deleteCommandRestoresNodeAndConnections() {
     QNodeGraph::Core::GraphDocument document;
     const auto source = document.addNode("source", "Source");
     const auto sink = document.addNode("sink", "Sink");
-    const auto output = document.addPort(*source, "out",
-        QNodeGraph::Core::PortDirection::Output,
+    const auto output = document.addPort(
+        *source, "out", QNodeGraph::Core::PortDirection::Output,
         QNodeGraph::Core::PortDataType::Image);
-    const auto input = document.addPort(*sink, "in",
-        QNodeGraph::Core::PortDirection::Input,
-        QNodeGraph::Core::PortDataType::Image);
+    const auto input =
+        document.addPort(*sink, "in", QNodeGraph::Core::PortDirection::Input,
+                         QNodeGraph::Core::PortDataType::Image);
     QVERIFY(document.connect(*output, *input).has_value());
 
     QNodeGraph::Core::GraphCommandStack stack;
-    QVERIFY(stack.execute(std::make_unique<QNodeGraph::Core::DeleteNodeCommand>(*sink),
+    QVERIFY(stack
+                .execute(std::make_unique<QNodeGraph::Core::DeleteNodeCommand>(
+                             *sink),
                          document)
                 .has_value());
     QCOMPARE(document.nodeCount(), std::size_t{1});
@@ -58,7 +62,8 @@ void GraphCommandsTest::moveCommandSupportsUndoAndRedo() {
     QVERIFY(node.has_value());
     QNodeGraph::Core::GraphCommandStack stack;
 
-    QVERIFY(stack.execute(std::make_unique<QNodeGraph::Core::MoveNodeCommand>(
+    QVERIFY(stack
+                .execute(std::make_unique<QNodeGraph::Core::MoveNodeCommand>(
                              *node, QNodeGraph::Core::Point{80.0, 40.0}),
                          document)
                 .has_value());
@@ -74,15 +79,14 @@ void GraphCommandsTest::moveNodesCommandSupportsUndoAndRedo() {
     const auto first = document.addNode("node", "First");
     const auto second = document.addNode("node", "Second");
     QNodeGraph::Core::GraphCommandStack stack;
-    QVERIFY(stack.execute(std::make_unique<
-                             QNodeGraph::Core::MoveNodesCommand>(
-                             std::vector<std::pair<
-                                 QNodeGraph::Core::NodeId,
-                                 QNodeGraph::Core::Point>>{
-                                 {*first, {10.0, 20.0}},
-                                 {*second, {30.0, 40.0}}}),
-                         document)
-                .has_value());
+    QVERIFY(
+        stack
+            .execute(std::make_unique<QNodeGraph::Core::MoveNodesCommand>(
+                         std::vector<std::pair<QNodeGraph::Core::NodeId,
+                                               QNodeGraph::Core::Point>>{
+                             {*first, {10.0, 20.0}}, {*second, {30.0, 40.0}}}),
+                     document)
+            .has_value());
     QCOMPARE(document.node(*first)->position.x, 10.0);
     QCOMPARE(document.node(*second)->position.y, 40.0);
     QVERIFY(stack.undo(document).has_value());
@@ -96,18 +100,20 @@ void GraphCommandsTest::connectionCommandSupportsUndoAndRedo() {
     QNodeGraph::Core::GraphDocument document;
     const auto source = document.addNode("source", "Source");
     const auto sink = document.addNode("sink", "Sink");
-    const auto output = document.addPort(*source, "out",
-        QNodeGraph::Core::PortDirection::Output,
+    const auto output = document.addPort(
+        *source, "out", QNodeGraph::Core::PortDirection::Output,
         QNodeGraph::Core::PortDataType::Image);
-    const auto input = document.addPort(*sink, "in",
-        QNodeGraph::Core::PortDirection::Input,
-        QNodeGraph::Core::PortDataType::Image);
+    const auto input =
+        document.addPort(*sink, "in", QNodeGraph::Core::PortDirection::Input,
+                         QNodeGraph::Core::PortDataType::Image);
     QNodeGraph::Core::GraphCommandStack stack;
 
-    QVERIFY(stack.execute(std::make_unique<QNodeGraph::Core::ConnectPortsCommand>(
-                             *output, *input),
-                         document)
-                .has_value());
+    QVERIFY(
+        stack
+            .execute(std::make_unique<QNodeGraph::Core::ConnectPortsCommand>(
+                         *output, *input),
+                     document)
+            .has_value());
     QCOMPARE(document.connectionCount(), std::size_t{1});
     QVERIFY(stack.undo(document).has_value());
     QCOMPARE(document.connectionCount(), std::size_t{0});
@@ -121,7 +127,8 @@ void GraphCommandsTest::propertyCommandSupportsUndoAndRedo() {
     QVERIFY(node.has_value());
     QNodeGraph::Core::GraphCommandStack stack;
 
-    QVERIFY(stack.execute(std::make_unique<QNodeGraph::Core::SetPropertyCommand>(
+    QVERIFY(stack
+                .execute(std::make_unique<QNodeGraph::Core::SetPropertyCommand>(
                              *node, "amount", 0.75),
                          document)
                 .has_value());

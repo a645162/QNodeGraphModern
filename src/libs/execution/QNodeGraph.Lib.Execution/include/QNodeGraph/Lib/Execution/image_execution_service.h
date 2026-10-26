@@ -41,4 +41,3 @@ private:
 } // namespace QNodeGraph::Execution
 
 Q_DECLARE_METATYPE(QNodeGraph::Image::ImageFrame)
-

@@ -16,7 +16,8 @@ class NodePaletteModel : public QAbstractListModel {
     Q_OBJECT
     QML_ELEMENT
     Q_PROPERTY(QString filter READ filter WRITE setFilter NOTIFY filterChanged)
-    Q_PROPERTY(QObject* controller READ controller WRITE setController NOTIFY controllerChanged)
+    Q_PROPERTY(QObject* controller READ controller WRITE setController NOTIFY
+                   controllerChanged)
     Q_PROPERTY(bool hideFixedNodes READ hideFixedNodes WRITE setHideFixedNodes)
 
 public:
@@ -37,13 +38,13 @@ public:
     // 出现在可拖拽添加的调色板中。默认关闭，保持既有行为。
     void setHideFixedNodes(bool hide);
     [[nodiscard]] bool hideFixedNodes() const noexcept;
-    [[nodiscard]] QObject *controller() const noexcept;
-    void setController(QObject *controller);
+    [[nodiscard]] QObject* controller() const noexcept;
+    void setController(QObject* controller);
 
-    [[nodiscard]] int rowCount(
-        const QModelIndex& parent = QModelIndex()) const override;
-    [[nodiscard]] QVariant data(
-        const QModelIndex& index, int role = Qt::DisplayRole) const override;
+    [[nodiscard]] int
+    rowCount(const QModelIndex& parent = QModelIndex()) const override;
+    [[nodiscard]] QVariant data(const QModelIndex& index,
+                                int role = Qt::DisplayRole) const override;
     [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
     [[nodiscard]] QString filter() const;
 
@@ -62,7 +63,7 @@ private:
     std::vector<int> m_visibleRows;
     QString m_filter;
     bool m_hideFixedNodes = false;
-    QObject *m_controller = nullptr;
+    QObject* m_controller = nullptr;
 };
 
 } // namespace QNodeGraph::UI

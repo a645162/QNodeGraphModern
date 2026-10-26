@@ -12,8 +12,8 @@ int main(int argc, char* argv[]) {
     PipelineController controller(&provider);
     QQmlApplicationEngine engine;
     engine.addImageProvider(QStringLiteral("pipeline"), &provider);
-    engine.rootContext()->setContextProperty(QStringLiteral("pipelineController"),
-                                             &controller);
+    engine.rootContext()->setContextProperty(
+        QStringLiteral("pipelineController"), &controller);
     engine.loadFromModule("QNodeGraph.ImagePipelineDemo", "Demo");
     if (engine.rootObjects().isEmpty()) {
         return 1;
