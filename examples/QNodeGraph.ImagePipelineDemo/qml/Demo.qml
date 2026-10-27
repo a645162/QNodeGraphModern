@@ -29,16 +29,32 @@ ApplicationWindow {
         GraphCanvas {
             id: graphCanvas
             Layout.fillWidth: true
+            Layout.fillHeight: true
             Layout.preferredHeight: 320
+            Layout.minimumHeight: 180
 
+            // 节点必须接线：未参与有效链路的节点会被画布按「剪枝」降到 0.38
+            // 不透明度，看起来像整张流程图消失了。
             Component.onCompleted: {
                 controller.addNodeType("load_image", false)
-                controller.addNodeType("grayscale")
-                controller.addNodeType("edge_detect")
-                controller.addNodeType("image_preview")
+                controller.addNodeType("grayscale", true)
+                controller.addNodeType("edge_detect", true)
+                controller.addNodeType("image_preview", true)
+                // Save Image 是汇点且没有来源端口可接（上一个是 Image
+                // Preview，只有输入端），autoLayout 会把它排到第一列的第二
+                // 行，超出画布可视区。稍后统一 fitToNodes() 缩放到全部可见。
                 controller.addNodeType("save_image")
                 controller.autoLayout()
             }
+        }
+
+        // Component.onCompleted 时画布还没拿到最终尺寸，fitToNodes() 会按
+        // 0x0 视口算缩放；延到下一次事件循环再适配一次。
+        Timer {
+            interval: 0
+            running: true
+            repeat: false
+            onTriggered: graphCanvas.fitToNodes()
         }
 
         Connections {
@@ -128,7 +144,9 @@ ApplicationWindow {
 
         Rectangle {
             Layout.fillWidth: true
+            Layout.fillHeight: true
             Layout.preferredHeight: 260
+            Layout.minimumHeight: 120
             color: "#14191e"
             border.color: "#566575"
             radius: 5
@@ -138,7 +156,9 @@ ApplicationWindow {
                 anchors.margins: 12
                 source: pipelineController.previewUrl
                 fillMode: Image.PreserveAspectFit
-                visible: source.length > 0
+                // Image.source 是 QUrl，source.length 恒为 undefined；必须用
+                // 控制器上的字符串属性判断，否则大图区域永远不显示。
+                visible: pipelineController.previewUrl.length > 0
             }
 
             Label {

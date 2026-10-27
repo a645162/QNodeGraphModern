@@ -24,11 +24,15 @@ PipelineController::PipelineController(
                 m_previewUrl =
                     QStringLiteral("image://pipeline/preview?revision=%1")
                         .arg(++m_revision);
-                emit previewUrlChanged();
+                // 元数据必须先于 previewUrlChanged 赋值：QML 的
+                // onPreviewUrlChanged 会立刻调用 setNodePreview(...) 并把
+                // imageWidth/Height/Channels 一起传给节点，晚一步就会把上一帧
+                // 的 0x0 写进节点预览标签。
                 m_imageWidth = result.width();
                 m_imageHeight = result.height();
                 m_imageChannels = result.channels();
                 emit imageMetadataChanged();
+                emit previewUrlChanged();
                 const auto savedPath = QDir::temp().filePath(
                     QStringLiteral("qnodegraph-image-pipeline-preview.png"));
                 if (!QNodeGraph::Execution::SaveImageNode::execute(result,
