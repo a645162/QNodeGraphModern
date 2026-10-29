@@ -6,7 +6,11 @@ import QNodeGraph.UI 1.0
 Rectangle {
     id: nodesPalette
 
-    required property var controller
+    // 宿主可直接赋值，也可在加载前注入 GraphController 上下文属性
+    // （独立工具箱窗口即通过上下文属性在首次求值时就拿到控制器，避免
+    // required 属性在 setSource 期间尚未初始化而产生 QML 警告）。
+    property var controller: typeof workflowController === "undefined"
+                             ? null : workflowController
     property var helpProvider: null
     property Item dropTarget: null
     property bool collapsed: false
