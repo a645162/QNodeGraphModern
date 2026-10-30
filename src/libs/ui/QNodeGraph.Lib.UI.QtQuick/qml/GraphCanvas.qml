@@ -242,17 +242,17 @@ Rectangle {
         id: contextMenu
 
         MenuItem {
-            text: qsTr("Add Grayscale Node")
+            text: qsTr("添加灰度节点")
             onTriggered: canvas.controller.addNodeType("grayscale")
         }
 
         MenuItem {
-            text: qsTr("Auto Layout")
+            text: qsTr("自动布局")
             onTriggered: canvas.controller.autoLayout()
         }
 
         MenuItem {
-            text: qsTr("Clear Graph")
+            text: qsTr("清空图表")
             onTriggered: canvas.controller.clearGraph()
         }
 
@@ -272,7 +272,7 @@ Rectangle {
         }
 
         MenuItem {
-            text: qsTr("Reset View")
+            text: qsTr("重置视图")
             onTriggered: canvas.resetView()
         }
     }
@@ -281,7 +281,7 @@ Rectangle {
         id: nodeContextMenu
 
         Menu {
-            title: qsTr("Assign to Group")
+            title: qsTr("添加到组")
 
             Repeater {
                 model: graphController
@@ -301,7 +301,7 @@ Rectangle {
         MenuSeparator {}
 
         MenuItem {
-            text: qsTr("Delete Node")
+            text: qsTr("删除节点")
             enabled: canvas.contextNodeRow >= 0 &&
                      !(graphController.index(canvas.contextNodeRow, 0)
                        .data(GraphController.NodeFixedRole))
@@ -312,7 +312,7 @@ Rectangle {
         }
 
         MenuItem {
-            text: qsTr("Remove from Group")
+            text: qsTr("从组中移除")
             enabled: canvas.contextNodeRow >= 0
             onTriggered: {
                 if (canvas.contextNodeRow >= 0)
@@ -321,7 +321,7 @@ Rectangle {
         }
 
         MenuItem {
-            text: qsTr("Clear Selection")
+            text: qsTr("清除选择")
             onTriggered: {
                 canvas.contextNodeRow = -1
                 canvas.selectedIndex = -1
@@ -334,7 +334,7 @@ Rectangle {
     Dialog {
         id: deleteConfirmDialog
         anchors.centerIn: parent
-        title: qsTr("Delete Nodes")
+        title: qsTr("删除节点")
         modal: true
         focus: true
         standardButtons: Dialog.Ok | Dialog.Cancel
@@ -346,10 +346,10 @@ Rectangle {
             width: 320
             wrapMode: Text.WordWrap
             text: {
-                var message = qsTr("Delete %1 selected nodes?").arg(
+                var message = qsTr("删除选中的 %1 个节点？").arg(
                               canvas.pendingDeleteRows.length)
                 if (canvas.pendingDeleteFixedCount > 0)
-                    message += "\n" + qsTr("%1 fixed node(s) will be kept.").arg(
+                    message += "\n" + qsTr("将保留 %1 个固定节点。").arg(
                                canvas.pendingDeleteFixedCount)
                 return message
             }
@@ -789,8 +789,8 @@ Rectangle {
                     anchors.bottom: parent.bottom
                     anchors.bottomMargin: 6
                     text: nodeItem.nodeIsBackdrop
-                          ? qsTr("Backdrop")
-                          : qsTr("Group  %1 -> %2").arg(
+                          ? qsTr("背景板")
+                          : qsTr("组  %1 -> %2").arg(
                                 nodeItem.inputPortCount).arg(
                                 nodeItem.outputPortCount)
                     color: Theme.nodeMutedText
@@ -802,7 +802,7 @@ Rectangle {
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.bottom: parent.bottom
                     anchors.bottomMargin: 6
-                    text: qsTr("%1 x %2  |  %3 ch")
+                    text: qsTr("%1 x %2  |  %3 通道")
                           .arg(nodeItem.nodePreviewWidth)
                           .arg(nodeItem.nodePreviewHeight)
                           .arg(nodeItem.nodePreviewChannels)

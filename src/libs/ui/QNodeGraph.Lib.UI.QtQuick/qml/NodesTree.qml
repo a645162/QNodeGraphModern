@@ -11,6 +11,16 @@ Rectangle {
     border.color: Theme.panelBorder
     radius: Theme.radius
 
+    // 分类名来自 typeId 前缀（op/viewer），属于内部标识；面板上显示可读的
+    // 中文/英文名称，未知前缀原样回退，避免把标识硬翻译坏。
+    function categoryLabel(value) {
+        if (value === "op")
+            return qsTr("算子")
+        if (value === "viewer")
+            return qsTr("查看器")
+        return value
+    }
+
     NodePaletteModel {
         id: treeModel
     }
@@ -21,7 +31,7 @@ Rectangle {
         spacing: 8
 
         Label {
-            text: qsTr("Nodes Tree")
+            text: qsTr("节点树")
             color: Theme.textPrimary
             font.bold: true
             font.pixelSize: 16
@@ -61,7 +71,7 @@ Rectangle {
                     spacing: 6
 
                     Label {
-                        text: category
+                        text: tree.categoryLabel(category)
                         color: Theme.textSecondary
                         Layout.preferredWidth: 62
                         elide: Text.ElideRight

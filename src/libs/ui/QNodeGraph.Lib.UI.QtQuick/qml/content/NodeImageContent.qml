@@ -15,7 +15,7 @@ Item {
         spacing: 4
 
         Label {
-            text: qsTr("Blur Radius")
+            text: qsTr("模糊半径")
             color: Theme.nodeBodyText
             font.pixelSize: 11
         }

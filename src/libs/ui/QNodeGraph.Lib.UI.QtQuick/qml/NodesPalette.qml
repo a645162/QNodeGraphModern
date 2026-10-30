@@ -14,6 +14,15 @@ Rectangle {
     property var helpProvider: null
     property Item dropTarget: null
     property bool collapsed: false
+    // 分类名来自 typeId 前缀（op/viewer），属于内部标识；面板上显示可读的
+    // 中文/英文名称，未知前缀原样回退，避免把标识硬翻译坏。
+    function categoryLabel(value) {
+        if (value === "op")
+            return qsTr("算子")
+        if (value === "viewer")
+            return qsTr("查看器")
+        return value
+    }
     // 宿主（如 ImageViewer）需要拿到节点面板模型才能安装自己的算子注册表，
     // 因此把内部的 NodePaletteModel 暴露出去。
     property alias nodePaletteModel: paletteModel
@@ -137,8 +146,8 @@ Rectangle {
                     }
 
                     Label {
-                        text: qsTr("%1  |  %2 in  %3 out")
-                              .arg(category)
+                        text: qsTr("%1  |  %2 输入  %3 输出")
+                              .arg(nodesPalette.categoryLabel(category))
                               .arg(inputPortCount)
                               .arg(outputPortCount)
                         color: Theme.textSecondary

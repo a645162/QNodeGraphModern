@@ -13,7 +13,7 @@ Item {
     Label {
         anchors.top: parent.top
         anchors.horizontalCenter: parent.horizontalCenter
-        text: qsTr("Image Viewer")
+        text: qsTr("图像查看器")
         color: Theme.nodeBodyText
         font.pixelSize: 11
     }

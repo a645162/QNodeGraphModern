@@ -81,7 +81,7 @@ ColumnLayout {
         id: helpDialog
         modal: false
         title: editor.helpProvider && editor.helpProvider.typeId.length > 0
-               ? qsTr("帮助: %1").arg(editor.helpProvider.typeId)
+               ? qsTr("帮助：%1").arg(editor.helpProvider.typeId)
                : qsTr("工作流帮助")
         width: Math.min(editor.width * 0.7, 720)
         height: Math.min(editor.height * 0.8, 560)

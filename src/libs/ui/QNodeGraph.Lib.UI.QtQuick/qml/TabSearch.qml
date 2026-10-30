@@ -14,6 +14,16 @@ Popup {
     focus: true
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
+    // 分类名来自 typeId 前缀（op/viewer），属于内部标识；面板上显示可读的
+    // 中文/英文名称，未知前缀原样回退，避免把标识硬翻译坏。
+    function categoryLabel(value) {
+        if (value === "op")
+            return qsTr("算子")
+        if (value === "viewer")
+            return qsTr("查看器")
+        return value
+    }
+
     NodePaletteModel {
         id: searchModel
     }
@@ -41,7 +51,7 @@ Popup {
         spacing: 8
 
         Label {
-            text: qsTr("Tab Search")
+            text: qsTr("标签搜索")
             color: Theme.textPrimary
             font.bold: true
             font.pixelSize: 16
@@ -50,7 +60,7 @@ Popup {
         TextField {
             id: searchField
             Layout.fillWidth: true
-            placeholderText: qsTr("Type a node name")
+            placeholderText: qsTr("输入节点名称")
             selectByMouse: true
             onTextChanged: {
                 searchModel.filter = text
@@ -98,7 +108,7 @@ Popup {
                     }
 
                     Label {
-                        text: category
+                        text: tabSearch.categoryLabel(category)
                         color: Theme.textSecondary
                     }
                 }
