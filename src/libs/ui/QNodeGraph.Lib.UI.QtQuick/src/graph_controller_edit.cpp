@@ -160,6 +160,51 @@ bool GraphController::deleteNode(int row) {
     return true;
 }
 
+bool GraphController::deleteNodes(QVariantList rows) {
+    // 先按行号换算成 NodeId：删除一个节点后其余行号都会前移，若边删边按行
+    // 号定位就会误删无关节点。
+    std::vector<Core::NodeId> targets;
+    targets.reserve(static_cast<std::size_t>(rows.size()));
+    for (const auto& value : rows) {
+        bool ok = false;
+        const auto row = value.toInt(&ok);
+        if (!ok || row < 0 || row >= nodeCount()) {
+            continue;
+        }
+        const auto nodeId = m_nodeOrder[static_cast<std::size_t>(row)];
+        if (isFixedNode(nodeId) || std::find(targets.begin(), targets.end(),
+                                             nodeId) != targets.end()) {
+            continue;
+        }
+        targets.push_back(nodeId);
+    }
+    if (targets.empty()) {
+        setError(QStringLiteral("No deletable node is selected."));
+        return false;
+    }
+    const auto result = m_commandStack.execute(
+        std::make_unique<Core::DeleteNodesCommand>(std::move(targets)),
+        m_document);
+    if (!result) {
+        setError(QString::fromStdString(result.error().message));
+        return false;
+    }
+
+    cancelConnection();
+    const auto oldCount = nodeCount();
+    beginResetModel();
+    m_nodeOrder = m_document.nodeIds();
+    endResetModel();
+    setSelection({});
+    if (nodeCount() != oldCount) {
+        emit nodeCountChanged();
+    }
+    notifyTopologyChanged();
+    emit historyChanged();
+    setError({});
+    return true;
+}
+
 bool GraphController::saveGraph(QString filePath) {
     filePath = filePath.trimmed();
     if (filePath.isEmpty()) {

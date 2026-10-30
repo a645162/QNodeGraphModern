@@ -120,6 +120,9 @@ public:
     Q_INVOKABLE bool addNodeTypeAt(QString typeId, double x, double y,
                                    bool connectToPrevious = false);
     Q_INVOKABLE bool deleteNode(int row);
+    // 批量删除（框选后按 Del）：跳过固定节点，整批作为一个撤销单元。
+    // 行号在删除过程中会漂移，因此内部先换算成 NodeId 再统一执行。
+    Q_INVOKABLE bool deleteNodes(QVariantList rows);
     Q_INVOKABLE bool saveGraph(QString filePath);
     Q_INVOKABLE bool loadGraph(QString filePath);
     Q_INVOKABLE QVariantMap graphBounds() const;
