@@ -44,6 +44,24 @@ private:
     std::optional<NodeSnapshot> m_snapshot;
 };
 
+// 批量删除：框选多个节点后按 Del 必须一次删完，并作为**一个**撤销单元。
+//
+// 逐条执行 DeleteNodeCommand 会为每个节点各留一条撤销记录，用户按一次
+// Ctrl+Z 只回来一个节点，与「框选删除」的直觉不符，因此这里把快照集中到
+// 一个命令里。NodeId 在删除后仍然稳定（NodeId 单调递增，不复用），
+// 所以按 id 而不是按行号记录目标，避免行号随删除漂移。
+class DeleteNodesCommand final : public GraphCommand {
+public:
+    explicit DeleteNodesCommand(std::vector<NodeId> nodeIds);
+    GraphResult<void> execute(GraphDocument& document) override;
+    GraphResult<void> undo(GraphDocument& document) override;
+    [[nodiscard]] const char* name() const noexcept override;
+
+private:
+    std::vector<NodeId> m_nodeIds;
+    std::vector<NodeSnapshot> m_snapshots;
+};
+
 class MoveNodeCommand final : public GraphCommand {
 public:
     MoveNodeCommand(NodeId nodeId, Point position);

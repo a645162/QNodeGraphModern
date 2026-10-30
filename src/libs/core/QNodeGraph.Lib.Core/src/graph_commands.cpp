@@ -65,6 +65,45 @@ GraphResult<void> DeleteNodeCommand::undo(GraphDocument& document) {
 
 const char* DeleteNodeCommand::name() const noexcept { return "Delete Node"; }
 
+DeleteNodesCommand::DeleteNodesCommand(std::vector<NodeId> nodeIds)
+    : m_nodeIds(std::move(nodeIds)) {}
+
+GraphResult<void> DeleteNodesCommand::execute(GraphDocument& document) {
+    m_snapshots.clear();
+    m_snapshots.reserve(m_nodeIds.size());
+    for (const auto nodeId : m_nodeIds) {
+        auto removed = document.removeNode(nodeId);
+        if (!removed) {
+            // 中途失败时把已经删掉的节点按逆序还原，保证命令要么全做、
+            // 要么全不做；否则撤销栈会记下一个「删了一半」的中间态。
+            for (auto it = m_snapshots.rbegin(); it != m_snapshots.rend();
+                 ++it) {
+                static_cast<void>(document.restoreNode(*it));
+            }
+            m_snapshots.clear();
+            return std::unexpected(removed.error());
+        }
+        m_snapshots.push_back(std::move(*removed));
+    }
+    return {};
+}
+
+GraphResult<void> DeleteNodesCommand::undo(GraphDocument& document) {
+    if (m_snapshots.size() != m_nodeIds.size()) {
+        return std::unexpected(
+            commandError("The delete command was not executed."));
+    }
+    for (const auto& snapshot : m_snapshots) {
+        const auto result = document.restoreNode(snapshot);
+        if (!result) {
+            return result;
+        }
+    }
+    return {};
+}
+
+const char* DeleteNodesCommand::name() const noexcept { return "Delete Nodes"; }
+
 MoveNodeCommand::MoveNodeCommand(NodeId nodeId, Point position)
     : m_nodeId(nodeId), m_position(position) {}
 
