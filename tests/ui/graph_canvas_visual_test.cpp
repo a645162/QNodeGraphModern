@@ -25,6 +25,7 @@ private slots:
     void loadsCustomNodeContent();
     void rendersConnectionWireBetweenNodes();
     void leftClickSelectsAfterRightDragPan();
+    void workflowEditorHidesEmbeddedPaletteWhenDetached();
 };
 
 void GraphCanvasVisualTest::rendersConnectionWireBetweenNodes() {
@@ -294,6 +295,45 @@ void GraphCanvasVisualTest::leftClickSelectsAfterRightDragPan() {
     QTest::mouseClick(&window, Qt::LeftButton, Qt::NoModifier, headerPoint);
     QTest::qWait(100);
     QCOMPARE(controller->property("selectedRow").toInt(), 0);
+}
+
+void GraphCanvasVisualTest::workflowEditorHidesEmbeddedPaletteWhenDetached() {
+    QQmlEngine engine;
+    QQmlComponent component(
+        &engine,
+        QUrl(QStringLiteral("qrc:/qt/qml/QNodeGraph/UI/qml/WorkflowEditor.qml")));
+    QVERIFY2(component.status() == QQmlComponent::Ready,
+             qPrintable(component.errorString()));
+    std::unique_ptr<QObject> object(component.create());
+    QVERIFY2(object != nullptr, qPrintable(component.errorString()));
+    auto* editor = qobject_cast<QQuickItem*>(object.get());
+    QVERIFY(editor != nullptr);
+
+    QQuickWindow window;
+    window.resize(1280, 720);
+    editor->setParentItem(window.contentItem());
+    editor->setWidth(window.width());
+    editor->setHeight(window.height());
+    window.show();
+    QTest::qWait(100);
+
+    auto* palette =
+        editor->findChild<QQuickItem*>(QStringLiteral("workflowNodePalette"));
+    QVERIFY2(palette != nullptr, "embedded node palette is not exposed");
+    QVERIFY2(palette->isVisible(), "palette must be visible while embedded");
+    QVERIFY2(palette->width() > 100.0,
+             "palette must occupy its column while embedded");
+
+    // 组件库交给独立的「工作流工具箱」Dock 承载时，画布左侧这份必须真正隐藏：
+    // 只发信号不改属性会让同一份组件库同时出现在两处（用户看到的「重复工具箱」）。
+    editor->setProperty("toolboxEmbedded", false);
+    QTest::qWait(100);
+    QVERIFY2(!palette->isVisible(),
+             "detached toolbox must hide the embedded palette");
+    editor->setProperty("toolboxEmbedded", true);
+    QTest::qWait(100);
+    QVERIFY2(palette->isVisible(),
+             "re-attached toolbox must restore the embedded palette");
 }
 
 int main(int argc, char** argv) {

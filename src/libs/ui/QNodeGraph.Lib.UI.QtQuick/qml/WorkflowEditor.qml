@@ -14,6 +14,10 @@ ColumnLayout {
     // this null and keeps the canvas usable without application settings.
     property var workflowHost: typeof workflowPanel === "undefined"
                                 ? null : workflowPanel
+    // 组件库是内嵌在画布左侧，还是由独立的「工作流工具箱」Dock 承载。宿主
+    // （WorkflowPanel::setToolboxEmbedded）通过该属性切换；分离时必须真的把内嵌
+    // 面板隐藏，否则同一份组件库会同时出现在画布里和浮动窗口里，看起来像重复了。
+    property bool toolboxEmbedded: true
     property var helpProvider: typeof workflowHelp === "undefined"
                                ? null : workflowHelp
 
@@ -51,6 +55,8 @@ ColumnLayout {
 
         NodesPalette {
             id: palette
+            objectName: "workflowNodePalette"
+            visible: editor.toolboxEmbedded
             Layout.fillHeight: true
             Layout.preferredWidth: collapsed ? 30 : 230
             Layout.minimumWidth: collapsed ? 30 : 190
