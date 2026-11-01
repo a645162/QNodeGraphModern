@@ -147,6 +147,16 @@ Rectangle {
         return panConsumedClick
     }
 
+    // panConsumedClick 只应活到「同一手势」的 clicked。右键平移松开后，
+    // 跟来的 click 是右键，各 MouseArea 的 onClicked 会因 button !==
+    // LeftButton 提前返回而**不消费**这个标记；若不在新手势按下时清掉，
+    // 它就一直为 true，之后所有左键点击都被当成「被平移吞掉」——表现为
+    // 「右键拖过一次之后，左键再也选不中任何东西」。因此每个 MouseArea
+    // 的 onPressed 入口都要先调这里。
+    function resetPanClickSuppression() {
+        panConsumedClick = false
+    }
+
     // 固定节点（sink / 源等）不允许删除，框选时常常一起被框进来，所以先剔除。
     function deletableRowsFrom(rows) {
         var result = []
@@ -589,6 +599,7 @@ Rectangle {
                         acceptedButtons: Qt.LeftButton | Qt.RightButton |
                                          Qt.MiddleButton
                         onPressed: function(mouse) {
+                            canvas.resetPanClickSuppression()
                             canvas.forceActiveFocus()
                             if (!canvas.wantsPan(mouse))
                                 return
@@ -906,6 +917,7 @@ Rectangle {
                         preventStealing: true
 
                         onPressed: function(mouse) {
+                            canvas.resetPanClickSuppression()
                             mouse.accepted = true
                             canvas.controller.beginConnection(nodeItem.index)
                         }
@@ -936,6 +948,7 @@ Rectangle {
                     acceptedButtons: Qt.LeftButton | Qt.RightButton |
                                      Qt.MiddleButton
                     onPressed: function(mouse) {
+                        canvas.resetPanClickSuppression()
                         canvas.forceActiveFocus()
                         if (!canvas.wantsPan(mouse))
                             return
@@ -1024,6 +1037,7 @@ Rectangle {
                             property real startHeight: 0
 
                             onPressed: function(mouse) {
+                                canvas.resetPanClickSuppression()
                                 startX = nodeItem.nodeX
                                 startY = nodeItem.nodeY
                                 startWidth = nodeItem.nodeWidth
@@ -1098,6 +1112,7 @@ Rectangle {
         z: 0
         acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
         onPressed: function(mouse) {
+            canvas.resetPanClickSuppression()
             canvas.forceActiveFocus()
             // 中键 / 右键 / Alt+左键在这里（以及节点上的 MouseArea）平移视图；
             // 右键菜单改到 release 且未拖动时才弹出。

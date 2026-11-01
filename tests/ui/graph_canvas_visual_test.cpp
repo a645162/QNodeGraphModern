@@ -24,6 +24,7 @@ private slots:
     void togglesThemeBetweenLightAndDark();
     void loadsCustomNodeContent();
     void rendersConnectionWireBetweenNodes();
+    void leftClickSelectsAfterRightDragPan();
 };
 
 void GraphCanvasVisualTest::rendersConnectionWireBetweenNodes() {
@@ -245,6 +246,54 @@ void GraphCanvasVisualTest::addsPaletteNodeThroughMouseDrag() {
     QTest::qWait(150);
 
     QCOMPARE(controller->property("nodeCount").toInt(), 1);
+}
+
+void GraphCanvasVisualTest::leftClickSelectsAfterRightDragPan() {
+    QQmlEngine engine;
+    QQmlComponent component(
+        &engine,
+        QUrl(QStringLiteral("qrc:/qt/qml/QNodeGraph/UI/qml/GraphCanvas.qml")));
+    QVERIFY2(component.status() == QQmlComponent::Ready,
+             qPrintable(component.errorString()));
+    std::unique_ptr<QObject> object(component.create());
+    QVERIFY2(object != nullptr, qPrintable(component.errorString()));
+    auto* canvas = qobject_cast<QQuickItem*>(object.get());
+    QVERIFY(canvas != nullptr);
+
+    QQuickWindow window;
+    window.resize(640, 420);
+    canvas->setParentItem(window.contentItem());
+    canvas->setWidth(window.width());
+    canvas->setHeight(window.height());
+    window.show();
+    QTest::qWait(100);
+
+    auto* controller = canvas->property("controller").value<QObject*>();
+    QVERIFY(controller != nullptr);
+    QVERIFY(QMetaObject::invokeMethod(controller, "addDemoNode",
+                                      Q_ARG(bool, false)));
+    QTest::qWait(100);
+    QCOMPARE(controller->property("selectedRow").toInt(), -1);
+
+    // 右键在空白处拖动 = 平移视图。松开之后不能留下「这次点击已被平移
+    // 吞掉」的残留状态，否则紧接着的左键点击会被全部忽略。
+    QTest::mousePress(&window, Qt::RightButton, Qt::NoModifier,
+                      QPoint(520, 330));
+    QTest::mouseMove(&window, QPoint(475, 330), 40);
+    QTest::mouseMove(&window, QPoint(430, 330), 40);
+    QTest::mouseRelease(&window, Qt::RightButton, Qt::NoModifier,
+                        QPoint(430, 330));
+    QTest::qWait(100);
+
+    const auto panOffset = canvas->property("panOffset").toPointF();
+    QVERIFY2(panOffset.x() < -2.0, "right drag did not pan the canvas");
+
+    // 节点 0 的世界坐标是 (80, 90)，标题栏 28 高，取 (100, 104) 落在标题栏。
+    const QPoint headerPoint(qRound(100.0 + panOffset.x()),
+                             qRound(104.0 + panOffset.y()));
+    QTest::mouseClick(&window, Qt::LeftButton, Qt::NoModifier, headerPoint);
+    QTest::qWait(100);
+    QCOMPARE(controller->property("selectedRow").toInt(), 0);
 }
 
 int main(int argc, char** argv) {
