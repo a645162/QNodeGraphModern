@@ -10,7 +10,12 @@
 #include <vector>
 
 namespace QNodeGraph::Graph {
-struct NodeRegistry;
+// 前置声明必须与 node_registry.h 里的 `class NodeRegistry final` 同键（class）。
+// 写成 struct 时 MSVC 修饰名会把它记成 `PEBUNodeRegistry`，而库里导出的是
+// `PEBVNodeRegistry`，于是任何用本头文件调用 GraphPlanBuilder::build 的翻译
+// 单元都会在链接期报 undefined symbol。前置声明的 struct/class 不影响类型语义，
+// 但**改变修饰名**，不能随手写成 struct。
+class NodeRegistry;
 } // namespace QNodeGraph::Graph
 
 // 求值计划与脏传播：把 GraphDocument 编译成一份可执行的阶段序列，并描述
